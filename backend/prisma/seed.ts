@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -24,7 +25,9 @@ async function main() {
     update: {},
     create: {
       name: 'Acme Corp',
-      contactInfo: 'contact@acme.com',
+      contactPerson: 'John Doe',
+      email: 'contact@acme.com',
+      phone: '555-0100',
     },
   });
 
@@ -33,7 +36,9 @@ async function main() {
     update: {},
     create: {
       name: 'Widget Warehouse',
-      contactInfo: 'sales@widgetwarehouse.com',
+      contactPerson: 'Jane Smith',
+      email: 'sales@widgetwarehouse.com',
+      phone: '555-0200',
     },
   });
   console.log('✅ Created suppliers');

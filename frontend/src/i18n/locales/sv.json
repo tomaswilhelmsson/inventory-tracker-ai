@@ -180,9 +180,11 @@
     "editPurchase": "Redigera inköp",
     "deletePurchase": "Ta bort inköp",
     "searchPurchases": "Sök inköp...",
-    "yearLocked": "År {year} är låst. Du kan inte skapa/redigera inköp för detta år.",
+    "selectYear": "Välj år",
+    "allYears": "Alla år",
+    "yearLocked": "År låst",
+    "yearLockedCannotEdit": "År låst - kan inte redigeras",
     "locked": "LÅST",
-    "lockedTooltip": "År låst - kan inte redigeras",
     "form": {
       "purchaseDate": "Inköpsdatum",
       "product": "Produkt",

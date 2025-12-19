@@ -180,9 +180,11 @@
     "editPurchase": "Edit Purchase",
     "deletePurchase": "Delete Purchase",
     "searchPurchases": "Search purchases...",
-    "yearLocked": "Year {year} is locked. You cannot create/edit purchases for this year.",
+    "selectYear": "Select Year",
+    "allYears": "All Years",
+    "yearLocked": "Year locked",
+    "yearLockedCannotEdit": "Year locked - cannot edit",
     "locked": "LOCKED",
-    "lockedTooltip": "Year locked - cannot edit",
     "form": {
       "purchaseDate": "Purchase Date",
       "product": "Product",
