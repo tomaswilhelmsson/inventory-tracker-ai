@@ -2,7 +2,7 @@
   <div class="products-view">
     <div class="header">
       <h1>Product Catalog</h1>
-      <Button label="Add Product" icon="pi pi-plus" @click="openCreateDialog" />
+      <Button label=t("products.addProduct") icon="pi pi-plus" @click="openCreateDialog" />
     </div>
 
     <Card>
@@ -181,6 +181,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import api from '@/services/api';
@@ -237,6 +238,7 @@ interface FormErrors {
 
 const toast = useToast();
 const confirm = useConfirm();
+const { t } = useI18n();
 
 const products = ref<Product[]>([]);
 const suppliers = ref<Supplier[]>([]);

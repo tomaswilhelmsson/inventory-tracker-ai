@@ -1,8 +1,8 @@
 <template>
   <div class="suppliers-view">
     <div class="header">
-      <h1>Supplier Management</h1>
-      <Button label="Add Supplier" icon="pi pi-plus" @click="openCreateDialog" />
+      <h1>{{ t('suppliers.title') }}</h1>
+      <Button :label="t('suppliers.addSupplier')" icon="pi pi-plus" @click="openCreateDialog" />
     </div>
 
     <Card>
@@ -23,51 +23,51 @@
                 </InputIcon>
                 <InputText
                   v-model="searchQuery"
-                  placeholder="Search suppliers..."
+                  :placeholder="t('suppliers.searchSuppliers')"
                 />
               </IconField>
             </div>
           </template>
 
-          <Column field="name" header="Name" sortable />
+          <Column field="name" :header="t('suppliers.table.name')" sortable />
 
-          <Column header="Contact Person" sortable>
+          <Column :header="t('suppliers.table.contactPerson')" sortable>
             <template #body="{ data }">
               {{ data.contactPerson || '-' }}
             </template>
           </Column>
 
-          <Column header="Email" sortable>
+          <Column :header="t('suppliers.table.email')" sortable>
             <template #body="{ data }">
               {{ data.email || '-' }}
             </template>
           </Column>
 
-          <Column header="Phone" sortable>
+          <Column :header="t('suppliers.table.phone')" sortable>
             <template #body="{ data }">
               {{ data.phone || '-' }}
             </template>
           </Column>
 
-          <Column field="createdAt" header="Created" sortable>
+          <Column field="createdAt" :header="t('suppliers.table.created')" sortable>
             <template #body="{ data }">
               {{ formatDate(data.createdAt) }}
             </template>
           </Column>
 
-          <Column header="Products" style="width: 100px">
+          <Column :header="t('suppliers.table.products')" style="width: 100px">
             <template #body="{ data }">
               <Tag :value="data._count?.products || 0" severity="info" />
             </template>
           </Column>
 
-          <Column header="Purchases" style="width: 100px">
+          <Column :header="t('suppliers.table.purchases')" style="width: 100px">
             <template #body="{ data }">
               <Tag :value="data._count?.purchases || 0" severity="success" />
             </template>
           </Column>
 
-          <Column header="Actions" style="width: 150px">
+          <Column :header="t('common.actions')" style="width: 150px">
             <template #body="{ data }">
               <div class="action-buttons">
                 <Button
@@ -76,7 +76,7 @@
                   text
                   rounded
                   @click="openEditDialog(data)"
-                  v-tooltip.top="'Edit'"
+                  v-tooltip.top="t('common.edit')"
                 />
                 <Button
                   icon="pi pi-trash"
@@ -85,7 +85,7 @@
                   rounded
                   severity="danger"
                   @click="confirmDelete(data)"
-                  v-tooltip.top="'Delete'"
+                  v-tooltip.top="t('common.delete')"
                 />
               </div>
             </template>
@@ -94,7 +94,7 @@
           <template #empty>
             <div class="empty-state">
               <i class="pi pi-inbox" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
-              <p>No suppliers found</p>
+              <p>{{ t('common.noRecordsFound') }}</p>
             </div>
           </template>
         </DataTable>
@@ -104,19 +104,19 @@
     <!-- Create/Edit Dialog -->
     <Dialog
       v-model:visible="dialogVisible"
-      :header="editMode ? 'Edit Supplier' : 'Add Supplier'"
+      :header="editMode ? t('suppliers.editSupplier') : t('suppliers.addSupplier')"
       modal
       :style="{ width: '700px' }"
       @hide="resetForm"
     >
       <div class="form-container">
         <div class="field">
-          <label for="name">Supplier Name *</label>
+          <label for="name">{{ t('suppliers.form.name') }} *</label>
           <InputText
             id="name"
             v-model="formData.name"
             :class="{ 'p-invalid': formErrors.name }"
-            placeholder="Enter supplier name"
+            :placeholder="t('suppliers.form.namePlaceholder')"
             autofocus
           />
           <small v-if="formErrors.name" class="p-error">{{ formErrors.name }}</small>
@@ -124,89 +124,89 @@
 
         <div class="field-row">
           <div class="field">
-            <label for="contactPerson">Contact Person</label>
+            <label for="contactPerson">{{ t('suppliers.form.contactPerson') }}</label>
             <InputText
               id="contactPerson"
               v-model="formData.contactPerson"
-              placeholder="e.g., John Smith"
+              :placeholder="t('suppliers.form.contactPersonPlaceholder')"
             />
           </div>
 
           <div class="field">
-            <label for="phone">Phone Number</label>
+            <label for="phone">{{ t('suppliers.form.phone') }}</label>
             <InputText
               id="phone"
               v-model="formData.phone"
-              placeholder="e.g., +1 234 567 8900"
+              :placeholder="t('suppliers.form.phonePlaceholder')"
             />
           </div>
         </div>
 
         <div class="field">
-          <label for="email">Email Address</label>
+          <label for="email">{{ t('suppliers.form.email') }}</label>
           <InputText
             id="email"
             v-model="formData.email"
             :class="{ 'p-invalid': formErrors.email }"
             type="email"
-            placeholder="e.g., supplier@example.com"
+            :placeholder="t('suppliers.form.emailPlaceholder')"
           />
           <small v-if="formErrors.email" class="p-error">{{ formErrors.email }}</small>
         </div>
 
         <div class="field">
-          <label for="address">Street Address</label>
+          <label for="address">{{ t('suppliers.form.address') }}</label>
           <InputText
             id="address"
             v-model="formData.address"
-            placeholder="e.g., 123 Main Street"
+            :placeholder="t('suppliers.form.addressPlaceholder')"
           />
         </div>
 
         <div class="field-row">
           <div class="field">
-            <label for="city">City</label>
+            <label for="city">{{ t('suppliers.form.city') }}</label>
             <InputText
               id="city"
               v-model="formData.city"
-              placeholder="e.g., New York"
+              :placeholder="t('suppliers.form.cityPlaceholder')"
             />
           </div>
 
           <div class="field">
-            <label for="country">Country</label>
+            <label for="country">{{ t('suppliers.form.country') }}</label>
             <InputText
               id="country"
               v-model="formData.country"
-              placeholder="e.g., USA"
+              :placeholder="t('suppliers.form.countryPlaceholder')"
             />
           </div>
         </div>
 
         <div class="field">
-          <label for="taxId">Tax ID / VAT Number</label>
+          <label for="taxId">{{ t('suppliers.form.taxId') }}</label>
           <InputText
             id="taxId"
             v-model="formData.taxId"
-            placeholder="e.g., 12-3456789"
+            :placeholder="t('suppliers.form.taxIdPlaceholder')"
           />
         </div>
 
         <div class="field">
-          <label for="notes">Notes</label>
+          <label for="notes">{{ t('suppliers.form.notes') }}</label>
           <Textarea
             id="notes"
             v-model="formData.notes"
             rows="3"
-            placeholder="Additional information about the supplier..."
+            :placeholder="t('suppliers.form.notesPlaceholder')"
           />
         </div>
       </div>
 
       <template #footer>
-        <Button label="Cancel" text @click="dialogVisible = false" />
+        <Button :label="t('common.cancel')" text @click="dialogVisible = false" />
         <Button
-          :label="editMode ? 'Update' : 'Create'"
+          :label="editMode ? t('common.edit') : t('common.add')"
           :loading="saving"
           @click="saveSupplier"
         />
@@ -219,7 +219,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+
+const { t } = useI18n();
 
 import Button from 'primevue/button';
 import Card from 'primevue/card';
@@ -317,8 +320,8 @@ const fetchSuppliers = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load suppliers',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('common.error'),
       life: 3000,
     });
   } finally {
@@ -356,14 +359,14 @@ const validateForm = (): boolean => {
   formErrors.value = {};
 
   if (!formData.value.name.trim()) {
-    formErrors.value.name = 'Supplier name is required';
+    formErrors.value.name = t('validation.required');
   }
 
   // Validate email format if provided
   if (formData.value.email.trim()) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.value.email.trim())) {
-      formErrors.value.email = 'Please enter a valid email address';
+      formErrors.value.email = t('validation.invalidEmail');
     }
   }
 
@@ -395,8 +398,8 @@ const saveSupplier = async () => {
       await api.put(`/suppliers/${currentSupplierId.value}`, payload);
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: 'Supplier updated successfully',
+        summary: t('common.success'),
+        detail: t('suppliers.messages.updateSuccess'),
         life: 3000,
       });
     } else {
@@ -404,8 +407,8 @@ const saveSupplier = async () => {
       await api.post('/suppliers', payload);
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: 'Supplier created successfully',
+        summary: t('common.success'),
+        detail: t('suppliers.messages.createSuccess'),
         life: 3000,
       });
     }
@@ -415,8 +418,8 @@ const saveSupplier = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to save supplier',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('common.error'),
       life: 3000,
     });
   } finally {
@@ -432,16 +435,16 @@ const confirmDelete = (supplier: Supplier) => {
   if (productCount > 0 || purchaseCount > 0) {
     toast.add({
       severity: 'warn',
-      summary: 'Cannot Delete',
-      detail: `This supplier has ${productCount} product(s) and ${purchaseCount} purchase(s). Delete those first.`,
+      summary: t('suppliers.messages.cannotDelete'),
+      detail: t('suppliers.messages.deleteWarning', { products: productCount, purchases: purchaseCount }),
       life: 5000,
     });
     return;
   }
 
   confirm.require({
-    message: `Are you sure you want to delete "${supplier.name}"?`,
-    header: 'Confirm Deletion',
+    message: t('suppliers.messages.deleteConfirm', { name: supplier.name }),
+    header: t('common.confirm'),
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
     accept: () => deleteSupplier(supplier.id),
@@ -454,16 +457,16 @@ const deleteSupplier = async (id: number) => {
     await api.delete(`/suppliers/${id}`);
     toast.add({
       severity: 'success',
-      summary: 'Success',
-      detail: 'Supplier deleted successfully',
+      summary: t('common.success'),
+      detail: t('suppliers.messages.deleteSuccess'),
       life: 3000,
     });
     await fetchSuppliers();
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to delete supplier',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('common.error'),
       life: 3000,
     });
   }
