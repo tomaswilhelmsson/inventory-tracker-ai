@@ -55,14 +55,14 @@ async function initiateCount() {
     toast.add({
       severity: 'success',
       summary: t('common.success'),
-      detail: `Year-end count for ${currentYear} initiated`,
+      detail: t('yearEndCount.messages.initiateSuccess', { year: currentYear }),
       life: 3000,
     });
   } catch (error: any) {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.error || 'Failed to initiate count',
+      detail: error.response?.data?.error || t('yearEndCount.messages.initiateFailed'),
       life: 5000,
     });
   } finally {
@@ -79,7 +79,7 @@ async function loadCountSheet(countId: number) {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.error || 'Failed to load count sheet',
+      detail: error.response?.data?.error || t('yearEndCount.messages.loadSheetFailed'),
       life: 5000,
     });
   } finally {
@@ -103,7 +103,7 @@ async function loadExistingCount() {
       toast.add({
         severity: 'error',
         summary: t('common.error'),
-        detail: error.response?.data?.error || 'Failed to load count',
+        detail: error.response?.data?.error || t('yearEndCount.messages.loadFailed'),
         life: 5000,
       });
     }
@@ -123,15 +123,15 @@ async function updateCountItem(item: any) {
 
     toast.add({
       severity: 'success',
-      summary: 'Saved',
-      detail: `Count updated for ${item.product.name}`,
+      summary: t('common.saved'),
+      detail: t('yearEndCount.messages.countUpdated', { productName: item.product.name }),
       life: 2000,
     });
   } catch (error: any) {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.error || 'Failed to update count',
+      detail: error.response?.data?.error || t('yearEndCount.messages.updateFailed'),
       life: 5000,
     });
   }
@@ -154,14 +154,14 @@ async function exportCSV() {
     toast.add({
       severity: 'success',
       summary: t('common.success'),
-      detail: 'Count sheet exported to CSV',
+      detail: t('yearEndCount.messages.exportCSVSuccess'),
       life: 3000,
     });
   } catch (error: any) {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: 'Failed to export CSV',
+      detail: t('yearEndCount.messages.exportCSVFailed'),
       life: 5000,
     });
   }
@@ -184,14 +184,14 @@ async function exportPDF() {
     toast.add({
       severity: 'success',
       summary: t('common.success'),
-      detail: 'Count sheet exported to PDF',
+      detail: t('yearEndCount.messages.exportPDFSuccess'),
       life: 3000,
     });
   } catch (error: any) {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: 'Failed to export PDF',
+      detail: t('yearEndCount.messages.exportPDFFailed'),
       life: 5000,
     });
   }
@@ -214,7 +214,7 @@ async function onUploadCSV(event: any) {
     toast.add({
       severity: 'success',
       summary: t('common.success'),
-      detail: `Imported ${response.data.results.successful} items successfully`,
+      detail: t('yearEndCount.messages.importSuccess', { count: response.data.results.successful }),
       life: 5000,
     });
 
@@ -222,7 +222,7 @@ async function onUploadCSV(event: any) {
       toast.add({
         severity: 'warn',
         summary: t('common.warning'),
-        detail: `${response.data.results.failed} items failed. Check console for details.`,
+        detail: t('yearEndCount.messages.importWarning', { count: response.data.results.failed }),
         life: 5000,
       });
       console.error('Import errors:', response.data.results.errors);
@@ -231,7 +231,7 @@ async function onUploadCSV(event: any) {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.error || 'Failed to import CSV',
+      detail: error.response?.data?.error || t('yearEndCount.messages.importFailed'),
       life: 5000,
     });
   }
@@ -246,7 +246,7 @@ async function previewReport() {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.error || 'Failed to generate report',
+      detail: error.response?.data?.error || t('yearEndCount.messages.reportFailed'),
       life: 5000,
     });
   }
@@ -256,8 +256,8 @@ async function confirmCount() {
   if (!isCountComplete.value) {
     toast.add({
       severity: 'error',
-      summary: 'Incomplete Count',
-      detail: `Please count all products. ${uncountedItems.value.length} products remaining.`,
+      summary: t('common.error'),
+      detail: t('yearEndCount.messages.incompleteCount', { count: uncountedItems.value.length }),
       life: 5000,
     });
     return;
@@ -275,8 +275,8 @@ async function finalizeCount() {
     
     toast.add({
       severity: 'success',
-      summary: 'Count Confirmed',
-      detail: response.data.message,
+      summary: t('common.success'),
+      detail: t('yearEndCount.messages.confirmSuccess'),
       life: 5000,
     });
 
@@ -286,7 +286,7 @@ async function finalizeCount() {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: error.response?.data?.error || 'Failed to confirm count',
+      detail: error.response?.data?.error || t('yearEndCount.messages.confirmFailed'),
       life: 5000,
     });
   } finally {
@@ -316,10 +316,10 @@ onMounted(() => {
 <template>
   <div class="year-end-count">
     <div class="header">
-      <h1>Year-End Inventory Count - {{ currentYear }}</h1>
+      <h1>{{ t('yearEndCount.title', { year: currentYear }) }}</h1>
       <div class="actions" v-if="!countSheet">
         <Button
-          label="Initiate Year-End Count"
+          :label="t('yearEndCount.initiateCount')"
           icon="pi pi-plus"
           @click="initiateCount"
           :loading="loading"
@@ -333,8 +333,8 @@ onMounted(() => {
         <template #content>
           <div class="empty-content">
             <i class="pi pi-inbox" style="font-size: 4rem; color: #ccc"></i>
-            <h2>No Year-End Count in Progress</h2>
-            <p>Click "Initiate Year-End Count" to start the {{ currentYear }} inventory count process.</p>
+            <h2>{{ t('yearEndCount.noCountInProgress') }}</h2>
+            <p>{{ t('yearEndCount.clickToInitiate', { year: currentYear }) }}</p>
           </div>
         </template>
       </Card>
@@ -346,18 +346,18 @@ onMounted(() => {
         <template #content>
           <div class="progress-section">
             <div class="progress-info">
-              <h3>Progress: {{ countedItems }} / {{ totalItems }} products counted</h3>
+              <h3>{{ t('yearEndCount.progress', { counted: countedItems, total: totalItems }) }}</h3>
               <span class="percentage">{{ progress }}%</span>
             </div>
             <ProgressBar :value="progress" :showValue="false" />
             <div v-if="uncountedItems.length > 0" class="uncounted-warning">
               <Message severity="warn" :closable="false">
-                {{ uncountedItems.length }} products still need to be counted
+                {{ t('yearEndCount.productsNeedCounting', { count: uncountedItems.length }) }}
               </Message>
             </div>
             <div v-else>
               <Message severity="success" :closable="false">
-                All products counted! Ready to confirm.
+                {{ t('yearEndCount.allProductsCounted') }}
               </Message>
             </div>
           </div>
@@ -369,13 +369,13 @@ onMounted(() => {
         <template #content>
           <div class="action-buttons">
             <Button
-              label="Export to CSV"
+              :label="t('yearEndCount.exportCSV')"
               icon="pi pi-file"
               @click="exportCSV"
               outlined
             />
             <Button
-              label="Export to PDF"
+              :label="t('yearEndCount.exportPDF')"
               icon="pi pi-file-pdf"
               @click="exportPDF"
               outlined
@@ -386,17 +386,17 @@ onMounted(() => {
               :maxFileSize="1000000"
               @select="onUploadCSV"
               :auto="true"
-              chooseLabel="Import CSV"
+              :chooseLabel="t('yearEndCount.importCSV')"
               customUpload
             />
             <Button
-              label="Preview Report"
+              :label="t('yearEndCount.previewReport')"
               icon="pi pi-eye"
               @click="previewReport"
               severity="info"
             />
             <Button
-              label="Confirm Count"
+              :label="t('yearEndCount.confirmCount')"
               icon="pi pi-check"
               @click="confirmCount"
               severity="success"
@@ -410,12 +410,12 @@ onMounted(() => {
       <Card>
         <template #title>
           <div class="table-header">
-            <span>Count Sheet</span>
+            <span>{{ t('yearEndCount.countSheet') }}</span>
             <span v-if="countSheet.status === 'confirmed'" class="status-badge confirmed">
-              <i class="pi pi-lock"></i> Confirmed & Locked
+              <i class="pi pi-lock"></i> {{ t('yearEndCount.confirmedLocked') }}
             </span>
             <span v-else class="status-badge draft">
-              <i class="pi pi-pencil"></i> Draft
+              <i class="pi pi-pencil"></i> {{ t('yearEndCount.draft') }}
             </span>
           </div>
         </template>
@@ -429,7 +429,7 @@ onMounted(() => {
             sortField="product.name"
             :sortOrder="1"
           >
-            <Column field="product.name" header="Product Name" sortable>
+            <Column field="product.name" :header="t('yearEndCount.table.productName')" sortable>
               <template #body="{ data }">
                 <div class="product-cell">
                   <span class="product-name">{{ data.product.name }}</span>
@@ -438,13 +438,13 @@ onMounted(() => {
               </template>
             </Column>
 
-            <Column field="expectedQuantity" header="Expected Quantity" sortable>
+            <Column field="expectedQuantity" :header="t('yearEndCount.table.expectedQuantity')" sortable>
               <template #body="{ data }">
-                <span class="expected-qty">{{ data.expectedQuantity }} {{ data.product?.unit?.name || 'pieces' }}</span>
+                <span class="expected-qty">{{ n(data.expectedQuantity, 'integer') }} {{ data.product?.unit?.name || t('units.names.pieces') }}</span>
               </template>
             </Column>
 
-            <Column field="countedQuantity" header="Actual Count">
+            <Column field="countedQuantity" :header="t('yearEndCount.table.actualCount')">
               <template #body="{ data }">
                 <InputNumber
                   v-model="data.countedQuantity"
@@ -452,25 +452,25 @@ onMounted(() => {
                   :min="0"
                   :disabled="countSheet.status === 'confirmed'"
                   :class="{ 'uncounted': data.countedQuantity === null }"
-                  placeholder="Enter count"
+                  :placeholder="t('yearEndCount.table.enterCount')"
                 />
               </template>
             </Column>
 
-            <Column field="variance" header="Variance" sortable>
+            <Column field="variance" :header="t('yearEndCount.table.variance')" sortable>
               <template #body="{ data }">
                 <div v-if="data.variance !== null" :class="['variance', getVarianceClass(data.variance)]">
                   <i :class="['pi', getVarianceIcon(data.variance)]"></i>
-                  <span>{{ data.variance >= 0 ? '+' : '' }}{{ data.variance }} {{ data.product?.unit?.name || 'pieces' }}</span>
+                  <span>{{ data.variance >= 0 ? '+' : '' }}{{ n(data.variance, 'integer') }} {{ data.product?.unit?.name || t('units.names.pieces') }}</span>
                 </div>
                 <span v-else class="text-muted">-</span>
               </template>
             </Column>
 
-            <Column field="value" header="Value (FIFO)" sortable>
+            <Column field="value" :header="t('yearEndCount.table.valueFIFO')" sortable>
               <template #body="{ data }">
                 <span v-if="data.value !== null" class="value">
-                  ${{ data.value.toFixed(2) }}
+                  {{ n(data.value, 'currency') }}
                 </span>
                 <span v-else class="text-muted">-</span>
               </template>
@@ -483,40 +483,40 @@ onMounted(() => {
     <!-- Confirm Dialog -->
     <Dialog
       v-model:visible="showConfirmDialog"
-      header="Confirm Year-End Count"
+      :header="t('yearEndCount.confirmDialog.header')"
       :modal="true"
       :closable="!loading"
     >
       <div class="confirm-content">
         <Message severity="warn" :closable="false">
-          <strong>Warning:</strong> Confirming this count will:
+          <strong>{{ t('common.warning') }}:</strong> {{ t('yearEndCount.confirmDialog.warningText') }}
           <ul>
-            <li>Update all inventory lots using FIFO (oldest first)</li>
-            <li>Lock year {{ currentYear }} to prevent further edits</li>
-            <li>Create a database backup</li>
+            <li>{{ t('yearEndCount.confirmDialog.updateFIFO') }}</li>
+            <li>{{ t('yearEndCount.confirmDialog.lockYear', { year: currentYear }) }}</li>
+            <li>{{ t('yearEndCount.confirmDialog.createBackup') }}</li>
           </ul>
-          This action cannot be undone!
+          {{ t('yearEndCount.confirmDialog.cannotUndo') }}
         </Message>
 
         <div v-if="reportData" class="summary">
-          <h3>Summary:</h3>
-          <p><strong>Total Expected:</strong> {{ reportData.totalExpected }}</p>
-          <p><strong>Total Counted:</strong> {{ reportData.totalCounted }}</p>
-          <p><strong>Total Variance:</strong> {{ reportData.totalVariance }}</p>
-          <p><strong>Total Value:</strong> ${{ reportData.totalValue?.toFixed(2) }}</p>
+          <h3>{{ t('yearEndCount.confirmDialog.summary') }}:</h3>
+          <p><strong>{{ t('yearEndCount.confirmDialog.totalExpected') }}:</strong> {{ n(reportData.totalExpected, 'integer') }}</p>
+          <p><strong>{{ t('yearEndCount.confirmDialog.totalCounted') }}:</strong> {{ n(reportData.totalCounted, 'integer') }}</p>
+          <p><strong>{{ t('yearEndCount.confirmDialog.totalVariance') }}:</strong> {{ reportData.totalVariance }}</p>
+          <p><strong>{{ t('yearEndCount.confirmDialog.totalValue') }}:</strong> {{ n(reportData.totalValue, 'currency') }}</p>
         </div>
       </div>
 
       <template #footer>
         <Button
-          label="Cancel"
+          :label="t('common.cancel')"
           icon="pi pi-times"
           @click="showConfirmDialog = false"
           text
           :disabled="loading"
         />
         <Button
-          label="Confirm & Lock Year"
+          :label="t('yearEndCount.confirmLockYear')"
           icon="pi pi-check"
           @click="finalizeCount"
           severity="danger"
@@ -528,49 +528,49 @@ onMounted(() => {
     <!-- Report Dialog -->
     <Dialog
       v-model:visible="showReportDialog"
-      header="Year-End Inventory Report Preview"
+      :header="t('yearEndCount.reportDialog.header')"
       :modal="true"
       :style="{ width: '80vw' }"
     >
       <div v-if="reportData" class="report-preview">
         <div class="report-summary">
-          <h3>Year {{ reportData.year }} - {{ reportData.status.toUpperCase() }}</h3>
+          <h3>{{ t('yearEndCount.reportDialog.yearStatus', { year: reportData.year, status: reportData.status.toUpperCase() }) }}</h3>
           <div class="summary-grid">
             <div class="summary-item">
-              <label>Total Expected:</label>
-              <span>{{ reportData.totalExpected }}</span>
+              <label>{{ t('yearEndCount.reportDialog.totalExpected') }}:</label>
+              <span>{{ n(reportData.totalExpected, 'integer') }}</span>
             </div>
             <div class="summary-item">
-              <label>Total Counted:</label>
-              <span>{{ reportData.totalCounted }}</span>
+              <label>{{ t('yearEndCount.reportDialog.totalCounted') }}:</label>
+              <span>{{ n(reportData.totalCounted, 'integer') }}</span>
             </div>
             <div class="summary-item">
-              <label>Total Variance:</label>
+              <label>{{ t('yearEndCount.reportDialog.totalVariance') }}:</label>
               <span :class="reportData.totalVariance >= 0 ? 'text-success' : 'text-danger'">
-                {{ reportData.totalVariance >= 0 ? '+' : '' }}{{ reportData.totalVariance }}
+                {{ reportData.totalVariance >= 0 ? '+' : '' }}{{ n(reportData.totalVariance, 'integer') }}
               </span>
             </div>
             <div class="summary-item">
-              <label>Total Value:</label>
-              <span class="value-large">${{ reportData.totalValue?.toFixed(2) }}</span>
+              <label>{{ t('yearEndCount.reportDialog.totalValue') }}:</label>
+              <span class="value-large">{{ n(reportData.totalValue, 'currency') }}</span>
             </div>
           </div>
         </div>
 
         <DataTable :value="reportData.items" :paginator="true" :rows="10">
-          <Column field="productName" header="Product" sortable />
-          <Column field="expectedQuantity" header="Expected" sortable />
-          <Column field="countedQuantity" header="Counted" sortable />
-          <Column field="variance" header="Variance" sortable>
+          <Column field="productName" :header="t('yearEndCount.reportDialog.product')" sortable />
+          <Column field="expectedQuantity" :header="t('yearEndCount.reportDialog.expected')" sortable />
+          <Column field="countedQuantity" :header="t('yearEndCount.reportDialog.counted')" sortable />
+          <Column field="variance" :header="t('yearEndCount.reportDialog.variance')" sortable>
             <template #body="{ data }">
               <span :class="data.variance >= 0 ? 'text-success' : 'text-danger'">
-                {{ data.variance >= 0 ? '+' : '' }}{{ data.variance }}
+                {{ data.variance >= 0 ? '+' : '' }}{{ n(data.variance, 'integer') }}
               </span>
             </template>
           </Column>
-          <Column field="value" header="Value" sortable>
+          <Column field="value" :header="t('yearEndCount.reportDialog.value')" sortable>
             <template #body="{ data }">
-              ${{ data.value?.toFixed(2) }}
+              {{ n(data.value, 'currency') }}
             </template>
           </Column>
         </DataTable>

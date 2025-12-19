@@ -1,7 +1,7 @@
 <template>
   <div class="reports-view">
     <div class="header">
-      <h1>Reports & Analytics</h1>
+      <h1>{{ t('reports.title') }}</h1>
     </div>
 
     <div class="reports-grid">
@@ -11,16 +11,16 @@
           <div class="card-header">
             <div class="card-title">
               <i class="pi pi-chart-line"></i>
-              <span>Inventory Valuation Report</span>
+              <span>{{ t('reports.inventoryValuation.title') }}</span>
             </div>
           </div>
         </template>
         <template #content>
           <p class="card-description">
-            View current inventory value using FIFO cost method, broken down by product and supplier.
+            {{ t('reports.inventoryValuation.description') }}
           </p>
           <Button
-            label="Generate Report"
+            :label="t('reports.generateReport')"
             icon="pi pi-file-pdf"
             @click="generateInventoryValuationReport"
             :loading="loadingInventoryReport"
@@ -35,17 +35,17 @@
           <div class="card-header">
             <div class="card-title">
               <i class="pi pi-shopping-cart"></i>
-              <span>Purchase History Report</span>
+              <span>{{ t('reports.purchaseHistory.title') }}</span>
             </div>
           </div>
         </template>
         <template #content>
           <p class="card-description">
-            Export purchase history for a specific date range with detailed cost analysis.
+            {{ t('reports.purchaseHistory.description') }}
           </p>
           <div class="date-range-selector">
             <div class="date-field">
-              <label>From Date</label>
+              <label>{{ t('reports.purchaseHistory.fromDate') }}</label>
               <DatePicker
                 v-model="purchaseReportDates.from"
                 dateFormat="yy-mm-dd"
@@ -53,7 +53,7 @@
               />
             </div>
             <div class="date-field">
-              <label>To Date</label>
+              <label>{{ t('reports.purchaseHistory.toDate') }}</label>
               <DatePicker
                 v-model="purchaseReportDates.to"
                 dateFormat="yy-mm-dd"
@@ -62,7 +62,7 @@
             </div>
           </div>
           <Button
-            label="Export to CSV"
+            :label="t('reports.exportCSV')"
             icon="pi pi-download"
             @click="exportPurchaseHistory"
             :loading="loadingPurchaseReport"
@@ -78,24 +78,24 @@
           <div class="card-header">
             <div class="card-title">
               <i class="pi pi-calendar"></i>
-              <span>Year-End Count Reports</span>
+              <span>{{ t('reports.yearEndCount.title') }}</span>
             </div>
           </div>
         </template>
         <template #content>
           <p class="card-description">
-            View and export historical year-end physical count reports.
+            {{ t('reports.yearEndCount.description') }}
           </p>
           <div class="year-selector">
             <Dropdown
               v-model="selectedYearForReport"
               :options="availableYears"
-              placeholder="Select year"
+              :placeholder="t('reports.yearEndCount.selectYear')"
               :loading="loadingYears"
             />
           </div>
           <Button
-            label="View Report"
+            :label="t('reports.viewReport')"
             icon="pi pi-eye"
             @click="viewYearEndReport"
             :loading="loadingYearEndReport"
@@ -111,16 +111,16 @@
           <div class="card-header">
             <div class="card-title">
               <i class="pi pi-box"></i>
-              <span>Product Activity Summary</span>
+              <span>{{ t('reports.productActivity.title') }}</span>
             </div>
           </div>
         </template>
         <template #content>
           <p class="card-description">
-            Summary of all products with purchase counts, current inventory, and total value.
+            {{ t('reports.productActivity.description') }}
           </p>
           <Button
-            label="Generate Summary"
+            :label="t('reports.generateSummary')"
             icon="pi pi-list"
             @click="generateProductActivityReport"
             :loading="loadingProductReport"
@@ -133,27 +133,27 @@
     <!-- Inventory Valuation Detail Dialog -->
     <Dialog
       v-model:visible="inventoryReportDialogVisible"
-      header="Inventory Valuation Report (FIFO Method)"
+      :header="t('reports.inventoryValuation.dialogHeader')"
       modal
       :style="{ width: '90vw', maxWidth: '1200px' }"
     >
       <div class="report-content">
         <div class="report-summary">
           <div class="summary-item">
-            <strong>Report Date:</strong>
-            <span>{{ formatDate(new Date().toISOString()) }}</span>
+            <strong>{{ t('reports.reportDate') }}:</strong>
+            <span>{{ d(new Date(), 'short') }}</span>
           </div>
           <div class="summary-item">
-            <strong>Total Inventory Value:</strong>
-            <span class="value-highlight">${{ inventoryReportData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+            <strong>{{ t('reports.totalInventoryValue') }}:</strong>
+            <span class="value-highlight">{{ n(inventoryReportData.totalValue, 'currency') }}</span>
           </div>
           <div class="summary-item">
-            <strong>Total Products:</strong>
-            <span>{{ inventoryReportData.items.length }}</span>
+            <strong>{{ t('reports.totalProducts') }}:</strong>
+            <span>{{ n(inventoryReportData.items.length, 'integer') }}</span>
           </div>
           <div class="summary-item">
-            <strong>Total Units:</strong>
-            <span>{{ inventoryReportData.totalUnits.toLocaleString() }}</span>
+            <strong>{{ t('reports.totalUnits') }}:</strong>
+            <span>{{ n(inventoryReportData.totalUnits, 'integer') }}</span>
           </div>
         </div>
 
@@ -164,36 +164,36 @@
           :rows="10"
           :rowsPerPageOptions="[5, 10, 20, 50]"
         >
-          <Column field="productName" header="Product" sortable />
-          <Column field="supplierName" header="Supplier" sortable />
-          <Column field="quantity" header="Quantity" sortable>
+          <Column field="productName" :header="t('reports.product')" sortable />
+          <Column field="supplierName" :header="t('reports.supplier')" sortable />
+          <Column field="quantity" :header="t('reports.quantity')" sortable>
             <template #body="{ data }">
-              {{ data.quantity.toLocaleString() }}
+              {{ n(data.quantity, 'integer') }}
             </template>
           </Column>
-          <Column field="averageUnitCost" header="Avg Unit Cost" sortable>
+          <Column field="averageUnitCost" :header="t('reports.avgUnitCost')" sortable>
             <template #body="{ data }">
-              ${{ data.averageUnitCost.toFixed(2) }}
+              {{ n(data.averageUnitCost, 'currency') }}
             </template>
           </Column>
-          <Column field="totalValue" header="Total Value" sortable>
+          <Column field="totalValue" :header="t('reports.totalValue')" sortable>
             <template #body="{ data }">
-              <strong>${{ data.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</strong>
+              <strong>{{ n(data.totalValue, 'currency') }}</strong>
             </template>
           </Column>
         </DataTable>
       </div>
 
       <template #footer>
-        <Button label="Close" text @click="inventoryReportDialogVisible = false" />
-        <Button label="Export to CSV" icon="pi pi-download" @click="exportInventoryReportCSV" />
+        <Button :label="t('common.close')" text @click="inventoryReportDialogVisible = false" />
+        <Button :label="t('reports.exportCSV')" icon="pi pi-download" @click="exportInventoryReportCSV" />
       </template>
     </Dialog>
 
     <!-- Product Activity Detail Dialog -->
     <Dialog
       v-model:visible="productActivityDialogVisible"
-      header="Product Activity Summary"
+      :header="t('reports.productActivity.dialogHeader')"
       modal
       :style="{ width: '90vw', maxWidth: '1200px' }"
     >
@@ -205,60 +205,60 @@
           :rows="10"
           :rowsPerPageOptions="[5, 10, 20, 50]"
         >
-          <Column field="productName" header="Product" sortable />
-          <Column field="supplierName" header="Supplier" sortable />
-          <Column field="purchaseCount" header="# Purchases" sortable>
+          <Column field="productName" :header="t('reports.product')" sortable />
+          <Column field="supplierName" :header="t('reports.supplier')" sortable />
+          <Column field="purchaseCount" :header="t('reports.purchases')" sortable>
             <template #body="{ data }">
               <Tag :value="data.purchaseCount" severity="info" />
             </template>
           </Column>
-          <Column field="currentInventory" header="Current Inventory" sortable>
+          <Column field="currentInventory" :header="t('reports.currentInventory')" sortable>
             <template #body="{ data }">
               <Tag
-                :value="data.currentInventory.toLocaleString()"
+                :value="n(data.currentInventory, 'integer')"
                 :severity="data.currentInventory > 0 ? 'success' : 'danger'"
               />
             </template>
           </Column>
-          <Column field="inventoryValue" header="Inventory Value" sortable>
+          <Column field="inventoryValue" :header="t('reports.inventoryValue')" sortable>
             <template #body="{ data }">
-              ${{ data.inventoryValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+              {{ n(data.inventoryValue, 'currency') }}
             </template>
           </Column>
         </DataTable>
       </div>
 
       <template #footer>
-        <Button label="Close" text @click="productActivityDialogVisible = false" />
-        <Button label="Export to CSV" icon="pi pi-download" @click="exportProductActivityCSV" />
+        <Button :label="t('common.close')" text @click="productActivityDialogVisible = false" />
+        <Button :label="t('reports.exportCSV')" icon="pi pi-download" @click="exportProductActivityCSV" />
       </template>
     </Dialog>
 
     <!-- Year-End Count Report Dialog -->
     <Dialog
       v-model:visible="yearEndReportDialogVisible"
-      :header="`Year-End Count Report - ${yearEndReportData?.year || ''}`"
+      :header="t('reports.yearEndCount.dialogHeader', { year: yearEndReportData?.year || '' })"
       modal
       :style="{ width: '90vw', maxWidth: '1200px' }"
     >
       <div v-if="yearEndReportData" class="report-content">
         <div class="report-summary">
           <div class="summary-item">
-            <strong>Year:</strong>
+            <strong>{{ t('reports.year') }}:</strong>
             <span>{{ yearEndReportData.year }}</span>
           </div>
           <div class="summary-item">
-            <strong>Confirmed Date:</strong>
-            <span>{{ formatDate(yearEndReportData.confirmedAt) }}</span>
+            <strong>{{ t('reports.confirmedDate') }}:</strong>
+            <span>{{ d(new Date(yearEndReportData.confirmedAt), 'short') }}</span>
           </div>
           <div class="summary-item">
-            <strong>Total Products:</strong>
-            <span>{{ yearEndReportData.items?.length || 0 }}</span>
+            <strong>{{ t('reports.totalProducts') }}:</strong>
+            <span>{{ n(yearEndReportData.items?.length || 0, 'integer') }}</span>
           </div>
           <div class="summary-item">
-            <strong>Total Variance:</strong>
+            <strong>{{ t('reports.totalVariance') }}:</strong>
             <span :class="getTotalVariance() >= 0 ? 'text-success' : 'text-danger'">
-              {{ getTotalVariance() >= 0 ? '+' : '' }}{{ getTotalVariance() }}
+              {{ getTotalVariance() >= 0 ? '+' : '' }}{{ n(getTotalVariance(), 'integer') }}
             </span>
           </div>
         </div>
@@ -270,21 +270,21 @@
           :rows="10"
           :rowsPerPageOptions="[5, 10, 20, 50]"
         >
-          <Column field="product.name" header="Product" sortable />
+          <Column field="product.name" :header="t('reports.product')" sortable />
           
-          <Column field="expectedQuantity" header="Expected" sortable>
+          <Column field="expectedQuantity" :header="t('reports.expected')" sortable>
             <template #body="{ data }">
-              {{ data.expectedQuantity.toLocaleString() }}
+              {{ n(data.expectedQuantity, 'integer') }}
             </template>
           </Column>
 
-          <Column field="countedQuantity" header="Counted" sortable>
+          <Column field="countedQuantity" :header="t('reports.counted')" sortable>
             <template #body="{ data }">
-              {{ data.countedQuantity?.toLocaleString() || '—' }}
+              {{ data.countedQuantity ? n(data.countedQuantity, 'integer') : '—' }}
             </template>
           </Column>
 
-          <Column field="variance" header="Variance" sortable>
+          <Column field="variance" :header="t('reports.variance')" sortable>
             <template #body="{ data }">
               <Tag
                 :value="data.variance >= 0 ? `+${data.variance}` : String(data.variance)"
@@ -293,16 +293,16 @@
             </template>
           </Column>
 
-          <Column field="value" header="Value" sortable>
+          <Column field="value" :header="t('reports.value')" sortable>
             <template #body="{ data }">
-              ${{ (data.value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+              {{ n(data.value || 0, 'currency') }}
             </template>
           </Column>
         </DataTable>
       </div>
 
       <template #footer>
-        <Button label="Close" text @click="yearEndReportDialogVisible = false" />
+        <Button :label="t('common.close')" text @click="yearEndReportDialogVisible = false" />
       </template>
     </Dialog>
   </div>
@@ -312,6 +312,7 @@
 import { ref, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 
 import Button from 'primevue/button';
@@ -340,6 +341,7 @@ interface ProductActivityItem {
 }
 
 const toast = useToast();
+const { t, n, d } = useI18n();
 const router = useRouter();
 
 const loadingInventoryReport = ref(false);
@@ -395,7 +397,7 @@ const generateInventoryValuationReport = async () => {
         if (quantity > 0) {
           items.push({
             productName: product.name,
-            supplierName: product.supplier?.name || 'Unknown',
+            supplierName: product.supplier?.name || t('common.unknown'),
             quantity,
             averageUnitCost,
             totalValue: value,
@@ -420,7 +422,7 @@ const generateInventoryValuationReport = async () => {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to generate inventory report',
+      detail: error.response?.data?.error || t('reports.messages.generateInventoryFailed'),
       life: 3000,
     });
   } finally {
@@ -494,7 +496,7 @@ const exportPurchaseHistory = async () => {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to export purchase history',
+      detail: error.response?.data?.error || t('reports.messages.exportPurchaseFailed'),
       life: 3000,
     });
   } finally {
@@ -537,7 +539,7 @@ const viewYearEndReport = async () => {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load year-end report',
+      detail: error.response?.data?.error || t('reports.messages.loadYearEndFailed'),
       life: 3000,
     });
   } finally {
@@ -587,7 +589,7 @@ const generateProductActivityReport = async () => {
 
         activityData.push({
           productName: product.name,
-          supplierName: product.supplier?.name || 'Unknown',
+          supplierName: product.supplier?.name || t('common.unknown'),
           purchaseCount,
           currentInventory,
           inventoryValue,
@@ -603,7 +605,7 @@ const generateProductActivityReport = async () => {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to generate product activity report',
+      detail: error.response?.data?.error || t('reports.messages.generateProductActivityFailed'),
       life: 3000,
     });
   } finally {
@@ -642,14 +644,7 @@ const getTotalVariance = () => {
   return yearEndReportData.value.items.reduce((sum: number, item: any) => sum + (item.variance || 0), 0);
 };
 
-// Format date
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-};
+
 
 // Load data on mount
 onMounted(() => {
