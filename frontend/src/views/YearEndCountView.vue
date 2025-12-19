@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
@@ -13,6 +14,7 @@ import FileUpload from 'primevue/fileupload';
 import Message from 'primevue/message';
 
 const toast = useToast();
+const { t, n, d } = useI18n();
 
 const loading = ref(false);
 const countSheet = ref<any>(null);
@@ -52,14 +54,14 @@ async function initiateCount() {
     await loadCountSheet(response.data.id);
     toast.add({
       severity: 'success',
-      summary: 'Success',
+      summary: t('common.success'),
       detail: `Year-end count for ${currentYear} initiated`,
       life: 3000,
     });
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
+      summary: t('common.error'),
       detail: error.response?.data?.error || 'Failed to initiate count',
       life: 5000,
     });
@@ -76,7 +78,7 @@ async function loadCountSheet(countId: number) {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
+      summary: t('common.error'),
       detail: error.response?.data?.error || 'Failed to load count sheet',
       life: 5000,
     });
@@ -100,7 +102,7 @@ async function loadExistingCount() {
     } else {
       toast.add({
         severity: 'error',
-        summary: 'Error',
+        summary: t('common.error'),
         detail: error.response?.data?.error || 'Failed to load count',
         life: 5000,
       });
@@ -128,7 +130,7 @@ async function updateCountItem(item: any) {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
+      summary: t('common.error'),
       detail: error.response?.data?.error || 'Failed to update count',
       life: 5000,
     });
@@ -151,14 +153,14 @@ async function exportCSV() {
 
     toast.add({
       severity: 'success',
-      summary: 'Success',
+      summary: t('common.success'),
       detail: 'Count sheet exported to CSV',
       life: 3000,
     });
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
+      summary: t('common.error'),
       detail: 'Failed to export CSV',
       life: 5000,
     });
@@ -181,14 +183,14 @@ async function exportPDF() {
 
     toast.add({
       severity: 'success',
-      summary: 'Success',
+      summary: t('common.success'),
       detail: 'Count sheet exported to PDF',
       life: 3000,
     });
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
+      summary: t('common.error'),
       detail: 'Failed to export PDF',
       life: 5000,
     });
@@ -211,7 +213,7 @@ async function onUploadCSV(event: any) {
 
     toast.add({
       severity: 'success',
-      summary: 'Success',
+      summary: t('common.success'),
       detail: `Imported ${response.data.results.successful} items successfully`,
       life: 5000,
     });
@@ -219,7 +221,7 @@ async function onUploadCSV(event: any) {
     if (response.data.results.failed > 0) {
       toast.add({
         severity: 'warn',
-        summary: 'Warning',
+        summary: t('common.warning'),
         detail: `${response.data.results.failed} items failed. Check console for details.`,
         life: 5000,
       });
@@ -228,7 +230,7 @@ async function onUploadCSV(event: any) {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
+      summary: t('common.error'),
       detail: error.response?.data?.error || 'Failed to import CSV',
       life: 5000,
     });
@@ -243,7 +245,7 @@ async function previewReport() {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
+      summary: t('common.error'),
       detail: error.response?.data?.error || 'Failed to generate report',
       life: 5000,
     });
@@ -283,7 +285,7 @@ async function finalizeCount() {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
+      summary: t('common.error'),
       detail: error.response?.data?.error || 'Failed to confirm count',
       life: 5000,
     });

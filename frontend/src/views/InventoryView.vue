@@ -1,9 +1,9 @@
 <template>
   <div class="inventory-view">
     <div class="header">
-      <h1>Inventory Management</h1>
+      <h1>{{ t('inventory.title') }}</h1>
       <Button
-        label="Refresh"
+        :label="t('inventory.refresh')"
         icon="pi pi-refresh"
         @click="refreshInventory"
         :loading="loading"
@@ -19,8 +19,8 @@
               <i class="pi pi-box" style="color: var(--blue-600)"></i>
             </div>
             <div class="summary-details">
-              <div class="summary-label">Total Products</div>
-              <div class="summary-value">{{ filteredInventoryItems.length }}</div>
+              <div class="summary-label">{{ t('inventory.totalProducts') }}</div>
+              <div class="summary-value">{{ n(filteredInventoryItems.length, 'integer') }}</div>
             </div>
           </div>
         </template>
@@ -33,8 +33,8 @@
               <i class="pi pi-database" style="color: var(--green-600)"></i>
             </div>
             <div class="summary-details">
-              <div class="summary-label">Total Inventory Value</div>
-              <div class="summary-value">${{ totalInventoryValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
+              <div class="summary-label">{{ t('inventory.totalInventoryValue') }}</div>
+              <div class="summary-value">{{ n(totalInventoryValue, 'currency') }}</div>
             </div>
           </div>
         </template>
@@ -47,8 +47,8 @@
               <i class="pi pi-chart-bar" style="color: var(--orange-600)"></i>
             </div>
             <div class="summary-details">
-              <div class="summary-label">Total Units</div>
-              <div class="summary-value">{{ totalUnits.toLocaleString() }}</div>
+              <div class="summary-label">{{ t('inventory.totalUnits') }}</div>
+              <div class="summary-value">{{ n(totalUnits, 'integer') }}</div>
             </div>
           </div>
         </template>
@@ -75,7 +75,7 @@
                   </InputIcon>
                   <InputText
                     v-model="searchQuery"
-                    placeholder="Search inventory..."
+                    :placeholder="t('inventory.searchInventory')"
                   />
                 </IconField>
                 <div class="checkbox-wrapper">
@@ -84,48 +84,48 @@
                     inputId="showZero"
                     :binary="true"
                   />
-                  <label for="showZero" class="checkbox-label">Show items with zero quantity</label>
+                  <label for="showZero" class="checkbox-label">{{ t('inventory.showZeroQuantity') }}</label>
                 </div>
               </div>
             </div>
           </template>
 
-          <Column field="productName" header="Product" sortable />
+          <Column field="productName" :header="t('inventory.table.product')" sortable />
 
-          <Column field="supplierName" header="Primary Supplier" sortable>
+          <Column field="supplierName" :header="t('inventory.table.primarySupplier')" sortable>
             <template #body="{ data }">
               <Tag :value="data.supplierName" severity="info" />
             </template>
           </Column>
 
-          <Column field="totalQuantity" header="Total Quantity" sortable style="width: 180px">
+          <Column field="totalQuantity" :header="t('inventory.table.totalQuantity')" sortable style="width: 180px">
             <template #body="{ data }">
               <Tag
-                :value="`${data.totalQuantity.toLocaleString()} ${data.productUnit}`"
+                :value="`${n(data.totalQuantity, 'integer')} ${data.productUnit}`"
                 :severity="data.totalQuantity > 0 ? 'success' : 'danger'"
               />
             </template>
           </Column>
 
-          <Column field="averageUnitCost" header="Avg Unit Cost" sortable style="width: 150px">
+          <Column field="averageUnitCost" :header="t('inventory.table.avgUnitCost')" sortable style="width: 150px">
             <template #body="{ data }">
-              ${{ data.averageUnitCost.toFixed(2) }}
+              {{ n(data.averageUnitCost, 'currency') }}
             </template>
           </Column>
 
-          <Column field="totalValue" header="Total Value" sortable style="width: 150px">
+          <Column field="totalValue" :header="t('inventory.table.totalValue')" sortable style="width: 150px">
             <template #body="{ data }">
-              <strong>${{ data.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</strong>
+              <strong>{{ n(data.totalValue, 'currency') }}</strong>
             </template>
           </Column>
 
-          <Column field="lotCount" header="# Lots" sortable style="width: 100px">
+          <Column field="lotCount" :header="t('inventory.table.lots')" sortable style="width: 100px">
             <template #body="{ data }">
               <Tag :value="data.lotCount" severity="secondary" />
             </template>
           </Column>
 
-          <Column header="Actions" style="width: 100px">
+          <Column :header="t('common.actions')" style="width: 100px">
             <template #body="{ data }">
               <Button
                 icon="pi pi-eye"
@@ -133,7 +133,7 @@
                 text
                 rounded
                 @click="viewLots(data)"
-                v-tooltip.top="'View FIFO Lots'"
+                v-tooltip.top="t('inventory.viewFifoLots')"
               />
             </template>
           </Column>
@@ -141,7 +141,7 @@
           <template #empty>
             <div class="empty-state">
               <i class="pi pi-inbox" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
-              <p>No inventory items found</p>
+              <p>{{ t('common.noRecordsFound') }}</p>
             </div>
           </template>
         </DataTable>
@@ -151,81 +151,81 @@
     <!-- FIFO Lots Dialog -->
     <Dialog
       v-model:visible="lotsDialogVisible"
-      :header="`FIFO Purchase Lots - ${selectedProduct?.productName}`"
+      :header="t('inventory.lotsDialog.header', { productName: selectedProduct?.productName })"
       modal
       :style="{ width: '90vw', maxWidth: '1000px' }"
     >
       <div v-if="selectedProduct" class="lots-dialog-content">
         <div class="product-summary">
           <div class="summary-item">
-            <strong>Supplier:</strong> {{ selectedProduct.supplierName }}
+            <strong>{{ t('inventory.lotsDialog.supplier') }}:</strong> {{ selectedProduct.supplierName }}
           </div>
           <div class="summary-item">
-            <strong>Total Quantity:</strong> {{ selectedProduct.totalQuantity.toLocaleString() }} {{ selectedProduct.productUnit }}
+            <strong>{{ t('inventory.lotsDialog.totalQuantity') }}:</strong> {{ n(selectedProduct.totalQuantity, 'integer') }} {{ selectedProduct.productUnit }}
           </div>
           <div class="summary-item">
-            <strong>Avg Unit Cost:</strong> ${{ selectedProduct.averageUnitCost.toFixed(2) }}
+            <strong>{{ t('inventory.lotsDialog.avgUnitCost') }}:</strong> {{ n(selectedProduct.averageUnitCost, 'currency') }}
           </div>
           <div class="summary-item">
-            <strong>Total Value:</strong> ${{ selectedProduct.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+            <strong>{{ t('inventory.lotsDialog.totalValue') }}:</strong> {{ n(selectedProduct.totalValue, 'currency') }}
           </div>
         </div>
 
-        <h4>Purchase Lots (FIFO Order - Oldest First)</h4>
+        <h4>{{ t('inventory.lotsDialog.purchaseLotsHeader') }}</h4>
         <DataTable :value="selectedProduct.lots" size="small" stripedRows>
-          <Column field="purchaseDate" header="Purchase Date" sortable>
+          <Column field="purchaseDate" :header="t('inventory.lotsDialog.purchaseDate')" sortable>
             <template #body="{ data }">
-              {{ formatDate(data.purchaseDate) }}
+              {{ d(new Date(data.purchaseDate), 'short') }}
             </template>
           </Column>
 
-          <Column field="supplier.name" header="Supplier">
+          <Column field="supplier.name" :header="t('inventory.lotsDialog.supplier')">
             <template #body="{ data }">
-              {{ data.supplier?.name || 'Unknown' }}
+              {{ data.supplier?.name || t('common.unknown') }}
             </template>
           </Column>
 
-          <Column field="quantity" header="Original Qty">
+          <Column field="quantity" :header="t('inventory.lotsDialog.originalQty')">
             <template #body="{ data }">
-              {{ data.quantity.toLocaleString() }}
+              {{ n(data.quantity, 'integer') }}
             </template>
           </Column>
 
-          <Column field="remainingQuantity" header="Remaining Qty">
+          <Column field="remainingQuantity" :header="t('inventory.lotsDialog.remainingQty')">
             <template #body="{ data }">
               <Tag
-                :value="data.remainingQuantity.toLocaleString()"
+                :value="n(data.remainingQuantity, 'integer')"
                 :severity="data.remainingQuantity > 0 ? 'success' : 'secondary'"
               />
             </template>
           </Column>
 
-          <Column field="unitCost" header="Unit Cost">
+          <Column field="unitCost" :header="t('inventory.lotsDialog.unitCost')">
             <template #body="{ data }">
-              ${{ data.unitCost.toFixed(2) }}
+              {{ n(data.unitCost, 'currency') }}
             </template>
           </Column>
 
-          <Column header="Lot Value">
+          <Column :header="t('inventory.lotsDialog.lotValue')">
             <template #body="{ data }">
-              <strong>${{ (data.remainingQuantity * data.unitCost).toFixed(2) }}</strong>
+              <strong>{{ n(data.remainingQuantity * data.unitCost, 'currency') }}</strong>
             </template>
           </Column>
 
-          <Column field="year" header="Year">
+          <Column field="year" :header="t('inventory.lotsDialog.year')">
             <template #body="{ data }">
               <Tag :value="data.year" severity="secondary" />
             </template>
           </Column>
 
           <template #empty>
-            <div class="empty-lots">No lots available</div>
+            <div class="empty-lots">{{ t('inventory.lotsDialog.noLotsAvailable') }}</div>
           </template>
         </DataTable>
       </div>
 
       <template #footer>
-        <Button label="Close" @click="lotsDialogVisible = false" />
+        <Button :label="t('common.close')" @click="lotsDialogVisible = false" />
       </template>
     </Dialog>
   </div>
@@ -234,6 +234,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 
 import Button from 'primevue/button';
@@ -277,6 +278,7 @@ interface InventoryItem {
 }
 
 const toast = useToast();
+const { t, n, d } = useI18n();
 
 const inventoryItems = ref<InventoryItem[]>([]);
 const loading = ref(false);
@@ -339,8 +341,8 @@ const fetchInventory = async () => {
         return {
           productId: product.id,
           productName: product.name,
-          productUnit: product.unit?.name || 'pieces',
-          supplierName: product.supplier?.name || 'Unknown',
+          productUnit: product.unit?.name || t('units.names.pieces'),
+          supplierName: product.supplier?.name || t('common.unknown'),
           totalQuantity,
           averageUnitCost,
           totalValue,
@@ -352,8 +354,8 @@ const fetchInventory = async () => {
         return {
           productId: product.id,
           productName: product.name,
-          productUnit: product.unit?.name || 'pieces',
-          supplierName: product.supplier?.name || 'Unknown',
+          productUnit: product.unit?.name || t('units.names.pieces'),
+          supplierName: product.supplier?.name || t('common.unknown'),
           totalQuantity: 0,
           averageUnitCost: 0,
           totalValue: 0,
@@ -370,8 +372,8 @@ const fetchInventory = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load inventory',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('inventory.messages.loadFailed'),
       life: 3000,
     });
   } finally {
@@ -390,14 +392,7 @@ const viewLots = (item: InventoryItem) => {
   lotsDialogVisible.value = true;
 };
 
-// Format date
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
+
 
 // Load data on mount
 onMounted(() => {
