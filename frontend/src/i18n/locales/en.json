@@ -1,0 +1,309 @@
+{
+  "common": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "search": "Search",
+    "filter": "Filter",
+    "actions": "Actions",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Info",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "reset": "Reset",
+    "clear": "Clear",
+    "noData": "No data available",
+    "noRecordsFound": "No records found",
+    "selectYear": "Select Year",
+    "allYears": "All Years"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "suppliers": "Suppliers",
+    "products": "Products",
+    "units": "Units",
+    "purchases": "Purchases",
+    "inventory": "Inventory",
+    "yearEndCount": "Year End Count",
+    "reports": "Reports",
+    "logout": "Logout"
+  },
+  "login": {
+    "title": "Login",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Login",
+    "loginSuccess": "Login successful",
+    "loginFailed": "Login Failed",
+    "invalidCredentials": "Invalid username or password",
+    "pleaseTryAgain": "Please try again"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to Inventory Tracker",
+    "totalInventoryValue": "Total Inventory Value",
+    "activeProducts": "Active Products",
+    "totalSuppliers": "Total Suppliers",
+    "recentPurchases": "Recent Purchases",
+    "lowStock": "Low Stock Items",
+    "inventoryOverview": "Inventory Overview",
+    "quickStats": "Quick Statistics"
+  },
+  "suppliers": {
+    "title": "Supplier Management",
+    "addSupplier": "Add Supplier",
+    "editSupplier": "Edit Supplier",
+    "deleteSupplier": "Delete Supplier",
+    "supplierDetails": "Supplier Details",
+    "searchSuppliers": "Search suppliers...",
+    "form": {
+      "name": "Supplier Name",
+      "namePlaceholder": "Enter supplier name",
+      "contactPerson": "Contact Person",
+      "contactPersonPlaceholder": "e.g., John Smith",
+      "email": "Email Address",
+      "emailPlaceholder": "e.g., supplier@example.com",
+      "phone": "Phone Number",
+      "phonePlaceholder": "e.g., +1 234 567 8900",
+      "address": "Street Address",
+      "addressPlaceholder": "e.g., 123 Main Street",
+      "city": "City",
+      "cityPlaceholder": "e.g., New York",
+      "country": "Country",
+      "countryPlaceholder": "e.g., USA",
+      "taxId": "Tax ID / VAT Number",
+      "taxIdPlaceholder": "e.g., 12-3456789",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional information about the supplier..."
+    },
+    "table": {
+      "name": "Name",
+      "contactPerson": "Contact Person",
+      "email": "Email",
+      "phone": "Phone",
+      "created": "Created",
+      "products": "Products",
+      "purchases": "Purchases"
+    },
+    "messages": {
+      "createSuccess": "Supplier created successfully",
+      "updateSuccess": "Supplier updated successfully",
+      "deleteSuccess": "Supplier deleted successfully",
+      "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
+      "deleteWarning": "This supplier has {products} product(s) and {purchases} purchase(s). Delete those first.",
+      "cannotDelete": "Cannot Delete"
+    }
+  },
+  "products": {
+    "title": "Product Management",
+    "addProduct": "Add Product",
+    "editProduct": "Edit Product",
+    "deleteProduct": "Delete Product",
+    "productDetails": "Product Details",
+    "searchProducts": "Search products...",
+    "form": {
+      "name": "Product Name",
+      "namePlaceholder": "Enter product name",
+      "description": "Description",
+      "descriptionPlaceholder": "Enter product description",
+      "unit": "Unit",
+      "unitPlaceholder": "Select unit",
+      "supplier": "Supplier",
+      "supplierPlaceholder": "Select supplier"
+    },
+    "table": {
+      "name": "Name",
+      "description": "Description",
+      "unit": "Unit",
+      "supplier": "Supplier",
+      "created": "Created"
+    },
+    "messages": {
+      "createSuccess": "Product created successfully",
+      "updateSuccess": "Product updated successfully",
+      "deleteSuccess": "Product deleted successfully",
+      "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
+      "cannotDelete": "Cannot delete product with purchase history"
+    }
+  },
+  "units": {
+    "title": "Unit Management",
+    "addUnit": "Add Unit",
+    "editUnit": "Edit Unit",
+    "deleteUnit": "Delete Unit",
+    "searchUnits": "Search units...",
+    "form": {
+      "name": "Unit Name",
+      "namePlaceholder": "Enter unit name"
+    },
+    "table": {
+      "name": "Name",
+      "products": "Products",
+      "created": "Created"
+    },
+    "messages": {
+      "createSuccess": "Unit created successfully",
+      "updateSuccess": "Unit updated successfully",
+      "deleteSuccess": "Unit deleted successfully",
+      "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
+      "unitInUse": "Cannot delete unit. {count} product(s) are using this unit."
+    },
+    "names": {
+      "pieces": "pieces",
+      "kg": "kg",
+      "g": "g",
+      "tons": "tons",
+      "liters": "liters",
+      "ml": "ml",
+      "m3": "m³",
+      "m": "m",
+      "m2": "m²",
+      "boxes": "boxes",
+      "pallets": "pallets",
+      "rolls": "rolls"
+    }
+  },
+  "purchases": {
+    "title": "Purchase Tracking",
+    "addPurchase": "Add Purchase",
+    "editPurchase": "Edit Purchase",
+    "deletePurchase": "Delete Purchase",
+    "searchPurchases": "Search purchases...",
+    "yearLocked": "Year {year} is locked. You cannot create/edit purchases for this year.",
+    "locked": "LOCKED",
+    "lockedTooltip": "Year locked - cannot edit",
+    "form": {
+      "purchaseDate": "Purchase Date",
+      "product": "Product",
+      "productPlaceholder": "Select product",
+      "supplier": "Supplier",
+      "supplierPlaceholder": "Select supplier",
+      "quantity": "Quantity",
+      "quantityPlaceholder": "Enter quantity",
+      "unitCost": "Unit Cost",
+      "unitCostPlaceholder": "Enter unit cost",
+      "totalCost": "Total Cost"
+    },
+    "table": {
+      "purchaseDate": "Purchase Date",
+      "product": "Product",
+      "supplier": "Supplier",
+      "quantity": "Quantity",
+      "remaining": "Remaining",
+      "unitCost": "Unit Cost",
+      "totalCost": "Total Cost"
+    },
+    "messages": {
+      "createSuccess": "Purchase created successfully",
+      "updateSuccess": "Purchase updated successfully",
+      "deleteSuccess": "Purchase deleted successfully",
+      "deleteConfirm": "Are you sure you want to delete this purchase?",
+      "cannotDeletePartiallyConsumed": "Cannot delete partially consumed purchase lot"
+    }
+  },
+  "inventory": {
+    "title": "Inventory Valuation",
+    "showZeroQuantity": "Show items with zero quantity",
+    "summary": {
+      "totalProducts": "Total Products",
+      "totalValue": "Total Inventory Value",
+      "totalUnits": "Total Units"
+    },
+    "table": {
+      "product": "Product",
+      "quantity": "Quantity",
+      "value": "Value"
+    },
+    "productDetails": {
+      "title": "Product Details",
+      "lotBreakdown": "Lot Breakdown",
+      "totalQuantity": "Total Quantity",
+      "totalValue": "Total Value",
+      "purchaseDate": "Purchase Date",
+      "year": "Year",
+      "remainingQty": "Remaining Qty",
+      "unitCost": "Unit Cost",
+      "lotValue": "Lot Value",
+      "supplier": "Supplier"
+    }
+  },
+  "yearEndCount": {
+    "title": "Year-End Count",
+    "selectYear": "Select Year",
+    "initiateCount": "Initiate Count",
+    "status": {
+      "draft": "Draft",
+      "confirmed": "Confirmed"
+    },
+    "steps": {
+      "initiate": "Initiate Count",
+      "enterCounts": "Enter Counted Quantities",
+      "review": "Review Variance",
+      "confirm": "Confirm Count"
+    },
+    "form": {
+      "year": "Year",
+      "yearPlaceholder": "Enter year (e.g., 2024)"
+    },
+    "table": {
+      "product": "Product",
+      "expected": "Expected Quantity",
+      "counted": "Counted Quantity",
+      "variance": "Variance",
+      "value": "Value",
+      "unit": "Unit"
+    },
+    "summary": {
+      "totalExpected": "Total Expected",
+      "totalCounted": "Total Counted",
+      "totalVariance": "Total Variance",
+      "totalValue": "Total Value"
+    },
+    "messages": {
+      "initiateSuccess": "Year-end count initiated for {year}",
+      "confirmSuccess": "Year-end count confirmed for {year}",
+      "confirmWarning": "This will lock year {year} and create a backup. Continue?",
+      "alreadyExists": "Year-end count already exists for {year}",
+      "enterAllCounts": "Please enter counted quantities for all products"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "generateReport": "Generate Report",
+    "reportType": "Report Type",
+    "dateRange": "Date Range",
+    "export": "Export",
+    "print": "Print",
+    "inventoryReport": "Inventory Report",
+    "purchaseReport": "Purchase Report",
+    "supplierReport": "Supplier Report"
+  },
+  "validation": {
+    "required": "This field is required",
+    "requiredField": "{field} is required",
+    "invalidEmail": "Please enter a valid email address",
+    "invalidNumber": "Please enter a valid number",
+    "minValue": "Value must be at least {min}",
+    "maxValue": "Value must be at most {max}",
+    "minLength": "Must be at least {min} characters",
+    "maxLength": "Must be at most {max} characters",
+    "mustBePositive": "Must be a positive number",
+    "mustBeGreaterThanZero": "Must be greater than zero"
+  },
+  "language": {
+    "selectLanguage": "Select Language",
+    "english": "English",
+    "swedish": "Svenska"
+  }
+}

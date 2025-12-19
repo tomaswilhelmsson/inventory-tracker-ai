@@ -1,0 +1,50 @@
+{
+  "name": "inventory-tracker",
+  "version": "1.0.0",
+  "description": "Full-stack FIFO inventory tracking system",
+  "main": "backend/dist/server.js",
+  "scripts": {
+    "dev:backend": "nodemon --exec ts-node backend/src/server.ts",
+    "build:backend": "tsc -p backend/tsconfig.json",
+    "start:backend": "node backend/dist/server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "lint": "eslint . --ext .ts,.js",
+    "lint:fix": "eslint . --ext .ts,.js --fix",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "inventory",
+    "fifo",
+    "tracking",
+    "warehouse"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@types/bcrypt": "^6.0.0",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.1",
+    "cors": "^2.8.5",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.0.2",
+    "papaparse": "^5.5.3",
+    "pdfkit": "^0.17.2",
+    "prisma": "^5.22.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
+    "@types/papaparse": "^5.5.1",
+    "@types/pdfkit": "^0.17.4"
+  }
+}

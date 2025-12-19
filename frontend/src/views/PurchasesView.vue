@@ -1,0 +1,833 @@
+<template>
+  <div class="purchases-view">
+    <div class="header">
+      <h1>Purchase Tracking</h1>
+      <Button label="Add Purchase" icon="pi pi-plus" @click="openCreateDialog" />
+    </div>
+
+    <Card>
+      <template #content>
+        <DataTable
+          :value="filteredPurchases"
+          :loading="loading"
+          stripedRows
+          paginator
+          :rows="10"
+          :rowsPerPageOptions="[5, 10, 20, 50]"
+        >
+          <template #header>
+            <div class="table-header">
+              <div class="filters">
+                <Dropdown
+                  v-model="selectedYearFilter"
+                  :options="availableYears"
+                  placeholder="Select Year"
+                  class="year-filter"
+                  showClear
+                >
+                  <template #value="slotProps">
+                    <span v-if="slotProps.value">{{ slotProps.value }}</span>
+                    <span v-else>All Years</span>
+                  </template>
+                </Dropdown>
+                <IconField iconPosition="left">
+                  <InputIcon>
+                    <i class="pi pi-search" />
+                  </InputIcon>
+                  <InputText
+                    v-model="searchQuery"
+                    placeholder="Search purchases..."
+                  />
+                </IconField>
+              </div>
+            </div>
+          </template>
+
+          <Column field="purchaseDate" header="Purchase Date" sortable :sortOrder="-1">
+            <template #body="{ data }">
+              <div class="date-cell">
+                {{ formatDate(data.purchaseDate) }}
+                <Tag
+                  v-if="isYearLocked(data.year)"
+                  value="LOCKED"
+                  severity="warning"
+                  size="small"
+                  v-tooltip.top="'Year locked - cannot edit'"
+                />
+              </div>
+            </template>
+          </Column>
+
+          <Column field="product.name" header="Product" sortable>
+            <template #body="{ data }">
+              <Tag :value="data.productSnapshot?.name || data.product?.name || 'Unknown'" severity="info" />
+            </template>
+          </Column>
+
+          <Column field="supplier.name" header="Supplier" sortable>
+            <template #body="{ data }">
+              <span>{{ data.supplierSnapshot?.name || data.supplier?.name || 'Unknown' }}</span>
+            </template>
+          </Column>
+
+          <Column field="quantity" header="Quantity" sortable style="width: 150px">
+            <template #body="{ data }">
+              <span class="quantity-badge">{{ data.quantity.toLocaleString() }} {{ data.productSnapshot?.unit?.name || data.product?.unit?.name || 'pieces' }}</span>
+            </template>
+          </Column>
+
+          <Column field="remainingQuantity" header="Remaining" sortable style="width: 150px">
+            <template #body="{ data }">
+              <Tag
+                :value="`${data.remainingQuantity.toLocaleString()} ${data.productSnapshot?.unit?.name || data.product?.unit?.name || 'pieces'}`"
+                :severity="data.remainingQuantity > 0 ? 'success' : 'secondary'"
+              />
+            </template>
+          </Column>
+
+          <Column field="unitCost" header="Unit Cost" sortable style="width: 120px">
+            <template #body="{ data }">
+              ${{ data.unitCost.toFixed(2) }}
+            </template>
+          </Column>
+
+          <Column header="Total Cost" style="width: 140px">
+            <template #body="{ data }">
+              <strong>${{ (data.quantity * data.unitCost).toFixed(2) }}</strong>
+            </template>
+          </Column>
+
+          <Column header="Actions" style="width: 150px">
+            <template #body="{ data }">
+              <div class="action-buttons">
+                <Button
+                  icon="pi pi-pencil"
+                  size="small"
+                  text
+                  rounded
+                  @click="openEditDialog(data)"
+                  :disabled="isYearLocked(data.year)"
+                  v-tooltip.top="isYearLocked(data.year) ? 'Year locked' : 'Edit'"
+                />
+                <Button
+                  icon="pi pi-trash"
+                  size="small"
+                  text
+                  rounded
+                  severity="danger"
+                  @click="confirmDelete(data)"
+                  :disabled="isYearLocked(data.year)"
+                  v-tooltip.top="isYearLocked(data.year) ? 'Year locked' : 'Delete'"
+                />
+              </div>
+            </template>
+          </Column>
+
+          <template #empty>
+            <div class="empty-state">
+              <i class="pi pi-inbox" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
+              <p>No purchases found</p>
+            </div>
+          </template>
+        </DataTable>
+      </template>
+    </Card>
+
+    <!-- Create/Edit Dialog -->
+    <Dialog
+      v-model:visible="dialogVisible"
+      :header="editMode ? 'Edit Purchase' : 'Add Purchase'"
+      modal
+      :style="{ width: '700px' }"
+      @hide="resetForm"
+    >
+      <div class="form-container">
+        <div class="field-row">
+          <div class="field">
+            <label for="product">Product *</label>
+            <Dropdown
+              id="product"
+              v-model="formData.productId"
+              :options="products"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Select a product"
+              :class="{ 'p-invalid': formErrors.productId }"
+              :loading="loadingProducts"
+              filter
+              @change="onProductChange"
+            >
+              <template #option="slotProps">
+                <div class="product-option">
+                  <div>{{ slotProps.option.name }}</div>
+                  <small class="text-secondary">
+                    Supplier: {{ slotProps.option.supplier?.name || 'Unknown' }}
+                  </small>
+                </div>
+              </template>
+            </Dropdown>
+            <small v-if="formErrors.productId" class="p-error">{{ formErrors.productId }}</small>
+          </div>
+
+          <div class="field">
+            <label for="supplier">Supplier *</label>
+            <Dropdown
+              id="supplier"
+              v-model="formData.supplierId"
+              :options="suppliers"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Select a supplier"
+              :class="{ 'p-invalid': formErrors.supplierId }"
+              :loading="loadingSuppliers"
+              :disabled="!!formData.productId"
+              filter
+            />
+            <small v-if="formErrors.supplierId" class="p-error">{{ formErrors.supplierId }}</small>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="purchaseDate">Purchase Date *</label>
+          <DatePicker
+            id="purchaseDate"
+            v-model="formData.purchaseDate"
+            :class="{ 'p-invalid': formErrors.purchaseDate }"
+            dateFormat="yy-mm-dd"
+            showIcon
+            @date-select="onDateChange"
+          />
+          <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
+          <Message v-if="yearLockWarning" severity="warn" :closable="false" class="year-warning">
+            <i class="pi pi-exclamation-triangle"></i>
+            Year {{ selectedYear }} is locked. You cannot create/edit purchases for this year.
+          </Message>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="quantity">Quantity *</label>
+            <InputNumber
+              id="quantity"
+              v-model="formData.quantity"
+              :class="{ 'p-invalid': formErrors.quantity }"
+              :min="1"
+              :useGrouping="true"
+              placeholder="Enter quantity"
+            />
+            <small v-if="formErrors.quantity" class="p-error">{{ formErrors.quantity }}</small>
+          </div>
+
+          <div class="field">
+            <label for="unitCost">Unit Cost *</label>
+            <InputNumber
+              id="unitCost"
+              v-model="formData.unitCost"
+              :class="{ 'p-invalid': formErrors.unitCost }"
+              mode="currency"
+              currency="USD"
+              :minFractionDigits="2"
+              :min="0"
+              placeholder="Enter unit cost"
+            />
+            <small v-if="formErrors.unitCost" class="p-error">{{ formErrors.unitCost }}</small>
+          </div>
+        </div>
+
+        <div v-if="formData.quantity && formData.unitCost" class="total-display">
+          <strong>Total Cost:</strong>
+          <span class="total-amount">${{ (formData.quantity * formData.unitCost).toFixed(2) }}</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <Button label="Cancel" text @click="dialogVisible = false" />
+        <Button
+          :label="editMode ? 'Update' : 'Create'"
+          :loading="saving"
+          :disabled="yearLockWarning"
+          @click="savePurchase"
+        />
+      </template>
+    </Dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
+import api from '@/services/api';
+
+import Button from 'primevue/button';
+import Card from 'primevue/card';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import InputText from 'primevue/inputtext';
+import InputNumber from 'primevue/inputnumber';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+import Dialog from 'primevue/dialog';
+import Dropdown from 'primevue/dropdown';
+import DatePicker from 'primevue/datepicker';
+import Tag from 'primevue/tag';
+import Message from 'primevue/message';
+
+interface Supplier {
+  id: number;
+  name: string;
+  contactInfo?: string;
+}
+
+interface Product {
+  id: number;
+  name: string;
+  unit: string;
+  supplierId: number;
+  supplier?: Supplier;
+}
+
+interface ProductSnapshot {
+  id: number;
+  name: string;
+  description: string;
+  unit: {
+    id: number;
+    name: string;
+  };
+  supplierIdRef: number;
+}
+
+interface SupplierSnapshot {
+  id: number;
+  name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  country: string;
+  taxId: string;
+}
+
+interface Purchase {
+  id: number;
+  productId: number;
+  supplierId: number;
+  purchaseDate: string;
+  quantity: number;
+  unitCost: number;
+  remainingQuantity: number;
+  year: number;
+  product?: Product;
+  supplier?: Supplier;
+  productSnapshot?: ProductSnapshot;
+  supplierSnapshot?: SupplierSnapshot;
+}
+
+interface FormData {
+  productId: number | null;
+  supplierId: number | null;
+  purchaseDate: Date | null;
+  quantity: number | null;
+  unitCost: number | null;
+}
+
+interface FormErrors {
+  productId?: string;
+  supplierId?: string;
+  purchaseDate?: string;
+  quantity?: string;
+  unitCost?: string;
+}
+
+const toast = useToast();
+const confirm = useConfirm();
+
+const purchases = ref<Purchase[]>([]);
+const products = ref<Product[]>([]);
+const suppliers = ref<Supplier[]>([]);
+const lockedYears = ref<number[]>([]);
+
+const loading = ref(false);
+const loadingProducts = ref(false);
+const loadingSuppliers = ref(false);
+const saving = ref(false);
+const dialogVisible = ref(false);
+const editMode = ref(false);
+const currentPurchaseId = ref<number | null>(null);
+
+const formData = ref<FormData>({
+  productId: null,
+  supplierId: null,
+  purchaseDate: null,
+  quantity: null,
+  unitCost: null,
+});
+
+const formErrors = ref<FormErrors>({});
+const searchQuery = ref('');
+const selectedYearFilter = ref<number | null>(new Date().getFullYear());
+
+// Computed: available years from purchases
+const availableYears = computed(() => {
+  const years = new Set<number>();
+  purchases.value.forEach(p => {
+    if (p.year) {
+      years.add(p.year);
+    }
+  });
+  return Array.from(years).sort((a, b) => b - a); // Sort descending (newest first)
+});
+
+// Computed: filtered purchases
+const filteredPurchases = computed(() => {
+  let filtered = purchases.value;
+  
+  // Filter by year
+  if (selectedYearFilter.value !== null) {
+    filtered = filtered.filter(p => p.year === selectedYearFilter.value);
+  }
+  
+  // Filter by search query
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase();
+    filtered = filtered.filter(p => 
+      (p.product?.name && p.product.name.toLowerCase().includes(query)) ||
+      (p.supplier?.name && p.supplier.name.toLowerCase().includes(query))
+    );
+  }
+  
+  return filtered;
+});
+
+// Computed: selected year from purchase date
+const selectedYear = computed(() => {
+  if (!formData.value.purchaseDate) return null;
+  return formData.value.purchaseDate.getFullYear();
+});
+
+// Computed: year lock warning
+const yearLockWarning = computed(() => {
+  if (!selectedYear.value) return false;
+  return lockedYears.value.includes(selectedYear.value);
+});
+
+// Check if year is locked
+const isYearLocked = (year: number): boolean => {
+  return lockedYears.value.includes(year);
+};
+
+// Fetch purchases
+const fetchPurchases = async () => {
+  loading.value = true;
+  try {
+    const response = await api.get('/purchases');
+    purchases.value = response.data;
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.error || 'Failed to load purchases',
+      life: 3000,
+    });
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Fetch products
+const fetchProducts = async () => {
+  loadingProducts.value = true;
+  try {
+    const response = await api.get('/products');
+    products.value = response.data;
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.error || 'Failed to load products',
+      life: 3000,
+    });
+  } finally {
+    loadingProducts.value = false;
+  }
+};
+
+// Fetch suppliers
+const fetchSuppliers = async () => {
+  loadingSuppliers.value = true;
+  try {
+    const response = await api.get('/suppliers');
+    suppliers.value = response.data;
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.error || 'Failed to load suppliers',
+      life: 3000,
+    });
+  } finally {
+    loadingSuppliers.value = false;
+  }
+};
+
+// Fetch locked years
+const fetchLockedYears = async () => {
+  try {
+    const response = await api.get('/purchases/locked-years');
+    lockedYears.value = response.data.map((item: any) => item.year);
+  } catch (error: any) {
+    console.error('Failed to fetch locked years:', error);
+  }
+};
+
+// On product change, auto-select supplier
+const onProductChange = () => {
+  if (formData.value.productId) {
+    const product = products.value.find(p => p.id === formData.value.productId);
+    if (product) {
+      formData.value.supplierId = product.supplierId;
+    }
+  }
+};
+
+// On date change
+const onDateChange = () => {
+  // Trigger reactivity for year lock warning
+  formErrors.value.purchaseDate = undefined;
+};
+
+// Open create dialog
+const openCreateDialog = async () => {
+  if (products.value.length === 0) {
+    await fetchProducts();
+  }
+  if (suppliers.value.length === 0) {
+    await fetchSuppliers();
+  }
+
+  if (products.value.length === 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'No Products',
+      detail: 'Please create a product first before adding purchases',
+      life: 5000,
+    });
+    return;
+  }
+
+  editMode.value = false;
+  currentPurchaseId.value = null;
+  dialogVisible.value = true;
+};
+
+// Open edit dialog
+const openEditDialog = async (purchase: Purchase) => {
+  if (isYearLocked(purchase.year)) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Year Locked',
+      detail: `Cannot edit purchase from year ${purchase.year} - year is locked`,
+      life: 5000,
+    });
+    return;
+  }
+
+  if (products.value.length === 0) {
+    await fetchProducts();
+  }
+  if (suppliers.value.length === 0) {
+    await fetchSuppliers();
+  }
+
+  editMode.value = true;
+  currentPurchaseId.value = purchase.id;
+  formData.value = {
+    productId: purchase.productId,
+    supplierId: purchase.supplierId,
+    purchaseDate: new Date(purchase.purchaseDate),
+    quantity: purchase.quantity,
+    unitCost: purchase.unitCost,
+  };
+  dialogVisible.value = true;
+};
+
+// Validate form
+const validateForm = (): boolean => {
+  formErrors.value = {};
+
+  if (!formData.value.productId) {
+    formErrors.value.productId = 'Product is required';
+  }
+
+  if (!formData.value.supplierId) {
+    formErrors.value.supplierId = 'Supplier is required';
+  }
+
+  if (!formData.value.purchaseDate) {
+    formErrors.value.purchaseDate = 'Purchase date is required';
+  }
+
+  if (!formData.value.quantity || formData.value.quantity <= 0) {
+    formErrors.value.quantity = 'Quantity must be greater than 0';
+  }
+
+  if (formData.value.unitCost === null || formData.value.unitCost < 0) {
+    formErrors.value.unitCost = 'Unit cost must be 0 or greater';
+  }
+
+  if (yearLockWarning.value) {
+    formErrors.value.purchaseDate = 'Cannot create/edit purchases for locked years';
+  }
+
+  return Object.keys(formErrors.value).length === 0;
+};
+
+// Save purchase (create or update)
+const savePurchase = async () => {
+  if (!validateForm()) {
+    return;
+  }
+
+  saving.value = true;
+  try {
+    const payload = {
+      productId: formData.value.productId,
+      supplierId: formData.value.supplierId,
+      purchaseDate: formData.value.purchaseDate!.toISOString().split('T')[0],
+      quantity: formData.value.quantity,
+      unitCost: formData.value.unitCost,
+    };
+
+    if (editMode.value && currentPurchaseId.value) {
+      // Update existing purchase
+      await api.put(`/purchases/${currentPurchaseId.value}`, payload);
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Purchase updated successfully',
+        life: 3000,
+      });
+    } else {
+      // Create new purchase
+      await api.post('/purchases', payload);
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Purchase created successfully',
+        life: 3000,
+      });
+    }
+
+    dialogVisible.value = false;
+    await fetchPurchases();
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.error || 'Failed to save purchase',
+      life: 3000,
+    });
+  } finally {
+    saving.value = false;
+  }
+};
+
+// Confirm delete
+const confirmDelete = (purchase: Purchase) => {
+  if (isYearLocked(purchase.year)) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Year Locked',
+      detail: `Cannot delete purchase from year ${purchase.year} - year is locked`,
+      life: 5000,
+    });
+    return;
+  }
+
+  confirm.require({
+    message: `Are you sure you want to delete this purchase?`,
+    header: 'Confirm Deletion',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: () => deletePurchase(purchase.id),
+  });
+};
+
+// Delete purchase
+const deletePurchase = async (id: number) => {
+  try {
+    await api.delete(`/purchases/${id}`);
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Purchase deleted successfully',
+      life: 3000,
+    });
+    await fetchPurchases();
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.error || 'Failed to delete purchase',
+      life: 3000,
+    });
+  }
+};
+
+// Reset form
+const resetForm = () => {
+  formData.value = {
+    productId: null,
+    supplierId: null,
+    purchaseDate: null,
+    quantity: null,
+    unitCost: null,
+  };
+  formErrors.value = {};
+};
+
+// Format date
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+// Load data on mount
+onMounted(() => {
+  fetchPurchases();
+  fetchProducts();
+  fetchSuppliers();
+  fetchLockedYears();
+});
+</script>
+
+<style scoped>
+.purchases-view {
+  padding: 2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.year-filter {
+  min-width: 150px;
+}
+
+.date-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quantity-badge {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.empty-state p {
+  margin-top: 1rem;
+  color: var(--text-color-secondary);
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.product-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.text-secondary {
+  color: var(--text-color-secondary);
+  font-size: 0.75rem;
+}
+
+.year-warning {
+  margin-top: 0.5rem;
+}
+
+.total-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--surface-50);
+  border-radius: 6px;
+  border: 1px solid var(--surface-200);
+}
+
+.total-amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.p-invalid {
+  border-color: var(--red-500);
+}
+
+.p-error {
+  color: var(--red-500);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+</style>

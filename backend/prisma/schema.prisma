@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Unit entity
+model Unit {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  
+  products  Product[]
+  
+  @@map("units")
+}
+
+// Supplier entity
+model Supplier {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  country       String?
+  taxId         String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  
+  products      Product[]
+  purchaseLots  PurchaseLot[]
+  
+  @@map("suppliers")
+}
+
+// Product entity
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  unitId      Int
+  supplierId  Int
+  createdAt   DateTime  @default(now())
+  
+  unit        Unit      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  supplier    Supplier  @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseLots PurchaseLot[]
+  yearEndCountItems YearEndCountItem[]
+  
+  @@map("products")
+}
+
+// PurchaseLot entity - FIFO tracking
+model PurchaseLot {
+  id                Int      @id @default(autoincrement())
+  productId         Int?     // Foreign key for reference/filtering - nullable to allow deletion
+  supplierId        Int?     // Foreign key for reference/filtering - nullable to allow deletion
+  purchaseDate      DateTime
+  quantity          Int      // Original purchase quantity (never changes)
+  unitCost          Float    // Cost per unit (never changes)
+  remainingQuantity Int      // Current remaining quantity (decrements via FIFO)
+  year              Int      // Extracted from purchaseDate
+  
+  // JSON snapshots - immutable transaction data (preserves data even if supplier/product deleted)
+  productSnapshot   String   // JSON: {id, name, description, unit: {id, name}, supplierIdRef}
+  supplierSnapshot  String   // JSON: {id, name, contactPerson, email, phone, address, city, country, taxId}
+  
+  createdAt         DateTime @default(now())
+  
+  product     Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  supplier    Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  
+  // CRITICAL: Index for FIFO ordering - MANDATORY for data integrity
+  @@index([productId, purchaseDate, remainingQuantity], name: "fifo_index")
+  @@map("purchase_lots")
+}
+
+// YearEndCount entity
+model YearEndCount {
+  id          Int       @id @default(autoincrement())
+  year        Int       @unique
+  status      String    @default("draft")  // draft | confirmed
+  confirmedAt DateTime?
+  backupPath  String?
+  createdAt   DateTime  @default(now())
+  
+  items       YearEndCountItem[]
+  
+  @@map("year_end_counts")
+}
+
+// YearEndCountItem entity
+model YearEndCountItem {
+  id                Int      @id @default(autoincrement())
+  yearEndCountId    Int
+  productId         Int
+  expectedQuantity  Int
+  countedQuantity   Int?
+  variance          Int?
+  value             Float?
+  createdAt         DateTime @default(now())
+  
+  yearEndCount YearEndCount @relation(fields: [yearEndCountId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  
+  @@unique([yearEndCountId, productId])
+  @@map("year_end_count_items")
+}
+
+// LockedYear entity - tracks which years are locked
+model LockedYear {
+  id        Int      @id @default(autoincrement())
+  year      Int      @unique
+  lockedAt  DateTime @default(now())
+  
+  @@map("locked_years")
+}
+
+// User entity for authentication
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  
+  @@map("users")
+}

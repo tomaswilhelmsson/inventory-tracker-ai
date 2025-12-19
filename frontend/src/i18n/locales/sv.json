@@ -1,0 +1,309 @@
+{
+  "common": {
+    "add": "Lägg till",
+    "edit": "Redigera",
+    "delete": "Ta bort",
+    "save": "Spara",
+    "cancel": "Avbryt",
+    "search": "Sök",
+    "filter": "Filtrera",
+    "actions": "Åtgärder",
+    "loading": "Laddar...",
+    "success": "Lyckades",
+    "error": "Fel",
+    "warning": "Varning",
+    "info": "Information",
+    "confirm": "Bekräfta",
+    "yes": "Ja",
+    "no": "Nej",
+    "close": "Stäng",
+    "back": "Tillbaka",
+    "next": "Nästa",
+    "previous": "Föregående",
+    "submit": "Skicka",
+    "reset": "Återställ",
+    "clear": "Rensa",
+    "noData": "Ingen data tillgänglig",
+    "noRecordsFound": "Inga poster hittades",
+    "selectYear": "Välj år",
+    "allYears": "Alla år"
+  },
+  "nav": {
+    "dashboard": "Instrumentpanel",
+    "suppliers": "Leverantörer",
+    "products": "Produkter",
+    "units": "Enheter",
+    "purchases": "Inköp",
+    "inventory": "Lager",
+    "yearEndCount": "Årsbokslut",
+    "reports": "Rapporter",
+    "logout": "Logga ut"
+  },
+  "login": {
+    "title": "Logga in",
+    "username": "Användarnamn",
+    "password": "Lösenord",
+    "loginButton": "Logga in",
+    "loginSuccess": "Inloggning lyckades",
+    "loginFailed": "Inloggning misslyckades",
+    "invalidCredentials": "Ogiltigt användarnamn eller lösenord",
+    "pleaseTryAgain": "Försök igen"
+  },
+  "dashboard": {
+    "title": "Instrumentpanel",
+    "welcome": "Välkommen till Lagerhanteringssystemet",
+    "totalInventoryValue": "Totalt lagervärde",
+    "activeProducts": "Aktiva produkter",
+    "totalSuppliers": "Totalt leverantörer",
+    "recentPurchases": "Senaste inköp",
+    "lowStock": "Produkter med lågt lager",
+    "inventoryOverview": "Lageröversikt",
+    "quickStats": "Snabb statistik"
+  },
+  "suppliers": {
+    "title": "Leverantörshantering",
+    "addSupplier": "Lägg till leverantör",
+    "editSupplier": "Redigera leverantör",
+    "deleteSupplier": "Ta bort leverantör",
+    "supplierDetails": "Leverantörsdetaljer",
+    "searchSuppliers": "Sök leverantörer...",
+    "form": {
+      "name": "Leverantörsnamn",
+      "namePlaceholder": "Ange leverantörsnamn",
+      "contactPerson": "Kontaktperson",
+      "contactPersonPlaceholder": "t.ex. Anna Andersson",
+      "email": "E-postadress",
+      "emailPlaceholder": "t.ex. leverantor@exempel.se",
+      "phone": "Telefonnummer",
+      "phonePlaceholder": "t.ex. +46 8 123 456",
+      "address": "Gatuadress",
+      "addressPlaceholder": "t.ex. Storgatan 1",
+      "city": "Stad",
+      "cityPlaceholder": "t.ex. Stockholm",
+      "country": "Land",
+      "countryPlaceholder": "t.ex. Sverige",
+      "taxId": "Org.nr / Momsreg.nr",
+      "taxIdPlaceholder": "t.ex. 556677-8899",
+      "notes": "Anteckningar",
+      "notesPlaceholder": "Ytterligare information om leverantören..."
+    },
+    "table": {
+      "name": "Namn",
+      "contactPerson": "Kontaktperson",
+      "email": "E-post",
+      "phone": "Telefon",
+      "created": "Skapad",
+      "products": "Produkter",
+      "purchases": "Inköp"
+    },
+    "messages": {
+      "createSuccess": "Leverantör skapades framgångsrikt",
+      "updateSuccess": "Leverantör uppdaterades framgångsrikt",
+      "deleteSuccess": "Leverantör raderades framgångsrikt",
+      "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",
+      "deleteWarning": "Denna leverantör har {products} produkt(er) och {purchases} inköp. Ta bort dessa först.",
+      "cannotDelete": "Kan inte ta bort"
+    }
+  },
+  "products": {
+    "title": "Produkthantering",
+    "addProduct": "Lägg till produkt",
+    "editProduct": "Redigera produkt",
+    "deleteProduct": "Ta bort produkt",
+    "productDetails": "Produktdetaljer",
+    "searchProducts": "Sök produkter...",
+    "form": {
+      "name": "Produktnamn",
+      "namePlaceholder": "Ange produktnamn",
+      "description": "Beskrivning",
+      "descriptionPlaceholder": "Ange produktbeskrivning",
+      "unit": "Enhet",
+      "unitPlaceholder": "Välj enhet",
+      "supplier": "Leverantör",
+      "supplierPlaceholder": "Välj leverantör"
+    },
+    "table": {
+      "name": "Namn",
+      "description": "Beskrivning",
+      "unit": "Enhet",
+      "supplier": "Leverantör",
+      "created": "Skapad"
+    },
+    "messages": {
+      "createSuccess": "Produkt skapades framgångsrikt",
+      "updateSuccess": "Produkt uppdaterades framgångsrikt",
+      "deleteSuccess": "Produkt raderades framgångsrikt",
+      "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",
+      "cannotDelete": "Kan inte ta bort produkt med inköpshistorik"
+    }
+  },
+  "units": {
+    "title": "Enhetshantering",
+    "addUnit": "Lägg till enhet",
+    "editUnit": "Redigera enhet",
+    "deleteUnit": "Ta bort enhet",
+    "searchUnits": "Sök enheter...",
+    "form": {
+      "name": "Enhetsnamn",
+      "namePlaceholder": "Ange enhetsnamn"
+    },
+    "table": {
+      "name": "Namn",
+      "products": "Produkter",
+      "created": "Skapad"
+    },
+    "messages": {
+      "createSuccess": "Enhet skapades framgångsrikt",
+      "updateSuccess": "Enhet uppdaterades framgångsrikt",
+      "deleteSuccess": "Enhet raderades framgångsrikt",
+      "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",
+      "unitInUse": "Kan inte ta bort enhet. {count} produkt(er) använder denna enhet."
+    },
+    "names": {
+      "pieces": "stycken",
+      "kg": "kg",
+      "g": "g",
+      "tons": "ton",
+      "liters": "liter",
+      "ml": "ml",
+      "m3": "m³",
+      "m": "m",
+      "m2": "m²",
+      "boxes": "lådor",
+      "pallets": "pallar",
+      "rolls": "rullar"
+    }
+  },
+  "purchases": {
+    "title": "Inköpsuppföljning",
+    "addPurchase": "Lägg till inköp",
+    "editPurchase": "Redigera inköp",
+    "deletePurchase": "Ta bort inköp",
+    "searchPurchases": "Sök inköp...",
+    "yearLocked": "År {year} är låst. Du kan inte skapa/redigera inköp för detta år.",
+    "locked": "LÅST",
+    "lockedTooltip": "År låst - kan inte redigeras",
+    "form": {
+      "purchaseDate": "Inköpsdatum",
+      "product": "Produkt",
+      "productPlaceholder": "Välj produkt",
+      "supplier": "Leverantör",
+      "supplierPlaceholder": "Välj leverantör",
+      "quantity": "Antal",
+      "quantityPlaceholder": "Ange antal",
+      "unitCost": "Styckpris",
+      "unitCostPlaceholder": "Ange styckpris",
+      "totalCost": "Totalkostnad"
+    },
+    "table": {
+      "purchaseDate": "Inköpsdatum",
+      "product": "Produkt",
+      "supplier": "Leverantör",
+      "quantity": "Antal",
+      "remaining": "Återstående",
+      "unitCost": "Styckpris",
+      "totalCost": "Totalkostnad"
+    },
+    "messages": {
+      "createSuccess": "Inköp skapades framgångsrikt",
+      "updateSuccess": "Inköp uppdaterades framgångsrikt",
+      "deleteSuccess": "Inköp raderades framgångsrikt",
+      "deleteConfirm": "Är du säker på att du vill ta bort detta inköp?",
+      "cannotDeletePartiallyConsumed": "Kan inte ta bort delvis förbrukad inköpspost"
+    }
+  },
+  "inventory": {
+    "title": "Lagervärdering",
+    "showZeroQuantity": "Visa produkter med noll antal",
+    "summary": {
+      "totalProducts": "Totalt produkter",
+      "totalValue": "Totalt lagervärde",
+      "totalUnits": "Totalt enheter"
+    },
+    "table": {
+      "product": "Produkt",
+      "quantity": "Antal",
+      "value": "Värde"
+    },
+    "productDetails": {
+      "title": "Produktdetaljer",
+      "lotBreakdown": "Uppdelning per parti",
+      "totalQuantity": "Totalt antal",
+      "totalValue": "Totalt värde",
+      "purchaseDate": "Inköpsdatum",
+      "year": "År",
+      "remainingQty": "Återstående antal",
+      "unitCost": "Styckpris",
+      "lotValue": "Partivärde",
+      "supplier": "Leverantör"
+    }
+  },
+  "yearEndCount": {
+    "title": "Årsbokslut",
+    "selectYear": "Välj år",
+    "initiateCount": "Starta räkning",
+    "status": {
+      "draft": "Utkast",
+      "confirmed": "Bekräftad"
+    },
+    "steps": {
+      "initiate": "Starta räkning",
+      "enterCounts": "Ange räknade antal",
+      "review": "Granska avvikelse",
+      "confirm": "Bekräfta räkning"
+    },
+    "form": {
+      "year": "År",
+      "yearPlaceholder": "Ange år (t.ex. 2024)"
+    },
+    "table": {
+      "product": "Produkt",
+      "expected": "Förväntat antal",
+      "counted": "Räknat antal",
+      "variance": "Avvikelse",
+      "value": "Värde",
+      "unit": "Enhet"
+    },
+    "summary": {
+      "totalExpected": "Totalt förväntat",
+      "totalCounted": "Totalt räknat",
+      "totalVariance": "Total avvikelse",
+      "totalValue": "Totalt värde"
+    },
+    "messages": {
+      "initiateSuccess": "Årsbokslut initierat för {year}",
+      "confirmSuccess": "Årsbokslut bekräftat för {year}",
+      "confirmWarning": "Detta kommer att låsa år {year} och skapa en säkerhetskopia. Fortsätt?",
+      "alreadyExists": "Årsbokslut finns redan för {year}",
+      "enterAllCounts": "Ange räknade antal för alla produkter"
+    }
+  },
+  "reports": {
+    "title": "Rapporter",
+    "generateReport": "Generera rapport",
+    "reportType": "Rapporttyp",
+    "dateRange": "Datumintervall",
+    "export": "Exportera",
+    "print": "Skriv ut",
+    "inventoryReport": "Lagerrapport",
+    "purchaseReport": "Inköpsrapport",
+    "supplierReport": "Leverantörsrapport"
+  },
+  "validation": {
+    "required": "Detta fält är obligatoriskt",
+    "requiredField": "{field} är obligatoriskt",
+    "invalidEmail": "Ange en giltig e-postadress",
+    "invalidNumber": "Ange ett giltigt nummer",
+    "minValue": "Värdet måste vara minst {min}",
+    "maxValue": "Värdet får vara högst {max}",
+    "minLength": "Måste vara minst {min} tecken",
+    "maxLength": "Får vara högst {max} tecken",
+    "mustBePositive": "Måste vara ett positivt nummer",
+    "mustBeGreaterThanZero": "Måste vara större än noll"
+  },
+  "language": {
+    "selectLanguage": "Välj språk",
+    "english": "English",
+    "swedish": "Svenska"
+  }
+}
