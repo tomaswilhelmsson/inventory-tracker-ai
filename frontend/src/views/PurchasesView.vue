@@ -1,8 +1,8 @@
 <template>
   <div class="purchases-view">
     <div class="header">
-      <h1>Purchase Tracking</h1>
-      <Button label="Add Purchase" icon="pi pi-plus" @click="openCreateDialog" />
+      <h1>{{ t('purchases.title') }}</h1>
+      <Button :label="t('purchases.addPurchase')" icon="pi pi-plus" @click="openCreateDialog" />
     </div>
 
     <Card>
@@ -21,13 +21,13 @@
                 <Dropdown
                   v-model="selectedYearFilter"
                   :options="availableYears"
-                  placeholder="Select Year"
+                  :placeholder="t('purchases.selectYear')"
                   class="year-filter"
                   showClear
                 >
                   <template #value="slotProps">
                     <span v-if="slotProps.value">{{ slotProps.value }}</span>
-                    <span v-else>All Years</span>
+                    <span v-else>{{ t('purchases.allYears') }}</span>
                   </template>
                 </Dropdown>
                 <IconField iconPosition="left">
@@ -36,68 +36,68 @@
                   </InputIcon>
                   <InputText
                     v-model="searchQuery"
-                    placeholder="Search purchases..."
+                    :placeholder="t('purchases.searchPurchases')"
                   />
                 </IconField>
               </div>
             </div>
           </template>
 
-          <Column field="purchaseDate" header="Purchase Date" sortable :sortOrder="-1">
+          <Column field="purchaseDate" :header="t('purchases.table.purchaseDate')" sortable :sortOrder="-1">
             <template #body="{ data }">
               <div class="date-cell">
-                {{ formatDate(data.purchaseDate) }}
+                {{ d(new Date(data.purchaseDate), 'short') }}
                 <Tag
                   v-if="isYearLocked(data.year)"
-                  value="LOCKED"
+                  :value="t('purchases.locked')"
                   severity="warning"
                   size="small"
-                  v-tooltip.top="'Year locked - cannot edit'"
+                  v-tooltip.top="t('purchases.yearLockedCannotEdit')"
                 />
               </div>
             </template>
           </Column>
 
-          <Column field="product.name" header="Product" sortable>
+          <Column field="product.name" :header="t('purchases.table.product')" sortable>
             <template #body="{ data }">
-              <Tag :value="data.productSnapshot?.name || data.product?.name || 'Unknown'" severity="info" />
+              <Tag :value="data.productSnapshot?.name || data.product?.name || t('common.unknown')" severity="info" />
             </template>
           </Column>
 
-          <Column field="supplier.name" header="Supplier" sortable>
+          <Column field="supplier.name" :header="t('purchases.table.supplier')" sortable>
             <template #body="{ data }">
-              <span>{{ data.supplierSnapshot?.name || data.supplier?.name || 'Unknown' }}</span>
+              <span>{{ data.supplierSnapshot?.name || data.supplier?.name || t('common.unknown') }}</span>
             </template>
           </Column>
 
-          <Column field="quantity" header="Quantity" sortable style="width: 150px">
+          <Column field="quantity" :header="t('purchases.table.quantity')" sortable style="width: 150px">
             <template #body="{ data }">
-              <span class="quantity-badge">{{ data.quantity.toLocaleString() }} {{ data.productSnapshot?.unit?.name || data.product?.unit?.name || 'pieces' }}</span>
+              <span class="quantity-badge">{{ n(data.quantity, 'integer') }} {{ data.productSnapshot?.unit?.name || data.product?.unit?.name || t('units.names.pieces') }}</span>
             </template>
           </Column>
 
-          <Column field="remainingQuantity" header="Remaining" sortable style="width: 150px">
+          <Column field="remainingQuantity" :header="t('purchases.table.remaining')" sortable style="width: 150px">
             <template #body="{ data }">
               <Tag
-                :value="`${data.remainingQuantity.toLocaleString()} ${data.productSnapshot?.unit?.name || data.product?.unit?.name || 'pieces'}`"
+                :value="`${n(data.remainingQuantity, 'integer')} ${data.productSnapshot?.unit?.name || data.product?.unit?.name || t('units.names.pieces')}`"
                 :severity="data.remainingQuantity > 0 ? 'success' : 'secondary'"
               />
             </template>
           </Column>
 
-          <Column field="unitCost" header="Unit Cost" sortable style="width: 120px">
+          <Column field="unitCost" :header="t('purchases.table.unitCost')" sortable style="width: 120px">
             <template #body="{ data }">
-              ${{ data.unitCost.toFixed(2) }}
+              {{ n(data.unitCost, 'currency') }}
             </template>
           </Column>
 
-          <Column header="Total Cost" style="width: 140px">
+          <Column :header="t('purchases.table.totalCost')" style="width: 140px">
             <template #body="{ data }">
-              <strong>${{ (data.quantity * data.unitCost).toFixed(2) }}</strong>
+              <strong>{{ n(data.quantity * data.unitCost, 'currency') }}</strong>
             </template>
           </Column>
 
-          <Column header="Actions" style="width: 150px">
+          <Column :header="t('common.actions')" style="width: 150px">
             <template #body="{ data }">
               <div class="action-buttons">
                 <Button
@@ -107,7 +107,7 @@
                   rounded
                   @click="openEditDialog(data)"
                   :disabled="isYearLocked(data.year)"
-                  v-tooltip.top="isYearLocked(data.year) ? 'Year locked' : 'Edit'"
+                  v-tooltip.top="isYearLocked(data.year) ? t('purchases.yearLocked') : t('common.edit')"
                 />
                 <Button
                   icon="pi pi-trash"
@@ -117,7 +117,7 @@
                   severity="danger"
                   @click="confirmDelete(data)"
                   :disabled="isYearLocked(data.year)"
-                  v-tooltip.top="isYearLocked(data.year) ? 'Year locked' : 'Delete'"
+                  v-tooltip.top="isYearLocked(data.year) ? t('purchases.yearLocked') : t('common.delete')"
                 />
               </div>
             </template>
@@ -126,7 +126,7 @@
           <template #empty>
             <div class="empty-state">
               <i class="pi pi-inbox" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
-              <p>No purchases found</p>
+              <p>{{ t('common.noRecordsFound') }}</p>
             </div>
           </template>
         </DataTable>
@@ -136,7 +136,7 @@
     <!-- Create/Edit Dialog -->
     <Dialog
       v-model:visible="dialogVisible"
-      :header="editMode ? 'Edit Purchase' : 'Add Purchase'"
+      :header="editMode ? t('purchases.editPurchase') : t('purchases.addPurchase')"
       modal
       :style="{ width: '700px' }"
       @hide="resetForm"
@@ -144,14 +144,14 @@
       <div class="form-container">
         <div class="field-row">
           <div class="field">
-            <label for="product">Product *</label>
+            <label for="product">{{ t('purchases.form.product') }} *</label>
             <Dropdown
               id="product"
               v-model="formData.productId"
               :options="products"
               optionLabel="name"
               optionValue="id"
-              placeholder="Select a product"
+              :placeholder="t('purchases.form.productPlaceholder')"
               :class="{ 'p-invalid': formErrors.productId }"
               :loading="loadingProducts"
               filter
@@ -161,7 +161,7 @@
                 <div class="product-option">
                   <div>{{ slotProps.option.name }}</div>
                   <small class="text-secondary">
-                    Supplier: {{ slotProps.option.supplier?.name || 'Unknown' }}
+                    {{ t('purchases.form.supplier') }}: {{ slotProps.option.supplier?.name || t('common.unknown') }}
                   </small>
                 </div>
               </template>
@@ -170,14 +170,14 @@
           </div>
 
           <div class="field">
-            <label for="supplier">Supplier *</label>
+            <label for="supplier">{{ t('purchases.form.supplier') }} *</label>
             <Dropdown
               id="supplier"
               v-model="formData.supplierId"
               :options="suppliers"
               optionLabel="name"
               optionValue="id"
-              placeholder="Select a supplier"
+              :placeholder="t('purchases.form.supplierPlaceholder')"
               :class="{ 'p-invalid': formErrors.supplierId }"
               :loading="loadingSuppliers"
               :disabled="!!formData.productId"
@@ -188,7 +188,7 @@
         </div>
 
         <div class="field">
-          <label for="purchaseDate">Purchase Date *</label>
+          <label for="purchaseDate">{{ t('purchases.form.purchaseDate') }} *</label>
           <DatePicker
             id="purchaseDate"
             v-model="formData.purchaseDate"
@@ -200,26 +200,26 @@
           <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
           <Message v-if="yearLockWarning" severity="warn" :closable="false" class="year-warning">
             <i class="pi pi-exclamation-triangle"></i>
-            Year {{ selectedYear }} is locked. You cannot create/edit purchases for this year.
+            {{ t('purchases.messages.yearLockedWarning', { year: selectedYear }) }}
           </Message>
         </div>
 
         <div class="field-row">
           <div class="field">
-            <label for="quantity">Quantity *</label>
+            <label for="quantity">{{ t('purchases.form.quantity') }} *</label>
             <InputNumber
               id="quantity"
               v-model="formData.quantity"
               :class="{ 'p-invalid': formErrors.quantity }"
               :min="1"
               :useGrouping="true"
-              placeholder="Enter quantity"
+              :placeholder="t('purchases.form.quantityPlaceholder')"
             />
             <small v-if="formErrors.quantity" class="p-error">{{ formErrors.quantity }}</small>
           </div>
 
           <div class="field">
-            <label for="unitCost">Unit Cost *</label>
+            <label for="unitCost">{{ t('purchases.form.unitCost') }} *</label>
             <InputNumber
               id="unitCost"
               v-model="formData.unitCost"
@@ -228,22 +228,22 @@
               currency="USD"
               :minFractionDigits="2"
               :min="0"
-              placeholder="Enter unit cost"
+              :placeholder="t('purchases.form.unitCostPlaceholder')"
             />
             <small v-if="formErrors.unitCost" class="p-error">{{ formErrors.unitCost }}</small>
           </div>
         </div>
 
         <div v-if="formData.quantity && formData.unitCost" class="total-display">
-          <strong>Total Cost:</strong>
-          <span class="total-amount">${{ (formData.quantity * formData.unitCost).toFixed(2) }}</span>
+          <strong>{{ t('purchases.form.totalCost') }}:</strong>
+          <span class="total-amount">{{ n(formData.quantity * formData.unitCost, 'currency') }}</span>
         </div>
       </div>
 
       <template #footer>
-        <Button label="Cancel" text @click="dialogVisible = false" />
+        <Button :label="t('common.cancel')" text @click="dialogVisible = false" />
         <Button
-          :label="editMode ? 'Update' : 'Create'"
+          :label="editMode ? t('common.update') : t('common.create')"
           :loading="saving"
           :disabled="yearLockWarning"
           @click="savePurchase"
@@ -257,6 +257,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 
 import Button from 'primevue/button';
@@ -343,6 +344,7 @@ interface FormErrors {
 
 const toast = useToast();
 const confirm = useConfirm();
+const { t, n, d } = useI18n();
 
 const purchases = ref<Purchase[]>([]);
 const products = ref<Product[]>([]);
@@ -427,8 +429,8 @@ const fetchPurchases = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load purchases',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('purchases.messages.loadFailed'),
       life: 3000,
     });
   } finally {
@@ -445,8 +447,8 @@ const fetchProducts = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load products',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('products.messages.loadFailed'),
       life: 3000,
     });
   } finally {
@@ -463,8 +465,8 @@ const fetchSuppliers = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load suppliers',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('suppliers.messages.loadFailed'),
       life: 3000,
     });
   } finally {
@@ -510,8 +512,8 @@ const openCreateDialog = async () => {
   if (products.value.length === 0) {
     toast.add({
       severity: 'warn',
-      summary: 'No Products',
-      detail: 'Please create a product first before adding purchases',
+      summary: t('common.warning'),
+      detail: t('purchases.messages.noProducts'),
       life: 5000,
     });
     return;
@@ -527,8 +529,8 @@ const openEditDialog = async (purchase: Purchase) => {
   if (isYearLocked(purchase.year)) {
     toast.add({
       severity: 'warn',
-      summary: 'Year Locked',
-      detail: `Cannot edit purchase from year ${purchase.year} - year is locked`,
+      summary: t('common.warning'),
+      detail: t('purchases.messages.cannotEditLockedYear', { year: purchase.year }),
       life: 5000,
     });
     return;
@@ -558,27 +560,27 @@ const validateForm = (): boolean => {
   formErrors.value = {};
 
   if (!formData.value.productId) {
-    formErrors.value.productId = 'Product is required';
+    formErrors.value.productId = t('validation.required');
   }
 
   if (!formData.value.supplierId) {
-    formErrors.value.supplierId = 'Supplier is required';
+    formErrors.value.supplierId = t('validation.required');
   }
 
   if (!formData.value.purchaseDate) {
-    formErrors.value.purchaseDate = 'Purchase date is required';
+    formErrors.value.purchaseDate = t('validation.required');
   }
 
   if (!formData.value.quantity || formData.value.quantity <= 0) {
-    formErrors.value.quantity = 'Quantity must be greater than 0';
+    formErrors.value.quantity = t('validation.quantityPositive');
   }
 
   if (formData.value.unitCost === null || formData.value.unitCost < 0) {
-    formErrors.value.unitCost = 'Unit cost must be 0 or greater';
+    formErrors.value.unitCost = t('validation.unitCostNonNegative');
   }
 
   if (yearLockWarning.value) {
-    formErrors.value.purchaseDate = 'Cannot create/edit purchases for locked years';
+    formErrors.value.purchaseDate = t('purchases.messages.cannotEditLockedYear', { year: selectedYear.value });
   }
 
   return Object.keys(formErrors.value).length === 0;
@@ -605,8 +607,8 @@ const savePurchase = async () => {
       await api.put(`/purchases/${currentPurchaseId.value}`, payload);
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: 'Purchase updated successfully',
+        summary: t('common.success'),
+        detail: t('purchases.messages.updateSuccess'),
         life: 3000,
       });
     } else {
@@ -614,8 +616,8 @@ const savePurchase = async () => {
       await api.post('/purchases', payload);
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: 'Purchase created successfully',
+        summary: t('common.success'),
+        detail: t('purchases.messages.createSuccess'),
         life: 3000,
       });
     }
@@ -625,8 +627,8 @@ const savePurchase = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to save purchase',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('purchases.messages.saveFailed'),
       life: 3000,
     });
   } finally {
@@ -639,16 +641,16 @@ const confirmDelete = (purchase: Purchase) => {
   if (isYearLocked(purchase.year)) {
     toast.add({
       severity: 'warn',
-      summary: 'Year Locked',
-      detail: `Cannot delete purchase from year ${purchase.year} - year is locked`,
+      summary: t('common.warning'),
+      detail: t('purchases.messages.cannotDeleteLockedYear', { year: purchase.year }),
       life: 5000,
     });
     return;
   }
 
   confirm.require({
-    message: `Are you sure you want to delete this purchase?`,
-    header: 'Confirm Deletion',
+    message: t('purchases.messages.deleteConfirm'),
+    header: t('common.confirm'),
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
     accept: () => deletePurchase(purchase.id),
@@ -661,16 +663,16 @@ const deletePurchase = async (id: number) => {
     await api.delete(`/purchases/${id}`);
     toast.add({
       severity: 'success',
-      summary: 'Success',
-      detail: 'Purchase deleted successfully',
+      summary: t('common.success'),
+      detail: t('purchases.messages.deleteSuccess'),
       life: 3000,
     });
     await fetchPurchases();
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to delete purchase',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('purchases.messages.deleteFailed'),
       life: 3000,
     });
   }

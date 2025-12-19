@@ -1,8 +1,8 @@
 <template>
   <div class="units-view">
     <div class="header">
-      <h1>Units Management</h1>
-      <Button label="Add Unit" icon="pi pi-plus" @click="openCreateDialog" />
+      <h1>{{ t('units.title') }}</h1>
+      <Button :label="t('units.addUnit')" icon="pi pi-plus" @click="openCreateDialog" />
     </div>
 
     <Card>
@@ -23,27 +23,27 @@
                 </InputIcon>
                 <InputText
                   v-model="searchQuery"
-                  placeholder="Search units..."
+                  :placeholder="t('units.searchUnits')"
                 />
               </IconField>
             </div>
           </template>
 
-          <Column field="name" header="Unit Name" sortable />
+          <Column field="name" :header="t('units.table.name')" sortable />
 
-          <Column field="createdAt" header="Created" sortable>
+          <Column field="createdAt" :header="t('units.table.created')" sortable>
             <template #body="{ data }">
-              {{ formatDate(data.createdAt) }}
+              {{ d(new Date(data.createdAt), 'short') }}
             </template>
           </Column>
 
-          <Column header="Products" style="width: 120px">
+          <Column :header="t('units.table.products')" style="width: 120px">
             <template #body="{ data }">
               <Tag :value="data._count?.products || 0" severity="info" />
             </template>
           </Column>
 
-          <Column header="Actions" style="width: 150px">
+          <Column :header="t('common.actions')" style="width: 150px">
             <template #body="{ data }">
               <div class="action-buttons">
                 <Button
@@ -52,7 +52,7 @@
                   text
                   rounded
                   @click="openEditDialog(data)"
-                  v-tooltip.top="'Edit'"
+                  v-tooltip.top="t('common.edit')"
                 />
                 <Button
                   icon="pi pi-trash"
@@ -61,7 +61,7 @@
                   rounded
                   severity="danger"
                   @click="confirmDelete(data)"
-                  v-tooltip.top="'Delete'"
+                  v-tooltip.top="t('common.delete')"
                 />
               </div>
             </template>
@@ -70,7 +70,7 @@
           <template #empty>
             <div class="empty-state">
               <i class="pi pi-inbox" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
-              <p>No units found</p>
+              <p>{{ t('common.noRecordsFound') }}</p>
             </div>
           </template>
         </DataTable>
@@ -80,19 +80,19 @@
     <!-- Create/Edit Dialog -->
     <Dialog
       v-model:visible="dialogVisible"
-      :header="editMode ? 'Edit Unit' : 'Add Unit'"
+      :header="editMode ? t('units.editUnit') : t('units.addUnit')"
       modal
       :style="{ width: '450px' }"
       @hide="resetForm"
     >
       <div class="form-container">
         <div class="field">
-          <label for="name">Unit Name *</label>
+          <label for="name">{{ t('units.form.name') }} *</label>
           <InputText
             id="name"
             v-model="formData.name"
             :class="{ 'p-invalid': formErrors.name }"
-            placeholder="Enter unit name (e.g., pieces, kg, liters)"
+            :placeholder="t('units.form.namePlaceholder')"
             autofocus
           />
           <small v-if="formErrors.name" class="p-error">{{ formErrors.name }}</small>
@@ -100,9 +100,9 @@
       </div>
 
       <template #footer>
-        <Button label="Cancel" text @click="dialogVisible = false" />
+        <Button :label="t('common.cancel')" text @click="dialogVisible = false" />
         <Button
-          :label="editMode ? 'Update' : 'Create'"
+          :label="editMode ? t('common.update') : t('common.create')"
           :loading="saving"
           @click="saveUnit"
         />
@@ -115,6 +115,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 
 import Button from 'primevue/button';
@@ -146,6 +147,7 @@ interface FormErrors {
 
 const toast = useToast();
 const confirm = useConfirm();
+const { t, d } = useI18n();
 
 const units = ref<Unit[]>([]);
 const loading = ref(false);
@@ -181,8 +183,8 @@ const fetchUnits = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load units',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('units.messages.loadFailed'),
       life: 3000,
     });
   } finally {
@@ -212,7 +214,7 @@ const validateForm = (): boolean => {
   formErrors.value = {};
 
   if (!formData.value.name.trim()) {
-    formErrors.value.name = 'Unit name is required';
+    formErrors.value.name = t('validation.required');
   }
 
   return Object.keys(formErrors.value).length === 0;
@@ -235,8 +237,8 @@ const saveUnit = async () => {
       await api.put(`/units/${currentUnitId.value}`, payload);
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: 'Unit updated successfully',
+        summary: t('common.success'),
+        detail: t('units.messages.updateSuccess'),
         life: 3000,
       });
     } else {
@@ -244,8 +246,8 @@ const saveUnit = async () => {
       await api.post('/units', payload);
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: 'Unit created successfully',
+        summary: t('common.success'),
+        detail: t('units.messages.createSuccess'),
         life: 3000,
       });
     }
@@ -255,8 +257,8 @@ const saveUnit = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to save unit',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('units.messages.saveFailed'),
       life: 3000,
     });
   } finally {
@@ -271,16 +273,16 @@ const confirmDelete = (unit: Unit) => {
   if (productCount > 0) {
     toast.add({
       severity: 'warn',
-      summary: 'Cannot Delete',
-      detail: `This unit is used by ${productCount} product(s). Reassign those products before deleting this unit.`,
+      summary: t('common.warning'),
+      detail: t('units.messages.cannotDeleteWithProducts', { count: productCount }),
       life: 5000,
     });
     return;
   }
 
   confirm.require({
-    message: `Are you sure you want to delete unit "${unit.name}"?`,
-    header: 'Confirm Deletion',
+    message: t('units.messages.deleteConfirm', { name: unit.name }),
+    header: t('common.confirm'),
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
     accept: () => deleteUnit(unit.id),
@@ -293,16 +295,16 @@ const deleteUnit = async (id: number) => {
     await api.delete(`/units/${id}`);
     toast.add({
       severity: 'success',
-      summary: 'Success',
-      detail: 'Unit deleted successfully',
+      summary: t('common.success'),
+      detail: t('units.messages.deleteSuccess'),
       life: 3000,
     });
     await fetchUnits();
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to delete unit',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('units.messages.deleteFailed'),
       life: 3000,
     });
   }
@@ -316,14 +318,7 @@ const resetForm = () => {
   formErrors.value = {};
 };
 
-// Format date
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
+
 
 // Load data on mount
 onMounted(() => {

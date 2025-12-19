@@ -1,8 +1,8 @@
 <template>
   <div class="products-view">
     <div class="header">
-      <h1>Product Catalog</h1>
-      <Button label=t("products.addProduct") icon="pi pi-plus" @click="openCreateDialog" />
+      <h1>{{ t('products.title') }}</h1>
+      <Button :label="t('products.addProduct')" icon="pi pi-plus" @click="openCreateDialog" />
     </div>
 
     <Card>
@@ -23,45 +23,45 @@
                 </InputIcon>
                 <InputText
                   v-model="searchQuery"
-                  placeholder="Search products..."
+                  :placeholder="t('products.searchProducts')"
                 />
               </IconField>
             </div>
           </template>
 
-          <Column field="name" header="Product Name" sortable />
+          <Column field="name" :header="t('products.table.name')" sortable />
 
-          <Column field="unit.name" header="Unit" sortable style="width: 120px">
+          <Column field="unit.name" :header="t('products.table.unit')" sortable style="width: 120px">
             <template #body="{ data }">
-              <Tag :value="data.unit?.name || 'pieces'" severity="secondary" />
+              <Tag :value="data.unit?.name || t('units.names.pieces')" severity="secondary" />
             </template>
           </Column>
 
-          <Column field="description" header="Description" sortable>
+          <Column field="description" :header="t('products.table.description')" sortable>
             <template #body="{ data }">
               <span class="description-text">{{ data.description || '—' }}</span>
             </template>
           </Column>
 
-          <Column field="supplier.name" header="Supplier" sortable>
+          <Column field="supplier.name" :header="t('products.table.supplier')" sortable>
             <template #body="{ data }">
-              <Tag :value="data.supplier?.name || 'Unknown'" severity="info" />
+              <Tag :value="data.supplier?.name || t('common.noData')" severity="info" />
             </template>
           </Column>
 
-          <Column field="createdAt" header="Created" sortable>
+          <Column field="createdAt" :header="t('products.table.created')" sortable>
             <template #body="{ data }">
               {{ formatDate(data.createdAt) }}
             </template>
           </Column>
 
-          <Column header="Purchases" style="width: 100px">
+          <Column :header="t('purchases.title')" style="width: 100px">
             <template #body="{ data }">
               <Tag :value="data._count?.purchases || 0" severity="success" />
             </template>
           </Column>
 
-          <Column header="Actions" style="width: 150px">
+          <Column :header="t('common.actions')" style="width: 150px">
             <template #body="{ data }">
               <div class="action-buttons">
                 <Button
@@ -70,7 +70,7 @@
                   text
                   rounded
                   @click="openEditDialog(data)"
-                  v-tooltip.top="'Edit'"
+                  v-tooltip.top="t('common.edit')"
                 />
                 <Button
                   icon="pi pi-trash"
@@ -79,7 +79,7 @@
                   rounded
                   severity="danger"
                   @click="confirmDelete(data)"
-                  v-tooltip.top="'Delete'"
+                  v-tooltip.top="t('common.delete')"
                 />
               </div>
             </template>
@@ -88,7 +88,7 @@
           <template #empty>
             <div class="empty-state">
               <i class="pi pi-inbox" style="font-size: 3rem; color: var(--text-color-secondary)"></i>
-              <p>No products found</p>
+              <p>{{ t('common.noRecordsFound') }}</p>
             </div>
           </template>
         </DataTable>
@@ -98,43 +98,43 @@
     <!-- Create/Edit Dialog -->
     <Dialog
       v-model:visible="dialogVisible"
-      :header="editMode ? 'Edit Product' : 'Add Product'"
+      :header="editMode ? t('products.editProduct') : t('products.addProduct')"
       modal
       :style="{ width: '600px' }"
       @hide="resetForm"
     >
       <div class="form-container">
         <div class="field">
-          <label for="name">Product Name *</label>
+          <label for="name">{{ t('products.form.name') }} *</label>
           <InputText
             id="name"
             v-model="formData.name"
             :class="{ 'p-invalid': formErrors.name }"
-            placeholder="Enter product name"
+            :placeholder="t('products.form.namePlaceholder')"
             autofocus
           />
           <small v-if="formErrors.name" class="p-error">{{ formErrors.name }}</small>
         </div>
 
         <div class="field">
-          <label for="description">Description</label>
+          <label for="description">{{ t('products.form.description') }}</label>
           <Textarea
             id="description"
             v-model="formData.description"
             rows="3"
-            placeholder="Product description (optional)"
+            :placeholder="t('products.form.descriptionPlaceholder')"
           />
         </div>
 
         <div class="field">
-          <label for="unit">Unit of Measure *</label>
+          <label for="unit">{{ t('products.form.unit') }} *</label>
           <Dropdown
             id="unit"
             v-model="formData.unitId"
             :options="units"
             optionLabel="name"
             optionValue="id"
-            placeholder="Select unit"
+            :placeholder="t('products.form.unitPlaceholder')"
             :class="{ 'p-invalid': formErrors.unitId }"
             :loading="loadingUnits"
           />
@@ -142,14 +142,14 @@
         </div>
 
         <div class="field">
-          <label for="supplier">Supplier *</label>
+          <label for="supplier">{{ t('products.form.supplier') }} *</label>
           <Dropdown
             id="supplier"
             v-model="formData.supplierId"
             :options="suppliers"
             optionLabel="name"
             optionValue="id"
-            placeholder="Select a supplier"
+            :placeholder="t('products.form.supplierPlaceholder')"
             :class="{ 'p-invalid': formErrors.supplierId }"
             :loading="loadingSuppliers"
             filter
@@ -168,9 +168,9 @@
       </div>
 
       <template #footer>
-        <Button label="Cancel" text @click="dialogVisible = false" />
+        <Button :label="t('common.cancel')" text @click="dialogVisible = false" />
         <Button
-          :label="editMode ? 'Update' : 'Create'"
+          :label="editMode ? t('common.edit') : t('common.add')"
           :loading="saving"
           @click="saveProduct"
         />
@@ -283,8 +283,8 @@ const fetchProducts = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load products',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('common.error'),
       life: 3000,
     });
   } finally {
@@ -301,8 +301,8 @@ const fetchSuppliers = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load suppliers',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('common.error'),
       life: 3000,
     });
   } finally {
@@ -319,8 +319,8 @@ const fetchUnits = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to load units',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('common.error'),
       life: 3000,
     });
   } finally {
@@ -341,8 +341,8 @@ const openCreateDialog = async () => {
   if (suppliers.value.length === 0) {
     toast.add({
       severity: 'warn',
-      summary: 'No Suppliers',
-      detail: 'Please create a supplier first before adding products',
+      summary: t('common.warning'),
+      detail: t('products.messages.noSuppliers'),
       life: 5000,
     });
     return;
@@ -351,8 +351,8 @@ const openCreateDialog = async () => {
   if (units.value.length === 0) {
     toast.add({
       severity: 'warn',
-      summary: 'No Units',
-      detail: 'Please create a unit first before adding products',
+      summary: t('common.warning'),
+      detail: t('products.messages.noUnits'),
       life: 5000,
     });
     return;
@@ -389,15 +389,15 @@ const validateForm = (): boolean => {
   formErrors.value = {};
 
   if (!formData.value.name.trim()) {
-    formErrors.value.name = 'Product name is required';
+    formErrors.value.name = t('validation.required');
   }
 
   if (!formData.value.unitId) {
-    formErrors.value.unitId = 'Unit is required';
+    formErrors.value.unitId = t('validation.required');
   }
 
   if (!formData.value.supplierId) {
-    formErrors.value.supplierId = 'Supplier is required';
+    formErrors.value.supplierId = t('validation.required');
   }
 
   return Object.keys(formErrors.value).length === 0;
@@ -423,8 +423,8 @@ const saveProduct = async () => {
       await api.put(`/products/${currentProductId.value}`, payload);
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: 'Product updated successfully',
+        summary: t('common.success'),
+        detail: t('products.messages.updateSuccess'),
         life: 3000,
       });
     } else {
@@ -432,8 +432,8 @@ const saveProduct = async () => {
       await api.post('/products', payload);
       toast.add({
         severity: 'success',
-        summary: 'Success',
-        detail: 'Product created successfully',
+        summary: t('common.success'),
+        detail: t('products.messages.createSuccess'),
         life: 3000,
       });
     }
@@ -443,8 +443,8 @@ const saveProduct = async () => {
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to save product',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('products.messages.saveFailed'),
       life: 3000,
     });
   } finally {
@@ -459,16 +459,16 @@ const confirmDelete = (product: Product) => {
   if (purchaseCount > 0) {
     toast.add({
       severity: 'warn',
-      summary: 'Cannot Delete',
-      detail: `This product has ${purchaseCount} purchase lot(s). Delete those first.`,
+      summary: t('common.warning'),
+      detail: t('products.messages.cannotDeleteWithPurchases', { count: purchaseCount }),
       life: 5000,
     });
     return;
   }
 
   confirm.require({
-    message: `Are you sure you want to delete "${product.name}"?`,
-    header: 'Confirm Deletion',
+    message: t('products.messages.deleteConfirm', { name: product.name }),
+    header: t('common.confirm'),
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
     accept: () => deleteProduct(product.id),
@@ -481,16 +481,16 @@ const deleteProduct = async (id: number) => {
     await api.delete(`/products/${id}`);
     toast.add({
       severity: 'success',
-      summary: 'Success',
-      detail: 'Product deleted successfully',
+      summary: t('common.success'),
+      detail: t('products.messages.deleteSuccess'),
       life: 3000,
     });
     await fetchProducts();
   } catch (error: any) {
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: error.response?.data?.error || 'Failed to delete product',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('products.messages.deleteFailed'),
       life: 3000,
     });
   }
