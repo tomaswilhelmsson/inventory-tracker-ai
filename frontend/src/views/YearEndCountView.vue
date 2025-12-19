@@ -14,7 +14,7 @@ import FileUpload from 'primevue/fileupload';
 import Message from 'primevue/message';
 
 const toast = useToast();
-const { t, n, d } = useI18n();
+const { t, n } = useI18n();
 
 const loading = ref(false);
 const countSheet = ref<any>(null);
@@ -271,7 +271,7 @@ async function confirmCount() {
 async function finalizeCount() {
   loading.value = true;
   try {
-    const response = await api.post(`/year-end-count/${countSheet.value.id}/confirm`);
+    await api.post(`/year-end-count/${countSheet.value.id}/confirm`);
     
     toast.add({
       severity: 'success',

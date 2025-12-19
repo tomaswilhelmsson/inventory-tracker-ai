@@ -311,7 +311,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
-import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 
@@ -342,7 +341,6 @@ interface ProductActivityItem {
 
 const toast = useToast();
 const { t, n, d } = useI18n();
-const router = useRouter();
 
 const loadingInventoryReport = ref(false);
 const loadingPurchaseReport = ref(false);

@@ -48,34 +48,34 @@ function getInitialLocale(): string {
 const numberFormats = {
   en: {
     currency: {
-      style: 'currency',
+      style: 'currency' as const,
       currency: 'USD',
-      notation: 'standard',
+      notation: 'standard' as const,
     },
     decimal: {
-      style: 'decimal',
+      style: 'decimal' as const,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     },
     integer: {
-      style: 'decimal',
+      style: 'decimal' as const,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     },
   },
   sv: {
     currency: {
-      style: 'currency',
+      style: 'currency' as const,
       currency: 'USD',
-      notation: 'standard',
+      notation: 'standard' as const,
     },
     decimal: {
-      style: 'decimal',
+      style: 'decimal' as const,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     },
     integer: {
-      style: 'decimal',
+      style: 'decimal' as const,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     },
@@ -86,40 +86,40 @@ const numberFormats = {
 const datetimeFormats = {
   en: {
     short: {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      year: 'numeric' as const,
+      month: '2-digit' as const,
+      day: '2-digit' as const,
     },
     long: {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+      year: 'numeric' as const,
+      month: 'long' as const,
+      day: 'numeric' as const,
     },
     datetime: {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
+      year: 'numeric' as const,
+      month: '2-digit' as const,
+      day: '2-digit' as const,
+      hour: '2-digit' as const,
+      minute: '2-digit' as const,
     },
   },
   sv: {
     short: {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      year: 'numeric' as const,
+      month: '2-digit' as const,
+      day: '2-digit' as const,
     },
     long: {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+      year: 'numeric' as const,
+      month: 'long' as const,
+      day: 'numeric' as const,
     },
     datetime: {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
+      year: 'numeric' as const,
+      month: '2-digit' as const,
+      day: '2-digit' as const,
+      hour: '2-digit' as const,
+      minute: '2-digit' as const,
     },
   },
 };
@@ -145,4 +145,4 @@ export function updateHtmlLang(locale: string): void {
 }
 
 // Initialize HTML lang on load
-updateHtmlLang(i18n.global.locale.value);
+updateHtmlLang(typeof i18n.global.locale === 'string' ? i18n.global.locale : i18n.global.locale.value);
