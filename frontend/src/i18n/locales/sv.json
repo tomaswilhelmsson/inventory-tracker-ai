@@ -1,7 +1,9 @@
 {
   "common": {
     "add": "Lägg till",
+    "create": "Skapa",
     "edit": "Redigera",
+    "update": "Uppdatera",
     "delete": "Ta bort",
     "save": "Spara",
     "cancel": "Avbryt",
@@ -23,6 +25,8 @@
     "submit": "Skicka",
     "reset": "Återställ",
     "clear": "Rensa",
+    "saved": "Sparad",
+    "unknown": "Okänd",
     "noData": "Ingen data tillgänglig",
     "noRecordsFound": "Inga poster hittades",
     "selectYear": "Välj år",
@@ -102,7 +106,8 @@
       "deleteSuccess": "Leverantör raderades framgångsrikt",
       "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",
       "deleteWarning": "Denna leverantör har {products} produkt(er) och {purchases} inköp. Ta bort dessa först.",
-      "cannotDelete": "Kan inte ta bort"
+      "cannotDelete": "Kan inte ta bort",
+      "loadFailed": "Misslyckades med att ladda leverantörer"
     }
   },
   "products": {
@@ -133,8 +138,13 @@
       "createSuccess": "Produkt skapades framgångsrikt",
       "updateSuccess": "Produkt uppdaterades framgångsrikt",
       "deleteSuccess": "Produkt raderades framgångsrikt",
+      "deleteFailed": "Misslyckades med att ta bort produkt",
       "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",
-      "cannotDelete": "Kan inte ta bort produkt med inköpshistorik"
+      "cannotDelete": "Kan inte ta bort produkt med inköpshistorik",
+      "loadFailed": "Misslyckades med att ladda produkter",
+      "saveFailed": "Misslyckades med att spara produkt",
+      "noSuppliers": "Inga leverantörer tillgängliga. Skapa en leverantör först.",
+      "noUnits": "Inga enheter tillgängliga. Skapa en enhet först."
     }
   },
   "units": {
@@ -156,8 +166,11 @@
       "createSuccess": "Enhet skapades framgångsrikt",
       "updateSuccess": "Enhet uppdaterades framgångsrikt",
       "deleteSuccess": "Enhet raderades framgångsrikt",
+      "deleteFailed": "Misslyckades med att ta bort enhet",
       "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",
-      "unitInUse": "Kan inte ta bort enhet. {count} produkt(er) använder denna enhet."
+      "unitInUse": "Kan inte ta bort enhet. {count} produkt(er) använder denna enhet.",
+      "loadFailed": "Misslyckades med att ladda enheter",
+      "saveFailed": "Misslyckades med att spara enhet"
     },
     "names": {
       "pieces": "stycken",
@@ -210,40 +223,68 @@
       "createSuccess": "Inköp skapades framgångsrikt",
       "updateSuccess": "Inköp uppdaterades framgångsrikt",
       "deleteSuccess": "Inköp raderades framgångsrikt",
+      "deleteFailed": "Misslyckades med att ta bort inköp",
       "deleteConfirm": "Är du säker på att du vill ta bort detta inköp?",
-      "cannotDeletePartiallyConsumed": "Kan inte ta bort delvis förbrukad inköpspost"
+      "cannotDeletePartiallyConsumed": "Kan inte ta bort delvis förbrukad inköpspost",
+      "loadFailed": "Misslyckades med att ladda inköp",
+      "saveFailed": "Misslyckades med att spara inköp",
+      "noProducts": "Inga produkter tillgängliga. Skapa en produkt först."
     }
   },
   "inventory": {
-    "title": "Lagervärdering",
-    "showZeroQuantity": "Visa produkter med noll antal",
-    "summary": {
-      "totalProducts": "Totalt produkter",
-      "totalValue": "Totalt lagervärde",
-      "totalUnits": "Totalt enheter"
-    },
+    "title": "Lagerhantering",
+    "refresh": "Uppdatera",
+    "totalProducts": "Totalt antal produkter",
+    "totalInventoryValue": "Totalt lagervärde",
+    "totalUnits": "Totala enheter",
+    "searchInventory": "Sök i lager...",
+    "showZeroQuantity": "Visa artiklar med noll antal",
+    "viewFifoLots": "Visa FIFO-partier",
     "table": {
       "product": "Produkt",
-      "quantity": "Antal",
-      "value": "Värde"
-    },
-    "productDetails": {
-      "title": "Produktdetaljer",
-      "lotBreakdown": "Uppdelning per parti",
+      "primarySupplier": "Huvudleverantör",
       "totalQuantity": "Totalt antal",
+      "avgUnitCost": "Genomsnittligt styckpris",
       "totalValue": "Totalt värde",
+      "lots": "# Partier"
+    },
+    "lotsDialog": {
+      "header": "FIFO Inköpspartier - {productName}",
+      "supplier": "Leverantör",
+      "totalQuantity": "Totalt antal",
+      "avgUnitCost": "Genomsnittligt styckpris",
+      "totalValue": "Totalt värde",
+      "purchaseLotsHeader": "Inköpspartier (FIFO-ordning - Äldsta först)",
       "purchaseDate": "Inköpsdatum",
-      "year": "År",
+      "originalQty": "Ursprungligt antal",
       "remainingQty": "Återstående antal",
       "unitCost": "Styckpris",
       "lotValue": "Partivärde",
-      "supplier": "Leverantör"
+      "year": "År",
+      "noLotsAvailable": "Inga partier tillgängliga"
+    },
+    "messages": {
+      "loadFailed": "Misslyckades med att ladda lager"
     }
   },
   "yearEndCount": {
     "title": "Årsbokslut",
     "selectYear": "Välj år",
+    "clickToInitiate": "Klicka 'Starta räkning' för att påbörja årsbokslut",
     "initiateCount": "Starta räkning",
+    "confirmCount": "Bekräfta räkning",
+    "confirmLockYear": "Bekräfta & lås år",
+    "draft": "Utkast",
+    "confirmedLocked": "Bekräftad & låst",
+    "noCountInProgress": "Ingen räkning pågår",
+    "allProductsCounted": "Alla produkter räknade",
+    "progress": "{counted} av {total} produkter räknade",
+    "productsNeedCounting": "{count} produkter behöver fortfarande räknas",
+    "countSheet": "Räknelista",
+    "exportCSV": "Exportera CSV",
+    "exportPDF": "Exportera PDF",
+    "importCSV": "Importera CSV",
+    "previewReport": "Förhandsgranska rapport",
     "status": {
       "draft": "Utkast",
       "confirmed": "Bekräftad"
@@ -260,10 +301,15 @@
     },
     "table": {
       "product": "Produkt",
+      "productName": "Produktnamn",
       "expected": "Förväntat antal",
+      "expectedQuantity": "Förväntat antal",
       "counted": "Räknat antal",
+      "actualCount": "Verkligt antal",
+      "enterCount": "Ange antal",
       "variance": "Avvikelse",
       "value": "Värde",
+      "valueFIFO": "Värde (FIFO)",
       "unit": "Enhet"
     },
     "summary": {
@@ -272,24 +318,115 @@
       "totalVariance": "Total avvikelse",
       "totalValue": "Totalt värde"
     },
+    "confirmDialog": {
+      "header": "Bekräfta årsbokslut",
+      "summary": "Sammanfattning",
+      "totalExpected": "Totalt förväntat",
+      "totalCounted": "Totalt räknat",
+      "totalVariance": "Total avvikelse",
+      "totalValue": "Totalt värde",
+      "warningText": "Varning: Denna åtgärd kan inte ångras!",
+      "cannotUndo": "Denna åtgärd kan inte ångras",
+      "createBackup": "En säkerhetskopia av databasen kommer att skapas",
+      "updateFIFO": "FIFO-partier kommer att uppdateras baserat på räknade antal",
+      "lockYear": "År {year} kommer att låsas och kan inte ändras"
+    },
+    "reportDialog": {
+      "header": "Årsbokslut rapport",
+      "yearStatus": "År {year} - Status: {status}",
+      "product": "Produkt",
+      "expected": "Förväntat",
+      "counted": "Räknat",
+      "variance": "Avvikelse",
+      "value": "Värde",
+      "totalExpected": "Totalt förväntat",
+      "totalCounted": "Totalt räknat",
+      "totalVariance": "Total avvikelse",
+      "totalValue": "Totalt värde"
+    },
     "messages": {
       "initiateSuccess": "Årsbokslut initierat för {year}",
+      "initiateFailed": "Misslyckades med att initiera årsbokslut",
       "confirmSuccess": "Årsbokslut bekräftat för {year}",
+      "confirmFailed": "Misslyckades med att bekräfta årsbokslut",
       "confirmWarning": "Detta kommer att låsa år {year} och skapa en säkerhetskopia. Fortsätt?",
       "alreadyExists": "Årsbokslut finns redan för {year}",
-      "enterAllCounts": "Ange räknade antal för alla produkter"
+      "enterAllCounts": "Ange räknade antal för alla produkter",
+      "countUpdated": "Räkning uppdaterad för {productName}",
+      "incompleteCount": "{count} produkter behöver fortfarande räknas. Vänligen räkna alla produkter innan bekräftelse.",
+      "loadFailed": "Misslyckades med att ladda årsbokslut",
+      "loadSheetFailed": "Misslyckades med att ladda räknelista",
+      "updateFailed": "Misslyckades med att uppdatera räkning",
+      "importSuccess": "{count} produkter importerades framgångsrikt",
+      "importWarning": "{count} produkter misslyckades att importera",
+      "importFailed": "Misslyckades med att importera CSV",
+      "exportCSVSuccess": "CSV exporterades framgångsrikt",
+      "exportCSVFailed": "Misslyckades med att exportera CSV",
+      "exportPDFSuccess": "PDF exporterades framgångsrikt",
+      "exportPDFFailed": "Misslyckades med att exportera PDF",
+      "reportFailed": "Misslyckades med att generera rapport"
     }
   },
   "reports": {
     "title": "Rapporter",
     "generateReport": "Generera rapport",
+    "generateSummary": "Generera sammanfattning",
+    "viewReport": "Visa rapport",
+    "exportCSV": "Exportera CSV",
     "reportType": "Rapporttyp",
     "dateRange": "Datumintervall",
     "export": "Exportera",
     "print": "Skriv ut",
     "inventoryReport": "Lagerrapport",
     "purchaseReport": "Inköpsrapport",
-    "supplierReport": "Leverantörsrapport"
+    "supplierReport": "Leverantörsrapport",
+    "product": "Produkt",
+    "supplier": "Leverantör",
+    "quantity": "Antal",
+    "value": "Värde",
+    "totalValue": "Totalt värde",
+    "totalProducts": "Totalt produkter",
+    "totalUnits": "Totalt enheter",
+    "totalInventoryValue": "Totalt lagervärde",
+    "totalVariance": "Total avvikelse",
+    "inventoryValue": "Lagervärde",
+    "avgUnitCost": "Genomsnittligt styckpris",
+    "reportDate": "Rapportdatum",
+    "year": "År",
+    "purchases": "Inköp",
+    "currentInventory": "Nuvarande lager",
+    "expected": "Förväntat",
+    "counted": "Räknat",
+    "variance": "Avvikelse",
+    "confirmedDate": "Bekräftelsedatum",
+    "inventoryValuation": {
+      "title": "Lagervärdering",
+      "description": "Nuvarande lagervärde per produkt med FIFO-kostnadsberäkning",
+      "dialogHeader": "Lagervärderingsrapport"
+    },
+    "productActivity": {
+      "title": "Produktaktivitet",
+      "description": "Inköpshistorik och lagerrörelse per produkt",
+      "dialogHeader": "Produktaktivitetsrapport"
+    },
+    "purchaseHistory": {
+      "title": "Inköpshistorik",
+      "description": "Alla inköp inom ett datumintervall",
+      "fromDate": "Från datum",
+      "toDate": "Till datum"
+    },
+    "yearEndCount": {
+      "title": "Årsbokslut",
+      "description": "Historiska årsbokslutrapporter",
+      "selectYear": "Välj år",
+      "dialogHeader": "Årsbokslutrapport"
+    },
+    "messages": {
+      "generateInventoryFailed": "Misslyckades med att generera lagerrapport",
+      "generateProductActivityFailed": "Misslyckades med att generera produktaktivitetsrapport",
+      "exportPurchaseFailed": "Misslyckades med att exportera inköpshistorik",
+      "loadYearEndFailed": "Misslyckades med att ladda årsbokslutdata"
+    }
   },
   "validation": {
     "required": "Detta fält är obligatoriskt",
@@ -301,7 +438,9 @@
     "minLength": "Måste vara minst {min} tecken",
     "maxLength": "Får vara högst {max} tecken",
     "mustBePositive": "Måste vara ett positivt nummer",
-    "mustBeGreaterThanZero": "Måste vara större än noll"
+    "mustBeGreaterThanZero": "Måste vara större än noll",
+    "quantityPositive": "Antal måste vara ett positivt nummer",
+    "unitCostNonNegative": "Styckpris måste vara noll eller större"
   },
   "language": {
     "selectLanguage": "Välj språk",

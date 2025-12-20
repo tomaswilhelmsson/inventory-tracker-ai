@@ -1,7 +1,9 @@
 {
   "common": {
     "add": "Add",
+    "create": "Create",
     "edit": "Edit",
+    "update": "Update",
     "delete": "Delete",
     "save": "Save",
     "cancel": "Cancel",
@@ -23,6 +25,8 @@
     "submit": "Submit",
     "reset": "Reset",
     "clear": "Clear",
+    "saved": "Saved",
+    "unknown": "Unknown",
     "noData": "No data available",
     "noRecordsFound": "No records found",
     "selectYear": "Select Year",
@@ -102,7 +106,8 @@
       "deleteSuccess": "Supplier deleted successfully",
       "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
       "deleteWarning": "This supplier has {products} product(s) and {purchases} purchase(s). Delete those first.",
-      "cannotDelete": "Cannot Delete"
+      "cannotDelete": "Cannot Delete",
+      "loadFailed": "Failed to load suppliers"
     }
   },
   "products": {
@@ -133,8 +138,13 @@
       "createSuccess": "Product created successfully",
       "updateSuccess": "Product updated successfully",
       "deleteSuccess": "Product deleted successfully",
+      "deleteFailed": "Failed to delete product",
       "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
-      "cannotDelete": "Cannot delete product with purchase history"
+      "cannotDelete": "Cannot delete product with purchase history",
+      "loadFailed": "Failed to load products",
+      "saveFailed": "Failed to save product",
+      "noSuppliers": "No suppliers available. Please create a supplier first.",
+      "noUnits": "No units available. Please create a unit first."
     }
   },
   "units": {
@@ -156,8 +166,11 @@
       "createSuccess": "Unit created successfully",
       "updateSuccess": "Unit updated successfully",
       "deleteSuccess": "Unit deleted successfully",
+      "deleteFailed": "Failed to delete unit",
       "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
-      "unitInUse": "Cannot delete unit. {count} product(s) are using this unit."
+      "unitInUse": "Cannot delete unit. {count} product(s) are using this unit.",
+      "loadFailed": "Failed to load units",
+      "saveFailed": "Failed to save unit"
     },
     "names": {
       "pieces": "pieces",
@@ -210,40 +223,68 @@
       "createSuccess": "Purchase created successfully",
       "updateSuccess": "Purchase updated successfully",
       "deleteSuccess": "Purchase deleted successfully",
+      "deleteFailed": "Failed to delete purchase",
       "deleteConfirm": "Are you sure you want to delete this purchase?",
-      "cannotDeletePartiallyConsumed": "Cannot delete partially consumed purchase lot"
+      "cannotDeletePartiallyConsumed": "Cannot delete partially consumed purchase lot",
+      "loadFailed": "Failed to load purchases",
+      "saveFailed": "Failed to save purchase",
+      "noProducts": "No products available. Please create a product first."
     }
   },
   "inventory": {
-    "title": "Inventory Valuation",
+    "title": "Inventory Management",
+    "refresh": "Refresh",
+    "totalProducts": "Total Products",
+    "totalInventoryValue": "Total Inventory Value",
+    "totalUnits": "Total Units",
+    "searchInventory": "Search inventory...",
     "showZeroQuantity": "Show items with zero quantity",
-    "summary": {
-      "totalProducts": "Total Products",
-      "totalValue": "Total Inventory Value",
-      "totalUnits": "Total Units"
-    },
+    "viewFifoLots": "View FIFO Lots",
     "table": {
       "product": "Product",
-      "quantity": "Quantity",
-      "value": "Value"
-    },
-    "productDetails": {
-      "title": "Product Details",
-      "lotBreakdown": "Lot Breakdown",
+      "primarySupplier": "Primary Supplier",
       "totalQuantity": "Total Quantity",
+      "avgUnitCost": "Avg Unit Cost",
       "totalValue": "Total Value",
+      "lots": "# Lots"
+    },
+    "lotsDialog": {
+      "header": "FIFO Purchase Lots - {productName}",
+      "supplier": "Supplier",
+      "totalQuantity": "Total Quantity",
+      "avgUnitCost": "Avg Unit Cost",
+      "totalValue": "Total Value",
+      "purchaseLotsHeader": "Purchase Lots (FIFO Order - Oldest First)",
       "purchaseDate": "Purchase Date",
-      "year": "Year",
+      "originalQty": "Original Qty",
       "remainingQty": "Remaining Qty",
       "unitCost": "Unit Cost",
       "lotValue": "Lot Value",
-      "supplier": "Supplier"
+      "year": "Year",
+      "noLotsAvailable": "No lots available"
+    },
+    "messages": {
+      "loadFailed": "Failed to load inventory"
     }
   },
   "yearEndCount": {
     "title": "Year-End Count",
     "selectYear": "Select Year",
+    "clickToInitiate": "Click 'Initiate Count' to begin year-end count",
     "initiateCount": "Initiate Count",
+    "confirmCount": "Confirm Count",
+    "confirmLockYear": "Confirm & Lock Year",
+    "draft": "Draft",
+    "confirmedLocked": "Confirmed & Locked",
+    "noCountInProgress": "No count in progress",
+    "allProductsCounted": "All products counted",
+    "progress": "{counted} of {total} products counted",
+    "productsNeedCounting": "{count} products still need counting",
+    "countSheet": "Count Sheet",
+    "exportCSV": "Export CSV",
+    "exportPDF": "Export PDF",
+    "importCSV": "Import CSV",
+    "previewReport": "Preview Report",
     "status": {
       "draft": "Draft",
       "confirmed": "Confirmed"
@@ -260,10 +301,15 @@
     },
     "table": {
       "product": "Product",
+      "productName": "Product Name",
       "expected": "Expected Quantity",
+      "expectedQuantity": "Expected Quantity",
       "counted": "Counted Quantity",
+      "actualCount": "Actual Count",
+      "enterCount": "Enter Count",
       "variance": "Variance",
       "value": "Value",
+      "valueFIFO": "Value (FIFO)",
       "unit": "Unit"
     },
     "summary": {
@@ -272,24 +318,115 @@
       "totalVariance": "Total Variance",
       "totalValue": "Total Value"
     },
+    "confirmDialog": {
+      "header": "Confirm Year-End Count",
+      "summary": "Summary",
+      "totalExpected": "Total Expected",
+      "totalCounted": "Total Counted",
+      "totalVariance": "Total Variance",
+      "totalValue": "Total Value",
+      "warningText": "Warning: This action cannot be undone!",
+      "cannotUndo": "This action cannot be undone",
+      "createBackup": "A database backup will be created",
+      "updateFIFO": "FIFO lots will be updated based on counted quantities",
+      "lockYear": "Year {year} will be locked and cannot be modified"
+    },
+    "reportDialog": {
+      "header": "Year-End Count Report",
+      "yearStatus": "Year {year} - Status: {status}",
+      "product": "Product",
+      "expected": "Expected",
+      "counted": "Counted",
+      "variance": "Variance",
+      "value": "Value",
+      "totalExpected": "Total Expected",
+      "totalCounted": "Total Counted",
+      "totalVariance": "Total Variance",
+      "totalValue": "Total Value"
+    },
     "messages": {
       "initiateSuccess": "Year-end count initiated for {year}",
+      "initiateFailed": "Failed to initiate year-end count",
       "confirmSuccess": "Year-end count confirmed for {year}",
+      "confirmFailed": "Failed to confirm year-end count",
       "confirmWarning": "This will lock year {year} and create a backup. Continue?",
       "alreadyExists": "Year-end count already exists for {year}",
-      "enterAllCounts": "Please enter counted quantities for all products"
+      "enterAllCounts": "Please enter counted quantities for all products",
+      "countUpdated": "Count updated for {productName}",
+      "incompleteCount": "{count} products still need counting. Please count all products before confirming.",
+      "loadFailed": "Failed to load year-end count",
+      "loadSheetFailed": "Failed to load count sheet",
+      "updateFailed": "Failed to update count",
+      "importSuccess": "{count} products imported successfully",
+      "importWarning": "{count} products failed to import",
+      "importFailed": "Failed to import CSV",
+      "exportCSVSuccess": "CSV exported successfully",
+      "exportCSVFailed": "Failed to export CSV",
+      "exportPDFSuccess": "PDF exported successfully",
+      "exportPDFFailed": "Failed to export PDF",
+      "reportFailed": "Failed to generate report"
     }
   },
   "reports": {
     "title": "Reports",
     "generateReport": "Generate Report",
+    "generateSummary": "Generate Summary",
+    "viewReport": "View Report",
+    "exportCSV": "Export CSV",
     "reportType": "Report Type",
     "dateRange": "Date Range",
     "export": "Export",
     "print": "Print",
     "inventoryReport": "Inventory Report",
     "purchaseReport": "Purchase Report",
-    "supplierReport": "Supplier Report"
+    "supplierReport": "Supplier Report",
+    "product": "Product",
+    "supplier": "Supplier",
+    "quantity": "Quantity",
+    "value": "Value",
+    "totalValue": "Total Value",
+    "totalProducts": "Total Products",
+    "totalUnits": "Total Units",
+    "totalInventoryValue": "Total Inventory Value",
+    "totalVariance": "Total Variance",
+    "inventoryValue": "Inventory Value",
+    "avgUnitCost": "Avg Unit Cost",
+    "reportDate": "Report Date",
+    "year": "Year",
+    "purchases": "Purchases",
+    "currentInventory": "Current Inventory",
+    "expected": "Expected",
+    "counted": "Counted",
+    "variance": "Variance",
+    "confirmedDate": "Confirmed Date",
+    "inventoryValuation": {
+      "title": "Inventory Valuation",
+      "description": "Current inventory value by product with FIFO costing",
+      "dialogHeader": "Inventory Valuation Report"
+    },
+    "productActivity": {
+      "title": "Product Activity",
+      "description": "Purchase history and inventory movement by product",
+      "dialogHeader": "Product Activity Report"
+    },
+    "purchaseHistory": {
+      "title": "Purchase History",
+      "description": "All purchases within a date range",
+      "fromDate": "From Date",
+      "toDate": "To Date"
+    },
+    "yearEndCount": {
+      "title": "Year-End Count",
+      "description": "Historical year-end count reports",
+      "selectYear": "Select Year",
+      "dialogHeader": "Year-End Count Report"
+    },
+    "messages": {
+      "generateInventoryFailed": "Failed to generate inventory report",
+      "generateProductActivityFailed": "Failed to generate product activity report",
+      "exportPurchaseFailed": "Failed to export purchase history",
+      "loadYearEndFailed": "Failed to load year-end count data"
+    }
   },
   "validation": {
     "required": "This field is required",
@@ -301,7 +438,9 @@
     "minLength": "Must be at least {min} characters",
     "maxLength": "Must be at most {max} characters",
     "mustBePositive": "Must be a positive number",
-    "mustBeGreaterThanZero": "Must be greater than zero"
+    "mustBeGreaterThanZero": "Must be greater than zero",
+    "quantityPositive": "Quantity must be a positive number",
+    "unitCostNonNegative": "Unit cost must be zero or greater"
   },
   "language": {
     "selectLanguage": "Select Language",
