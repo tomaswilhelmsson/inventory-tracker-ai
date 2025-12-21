@@ -268,9 +268,12 @@
     }
   },
   "yearEndCount": {
-    "title": "Årsbokslut",
+    "title": "Årsbokslut {year}",
     "selectYear": "Välj år",
-    "clickToInitiate": "Klicka 'Starta räkning' för att påbörja årsbokslut",
+    "selectRevision": "Välj revision",
+    "revision": "Revision",
+    "clickToInitiate": "Klicka 'Starta räkning' för att påbörja räkning för år {year}",
+    "noCountForYear": "Inget årsbokslut finns för {year}",
     "initiateCount": "Starta räkning",
     "confirmCount": "Bekräfta räkning",
     "confirmLockYear": "Bekräfta & lås år",
@@ -343,6 +346,38 @@
       "totalCounted": "Totalt räknat",
       "totalVariance": "Total avvikelse",
       "totalValue": "Totalt värde"
+    },
+    "unlock": {
+      "unlockYear": "Lås upp år",
+      "viewHistory": "Visa upplåsningshistorik",
+      "dialogHeader": "Lås upp år för korrigeringar",
+      "historyHeader": "Upplåsningshistorik för år {year}",
+      "warningText": "Att låsa upp år {year} kommer att tillåta ändringar av inköpsdata och kräva en omräkning. Denna åtgärd spåras i revisionsloggen.",
+      "reasonCategory": "Orsakskategori",
+      "description": "Beskrivning",
+      "descriptionPlaceholder": "Ge detaljerad förklaring för upplåsning av detta år...",
+      "descriptionRequired": "Beskrivning krävs",
+      "confirmUnlock": "Bekräfta upplåsning",
+      "success": "År {year} upplåst framgångsrikt",
+      "failed": "Misslyckades med att låsa upp året",
+      "historyFailed": "Misslyckades med att ladda upplåsningshistorik",
+      "noHistory": "Ingen upplåsningshistorik för detta år",
+      "categories": {
+        "dataError": "Datainmatningsfel",
+        "recountRequired": "Omräkning krävs",
+        "auditAdjustment": "Revisionsjustering",
+        "other": "Annat"
+      },
+      "table": {
+        "date": "Upplåsningsdatum",
+        "category": "Kategori",
+        "description": "Beskrivning"
+      }
+    },
+    "reminder": {
+      "title": "Årsbokslut väntar",
+      "message": "År {year} kräver ett årsbokslut",
+      "action": "Starta räkning"
     },
     "messages": {
       "initiateSuccess": "Årsbokslut initierat för {year}",

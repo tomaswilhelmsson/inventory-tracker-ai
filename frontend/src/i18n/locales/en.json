@@ -268,9 +268,12 @@
     }
   },
   "yearEndCount": {
-    "title": "Year-End Count",
+    "title": "Year-End Count {year}",
     "selectYear": "Select Year",
-    "clickToInitiate": "Click 'Initiate Count' to begin year-end count",
+    "selectRevision": "Select Revision",
+    "revision": "Revision",
+    "clickToInitiate": "Click 'Initiate Count' to start counting for year {year}",
+    "noCountForYear": "No year-end count exists for {year}",
     "initiateCount": "Initiate Count",
     "confirmCount": "Confirm Count",
     "confirmLockYear": "Confirm & Lock Year",
@@ -343,6 +346,38 @@
       "totalCounted": "Total Counted",
       "totalVariance": "Total Variance",
       "totalValue": "Total Value"
+    },
+    "unlock": {
+      "unlockYear": "Unlock Year",
+      "viewHistory": "View Unlock History",
+      "dialogHeader": "Unlock Year for Corrections",
+      "historyHeader": "Unlock History for Year {year}",
+      "warningText": "Unlocking year {year} will allow modifications to purchase data and require a recount. This action is tracked in the audit trail.",
+      "reasonCategory": "Reason Category",
+      "description": "Description",
+      "descriptionPlaceholder": "Provide detailed explanation for unlocking this year...",
+      "descriptionRequired": "Description is required",
+      "confirmUnlock": "Confirm Unlock",
+      "success": "Year {year} unlocked successfully",
+      "failed": "Failed to unlock year",
+      "historyFailed": "Failed to load unlock history",
+      "noHistory": "No unlock history for this year",
+      "categories": {
+        "dataError": "Data Entry Error",
+        "recountRequired": "Recount Required",
+        "auditAdjustment": "Audit Adjustment",
+        "other": "Other"
+      },
+      "table": {
+        "date": "Unlock Date",
+        "category": "Category",
+        "description": "Description"
+      }
+    },
+    "reminder": {
+      "title": "Year-End Count Pending",
+      "message": "Year {year} requires a year-end inventory count",
+      "action": "Start Count"
     },
     "messages": {
       "initiateSuccess": "Year-end count initiated for {year}",

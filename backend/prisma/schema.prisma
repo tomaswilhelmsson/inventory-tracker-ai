@@ -86,7 +86,8 @@ model PurchaseLot {
 // YearEndCount entity
 model YearEndCount {
   id          Int       @id @default(autoincrement())
-  year        Int       @unique
+  year        Int
+  revision    Int       @default(1)  // Tracks unlock/recount cycles
   status      String    @default("draft")  // draft | confirmed
   confirmedAt DateTime?
   backupPath  String?
@@ -94,6 +95,7 @@ model YearEndCount {
   
   items       YearEndCountItem[]
   
+  @@unique([year, revision])
   @@map("year_end_counts")
 }
 
@@ -122,6 +124,17 @@ model LockedYear {
   lockedAt  DateTime @default(now())
   
   @@map("locked_years")
+}
+
+// YearUnlockAudit entity - immutable audit trail of year unlocks
+model YearUnlockAudit {
+  id              Int      @id @default(autoincrement())
+  year            Int
+  unlockedAt      DateTime @default(now())
+  reasonCategory  String   // data_error | recount_required | audit_adjustment | other
+  description     String   // Free-form explanation
+  
+  @@map("year_unlock_audits")
 }
 
 // User entity for authentication

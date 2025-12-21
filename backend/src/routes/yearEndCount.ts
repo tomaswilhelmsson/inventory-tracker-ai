@@ -26,10 +26,11 @@ router.get(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const counts = await prisma.yearEndCount.findMany({
-        orderBy: { year: 'desc' },
+        orderBy: [{ year: 'desc' }, { revision: 'desc' }],
         select: {
           id: true,
           year: true,
+          revision: true,
           status: true,
           confirmedAt: true,
           createdAt: true,
@@ -58,7 +59,20 @@ router.post(
   }
 );
 
-// GET /api/year-end-count/:year - Get year-end count by year
+// GET /api/year-end-count/pending-reminder - Check for pending count
+router.get(
+  '/pending-reminder',
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const reminder = await yearEndCountService.checkPendingCount();
+      res.json(reminder);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/year-end-count/:year - Get year-end count by year (with optional revision)
 router.get(
   '/:year',
   [param('year').isInt().withMessage('Valid year is required')],
@@ -66,8 +80,89 @@ router.get(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const year = parseInt(req.params.year);
-      const count = await yearEndCountService.getByYear(year);
+      const revision = req.query.revision ? parseInt(req.query.revision as string) : undefined;
+      const count = await yearEndCountService.getByYear(year, revision);
       res.json(count);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/year-end-count/:year/revisions - Get all revisions for a year
+router.get(
+  '/:year/revisions',
+  [param('year').isInt().withMessage('Valid year is required')],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const year = parseInt(req.params.year);
+      const revisions = await yearEndCountService.getAllRevisions(year);
+      res.json(revisions);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/year-end-count/:year/compare - Compare two revisions
+router.get(
+  '/:year/compare',
+  [
+    param('year').isInt().withMessage('Valid year is required'),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const year = parseInt(req.params.year);
+      const revision1 = parseInt(req.query.revision1 as string);
+      const revision2 = parseInt(req.query.revision2 as string);
+
+      if (!revision1 || !revision2) {
+        throw new AppError(400, 'Both revision1 and revision2 query parameters are required');
+      }
+
+      const comparison = await yearEndCountService.compareRevisions(year, revision1, revision2);
+      res.json(comparison);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/year-end-count/:year/unlock-history - Get unlock history for a year
+router.get(
+  '/:year/unlock-history',
+  [param('year').isInt().withMessage('Valid year is required')],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const year = parseInt(req.params.year);
+      const history = await yearEndCountService.getUnlockHistory(year);
+      res.json(history);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /api/year-end-count/:year/unlock - Unlock a year
+router.post(
+  '/:year/unlock',
+  [
+    param('year').isInt().withMessage('Valid year is required'),
+    body('reasonCategory').isIn(['data_error', 'recount_required', 'audit_adjustment', 'other'])
+      .withMessage('Valid reason category is required'),
+    body('description').isString().trim().isLength({ min: 1 })
+      .withMessage('Description is required'),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const year = parseInt(req.params.year);
+      const { reasonCategory, description } = req.body;
+      const result = await yearEndCountService.unlockYear(year, reasonCategory, description);
+      res.json(result);
     } catch (error) {
       next(error);
     }

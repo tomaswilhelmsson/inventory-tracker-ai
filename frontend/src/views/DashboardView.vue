@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import Card from 'primevue/card';
 import ProgressSpinner from 'primevue/progressspinner';
+import CountReminderBanner from '../components/CountReminderBanner.vue';
 
 const { t, n } = useI18n();
 const loading = ref(true);
@@ -28,6 +29,8 @@ onMounted(() => {
 <template>
   <div class="dashboard">
     <h1>{{ t('dashboard.title') }}</h1>
+
+    <CountReminderBanner />
 
     <div v-if="loading" class="loading">
       <ProgressSpinner />

@@ -7,13 +7,26 @@ export const yearEndCountService = {
    * Initiate a year-end count for a specific year
    */
   async initiateYearEndCount(year: number) {
-    // Check if count already exists for this year
-    const existing = await prisma.yearEndCount.findUnique({
+    // Check if year is locked
+    const isLocked = await prisma.lockedYear.findUnique({
       where: { year },
     });
 
-    if (existing) {
-      throw new AppError(400, `Year-end count for ${year} already exists`);
+    // Get existing counts for this year
+    const existingCounts = await prisma.yearEndCount.findMany({
+      where: { year },
+      orderBy: { revision: 'desc' },
+    });
+
+    let revision = 1;
+
+    if (existingCounts.length > 0) {
+      if (isLocked) {
+        // Year is locked and counts exist - cannot create new count
+        throw new AppError(400, `Year ${year} is locked. Cannot create new count. Unlock the year first to create a new revision.`);
+      }
+      // Year is unlocked and counts exist - create next revision
+      revision = existingCounts[0].revision + 1;
     }
 
     // Get all products with remaining inventory
@@ -32,6 +45,7 @@ export const yearEndCountService = {
     const yearEndCount = await prisma.yearEndCount.create({
       data: {
         year,
+        revision,
         status: 'draft',
       },
     });
@@ -406,33 +420,304 @@ export const yearEndCountService = {
   },
 
   /**
-   * Get year-end count by year
+   * Get year-end count by year and optional revision
+   * Defaults to latest revision if not specified
    */
-  async getByYear(year: number) {
-    const count = await prisma.yearEndCount.findUnique({
+  async getByYear(year: number, revision?: number) {
+    let count;
+
+    if (revision !== undefined) {
+      // Get specific revision
+      count = await prisma.yearEndCount.findUnique({
+        where: {
+          year_revision: {
+            year,
+            revision,
+          },
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  supplier: true,
+                },
+              },
+            },
+            orderBy: {
+              product: {
+                name: 'asc',
+              },
+            },
+          },
+        },
+      });
+    } else {
+      // Get latest revision
+      const counts = await prisma.yearEndCount.findMany({
+        where: { year },
+        orderBy: { revision: 'desc' },
+        take: 1,
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  supplier: true,
+                },
+              },
+            },
+            orderBy: {
+              product: {
+                name: 'asc',
+              },
+            },
+          },
+        },
+      });
+      count = counts[0] || null;
+    }
+
+    if (!count) {
+      const revisionMsg = revision !== undefined ? ` revision ${revision}` : '';
+      throw new AppError(404, `Year-end count for ${year}${revisionMsg} not found`);
+    }
+
+    return count;
+  },
+
+  /**
+   * Get all revisions for a year
+   */
+  async getAllRevisions(year: number) {
+    const revisions = await prisma.yearEndCount.findMany({
       where: { year },
+      orderBy: { revision: 'asc' },
+      select: {
+        id: true,
+        year: true,
+        revision: true,
+        status: true,
+        confirmedAt: true,
+        createdAt: true,
+      },
+    });
+
+    return revisions;
+  },
+
+  /**
+   * Compare two revisions side-by-side
+   */
+  async compareRevisions(year: number, revision1: number, revision2: number) {
+    // Get both revisions
+    const count1 = await prisma.yearEndCount.findUnique({
+      where: {
+        year_revision: {
+          year,
+          revision: revision1,
+        },
+      },
       include: {
         items: {
           include: {
             product: {
-              include: {
-                supplier: true,
+              select: {
+                id: true,
+                name: true,
               },
-            },
-          },
-          orderBy: {
-            product: {
-              name: 'asc',
             },
           },
         },
       },
     });
 
-    if (!count) {
-      throw new AppError(404, `Year-end count for ${year} not found`);
+    const count2 = await prisma.yearEndCount.findUnique({
+      where: {
+        year_revision: {
+          year,
+          revision: revision2,
+        },
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!count1) {
+      throw new AppError(404, `Year-end count for ${year} revision ${revision1} not found`);
     }
 
-    return count;
+    if (!count2) {
+      throw new AppError(404, `Year-end count for ${year} revision ${revision2} not found`);
+    }
+
+    // Create a map of products for easy lookup
+    const items1Map = new Map(count1.items.map(item => [item.productId, item]));
+    const items2Map = new Map(count2.items.map(item => [item.productId, item]));
+
+    // Get all unique product IDs
+    const allProductIds = new Set([...items1Map.keys(), ...items2Map.keys()]);
+
+    // Compare items
+    const comparison = Array.from(allProductIds).map(productId => {
+      const item1 = items1Map.get(productId);
+      const item2 = items2Map.get(productId);
+
+      return {
+        productId,
+        productName: item1?.product.name || item2?.product.name || 'Unknown',
+        revision1: {
+          expectedQuantity: item1?.expectedQuantity || 0,
+          countedQuantity: item1?.countedQuantity,
+          variance: item1?.variance,
+          value: item1?.value,
+        },
+        revision2: {
+          expectedQuantity: item2?.expectedQuantity || 0,
+          countedQuantity: item2?.countedQuantity,
+          variance: item2?.variance,
+          value: item2?.value,
+        },
+        difference: {
+          expectedQuantity: (item2?.expectedQuantity || 0) - (item1?.expectedQuantity || 0),
+          countedQuantity: (item2?.countedQuantity || 0) - (item1?.countedQuantity || 0),
+          variance: (item2?.variance || 0) - (item1?.variance || 0),
+          value: (item2?.value || 0) - (item1?.value || 0),
+        },
+      };
+    });
+
+    return {
+      year,
+      revision1: {
+        revision: count1.revision,
+        status: count1.status,
+        confirmedAt: count1.confirmedAt,
+      },
+      revision2: {
+        revision: count2.revision,
+        status: count2.status,
+        confirmedAt: count2.confirmedAt,
+      },
+      comparison,
+    };
+  },
+
+  /**
+   * Get most recently locked year
+   */
+  async getMostRecentLockedYear(): Promise<number | null> {
+    const lockedYear = await prisma.lockedYear.findFirst({
+      orderBy: { year: 'desc' },
+    });
+    return lockedYear?.year || null;
+  },
+
+  /**
+   * Unlock a year with audit trail
+   */
+  async unlockYear(year: number, reasonCategory: string, description: string) {
+    // Validate reason category
+    const validCategories = ['data_error', 'recount_required', 'audit_adjustment', 'other'];
+    if (!validCategories.includes(reasonCategory)) {
+      throw new AppError(400, `Invalid reason category. Must be one of: ${validCategories.join(', ')}`);
+    }
+
+    if (!description || description.trim().length === 0) {
+      throw new AppError(400, 'Description is required for year unlock');
+    }
+
+    // Check if year is locked
+    const lockedYear = await prisma.lockedYear.findUnique({
+      where: { year },
+    });
+
+    if (!lockedYear) {
+      throw new AppError(400, `Year ${year} is not locked`);
+    }
+
+    // Check if this is the most recently locked year
+    const mostRecentLockedYear = await this.getMostRecentLockedYear();
+    if (mostRecentLockedYear !== year) {
+      throw new AppError(400, `Can only unlock most recently locked year (${mostRecentLockedYear}). Cannot unlock year ${year}.`);
+    }
+
+    // Create unlock audit record
+    await prisma.yearUnlockAudit.create({
+      data: {
+        year,
+        reasonCategory,
+        description: description.trim(),
+      },
+    });
+
+    // Delete the locked year record to unlock it
+    await prisma.lockedYear.delete({
+      where: { year },
+    });
+
+    return {
+      year,
+      message: `Year ${year} unlocked successfully`,
+      reasonCategory,
+      description: description.trim(),
+    };
+  },
+
+  /**
+   * Get unlock history for a year
+   */
+  async getUnlockHistory(year: number) {
+    const history = await prisma.yearUnlockAudit.findMany({
+      where: { year },
+      orderBy: { unlockedAt: 'asc' },
+    });
+
+    return history;
+  },
+
+  /**
+   * Check if there is a pending year-end count
+   * Returns the pending year if purchases exist without confirmed count
+   */
+  async checkPendingCount() {
+    // Get the latest purchase year
+    const latestPurchase = await prisma.purchaseLot.findFirst({
+      orderBy: { year: 'desc' },
+      select: { year: true },
+    });
+
+    if (!latestPurchase) {
+      return { needsCount: false, pendingYear: null };
+    }
+
+    // Get the latest confirmed count
+    const latestConfirmedCount = await prisma.yearEndCount.findFirst({
+      where: { status: 'confirmed' },
+      orderBy: { year: 'desc' },
+      select: { year: true },
+    });
+
+    const latestPurchaseYear = latestPurchase.year;
+    const latestCountYear = latestConfirmedCount?.year || 0;
+
+    const needsCount = latestPurchaseYear > latestCountYear;
+
+    return {
+      needsCount,
+      pendingYear: needsCount ? latestPurchaseYear : null,
+      latestPurchaseYear,
+      latestCountYear,
+    };
   },
 };
