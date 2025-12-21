@@ -1,10 +1,15 @@
+import { PrismaClient } from '@prisma/client';
 import prisma from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 
-export const purchaseService = {
+/**
+ * Factory function to create purchaseService with injectable dependencies
+ * @param dbClient - Prisma client instance (defaults to production prisma)
+ */
+export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
   // Check if a year is locked
   async isYearLocked(year: number): Promise<boolean> {
-    const lockedYear = await prisma.lockedYear.findUnique({
+    const lockedYear = await dbClient.lockedYear.findUnique({
       where: { year },
     });
     return !!lockedYear;
@@ -12,7 +17,7 @@ export const purchaseService = {
 
   // Get all locked years
   async getLockedYears() {
-    return await prisma.lockedYear.findMany({
+    return await dbClient.lockedYear.findMany({
       orderBy: { year: 'desc' },
     });
   },
@@ -42,7 +47,7 @@ export const purchaseService = {
       where.remainingQuantity = { gt: 0 };
     }
 
-    const lots = await prisma.purchaseLot.findMany({
+    const lots = await dbClient.purchaseLot.findMany({
       where,
       orderBy: { purchaseDate: 'asc' }, // CRITICAL: FIFO ordering
       include: {
@@ -71,7 +76,7 @@ export const purchaseService = {
 
   // Get purchase lot by ID
   async getById(id: number) {
-    const lot = await prisma.purchaseLot.findUnique({
+    const lot = await dbClient.purchaseLot.findUnique({
       where: { id },
       include: {
         product: true,
@@ -120,7 +125,7 @@ export const purchaseService = {
     }
 
     // Verify product exists and fetch full details for snapshot
-    const product = await prisma.product.findUnique({
+    const product = await dbClient.product.findUnique({
       where: { id: data.productId },
       include: {
         unit: true,
@@ -131,7 +136,7 @@ export const purchaseService = {
     }
 
     // Verify supplier exists and fetch full details for snapshot
-    const supplier = await prisma.supplier.findUnique({
+    const supplier = await dbClient.supplier.findUnique({
       where: { id: data.supplierId },
     });
     if (!supplier) {
@@ -162,7 +167,7 @@ export const purchaseService = {
       taxId: supplier.taxId || '',
     });
 
-    const newLot = await prisma.purchaseLot.create({
+    const newLot = await dbClient.purchaseLot.create({
       data: {
         ...data,
         year,
@@ -204,7 +209,7 @@ export const purchaseService = {
     }
   ) {
     // Get existing lot
-    const lot = await prisma.purchaseLot.findUnique({ where: { id } });
+    const lot = await dbClient.purchaseLot.findUnique({ where: { id } });
     if (!lot) {
       throw new AppError(404, 'Purchase lot not found');
     }
@@ -241,7 +246,7 @@ export const purchaseService = {
       updateData.year = newYear;
     }
 
-    const updatedLot = await prisma.purchaseLot.update({
+    const updatedLot = await dbClient.purchaseLot.update({
       where: { id },
       data: updateData,
       include: {
@@ -271,7 +276,7 @@ export const purchaseService = {
   // Delete purchase lot
   async delete(id: number) {
     // Get existing lot
-    const lot = await prisma.purchaseLot.findUnique({ where: { id } });
+    const lot = await dbClient.purchaseLot.findUnique({ where: { id } });
     if (!lot) {
       throw new AppError(404, 'Purchase lot not found');
     }
@@ -290,10 +295,13 @@ export const purchaseService = {
       );
     }
 
-    await prisma.purchaseLot.delete({
+    await dbClient.purchaseLot.delete({
       where: { id },
     });
 
     return { message: 'Purchase lot deleted successfully' };
   },
-};
+});
+
+// Default export for production use
+export const purchaseService = createPurchaseService();

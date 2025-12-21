@@ -1,19 +1,28 @@
+import { PrismaClient } from '@prisma/client';
 import prisma from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { inventoryService } from './inventoryService';
+import { createInventoryService } from './inventoryService';
 
-export const yearEndCountService = {
+/**
+ * Factory function to create yearEndCountService with injectable dependencies
+ * @param dbClient - Prisma client instance (defaults to production prisma)
+ * @param inventoryServiceInstance - Inventory service instance (defaults to production inventoryService)
+ */
+export const createYearEndCountService = (
+  dbClient: PrismaClient = prisma,
+  inventoryServiceInstance = createInventoryService(dbClient)
+) => ({
   /**
    * Initiate a year-end count for a specific year
    */
   async initiateYearEndCount(year: number) {
     // Check if year is locked
-    const isLocked = await prisma.lockedYear.findUnique({
+    const isLocked = await dbClient.lockedYear.findUnique({
       where: { year },
     });
 
     // Get existing counts for this year
-    const existingCounts = await prisma.yearEndCount.findMany({
+    const existingCounts = await dbClient.yearEndCount.findMany({
       where: { year },
       orderBy: { revision: 'desc' },
     });
@@ -30,7 +39,7 @@ export const yearEndCountService = {
     }
 
     // Get all products with remaining inventory
-    const products = await prisma.product.findMany({
+    const products = await dbClient.product.findMany({
       include: {
         purchaseLots: {
           where: {
@@ -42,7 +51,7 @@ export const yearEndCountService = {
     });
 
     // Create year-end count
-    const yearEndCount = await prisma.yearEndCount.create({
+    const yearEndCount = await dbClient.yearEndCount.create({
       data: {
         year,
         revision,
@@ -60,7 +69,7 @@ export const yearEndCountService = {
 
       // Only create item if product has inventory
       if (expectedQuantity > 0) {
-        const item = await prisma.yearEndCountItem.create({
+        const item = await dbClient.yearEndCountItem.create({
           data: {
             yearEndCountId: yearEndCount.id,
             productId: product.id,
@@ -84,7 +93,7 @@ export const yearEndCountService = {
    * Get count sheet with products sorted alphabetically
    */
   async getCountSheet(countId: number) {
-    const count = await prisma.yearEndCount.findUnique({
+    const count = await dbClient.yearEndCount.findUnique({
       where: { id: countId },
       include: {
         items: {
@@ -132,7 +141,7 @@ export const yearEndCountService = {
    */
   async updateCountItem(countId: number, productId: number, countedQuantity: number) {
     // Verify count exists and is in draft status
-    const count = await prisma.yearEndCount.findUnique({
+    const count = await dbClient.yearEndCount.findUnique({
       where: { id: countId },
     });
 
@@ -145,7 +154,7 @@ export const yearEndCountService = {
     }
 
     // Find the count item
-    const item = await prisma.yearEndCountItem.findFirst({
+    const item = await dbClient.yearEndCountItem.findFirst({
       where: {
         yearEndCountId: countId,
         productId,
@@ -160,7 +169,7 @@ export const yearEndCountService = {
     const variance = countedQuantity - item.expectedQuantity;
 
     // Calculate FIFO value for counted quantity
-    const lots = await prisma.purchaseLot.findMany({
+    const lots = await dbClient.purchaseLot.findMany({
       where: {
         productId,
         remainingQuantity: { gt: 0 },
@@ -180,7 +189,7 @@ export const yearEndCountService = {
     }
 
     // Update the count item
-    return await prisma.yearEndCountItem.update({
+    return await dbClient.yearEndCountItem.update({
       where: { id: item.id },
       data: {
         countedQuantity,
@@ -202,7 +211,7 @@ export const yearEndCountService = {
    * Calculate variances for all items
    */
   async calculateVariances(countId: number) {
-    const count = await prisma.yearEndCount.findUnique({
+    const count = await dbClient.yearEndCount.findUnique({
       where: { id: countId },
       include: {
         items: {
@@ -249,7 +258,7 @@ export const yearEndCountService = {
    * Generate year-end report with lot breakdown
    */
   async generateYearEndReport(countId: number) {
-    const count = await prisma.yearEndCount.findUnique({
+    const count = await dbClient.yearEndCount.findUnique({
       where: { id: countId },
       include: {
         items: {
@@ -276,7 +285,7 @@ export const yearEndCountService = {
     // Get lot breakdown for each product
     const reportItems = await Promise.all(
       count.items.map(async (item) => {
-        const lots = await prisma.purchaseLot.findMany({
+        const lots = await dbClient.purchaseLot.findMany({
           where: {
             productId: item.productId,
             remainingQuantity: { gt: 0 },
@@ -346,7 +355,7 @@ export const yearEndCountService = {
    * This updates lot quantities using FIFO consumption
    */
   async confirmYearEndCount(countId: number) {
-    const count = await prisma.yearEndCount.findUnique({
+    const count = await dbClient.yearEndCount.findUnique({
       where: { id: countId },
       include: {
         items: true,
@@ -364,7 +373,7 @@ export const yearEndCountService = {
     // Validate all products have been counted
     const uncountedItems = count.items.filter((item) => item.countedQuantity === null);
     if (uncountedItems.length > 0) {
-      const uncountedProducts = await prisma.product.findMany({
+      const uncountedProducts = await dbClient.product.findMany({
         where: {
           id: {
             in: uncountedItems.map((item) => item.productId),
@@ -383,18 +392,18 @@ export const yearEndCountService = {
 
     // Update lot quantities using FIFO for each product
     for (const item of count.items) {
-      await inventoryService.consumeInventoryFIFO(item.productId, item.countedQuantity!);
+      await inventoryServiceInstance.consumeInventoryFIFO(item.productId, item.countedQuantity!);
     }
 
     // Lock the year
-    await prisma.lockedYear.create({
+    await dbClient.lockedYear.create({
       data: {
         year: count.year,
       },
     });
 
     // Update count status
-    const confirmedCount = await prisma.yearEndCount.update({
+    const confirmedCount = await dbClient.yearEndCount.update({
       where: { id: countId },
       data: {
         status: 'confirmed',
@@ -428,7 +437,7 @@ export const yearEndCountService = {
 
     if (revision !== undefined) {
       // Get specific revision
-      count = await prisma.yearEndCount.findUnique({
+      count = await dbClient.yearEndCount.findUnique({
         where: {
           year_revision: {
             year,
@@ -454,7 +463,7 @@ export const yearEndCountService = {
       });
     } else {
       // Get latest revision
-      const counts = await prisma.yearEndCount.findMany({
+      const counts = await dbClient.yearEndCount.findMany({
         where: { year },
         orderBy: { revision: 'desc' },
         take: 1,
@@ -490,7 +499,7 @@ export const yearEndCountService = {
    * Get all revisions for a year
    */
   async getAllRevisions(year: number) {
-    const revisions = await prisma.yearEndCount.findMany({
+    const revisions = await dbClient.yearEndCount.findMany({
       where: { year },
       orderBy: { revision: 'asc' },
       select: {
@@ -511,7 +520,7 @@ export const yearEndCountService = {
    */
   async compareRevisions(year: number, revision1: number, revision2: number) {
     // Get both revisions
-    const count1 = await prisma.yearEndCount.findUnique({
+    const count1 = await dbClient.yearEndCount.findUnique({
       where: {
         year_revision: {
           year,
@@ -532,7 +541,7 @@ export const yearEndCountService = {
       },
     });
 
-    const count2 = await prisma.yearEndCount.findUnique({
+    const count2 = await dbClient.yearEndCount.findUnique({
       where: {
         year_revision: {
           year,
@@ -566,7 +575,7 @@ export const yearEndCountService = {
     const items2Map = new Map(count2.items.map(item => [item.productId, item]));
 
     // Get all unique product IDs
-    const allProductIds = new Set([...items1Map.keys(), ...items2Map.keys()]);
+    const allProductIds = new Set([...Array.from(items1Map.keys()), ...Array.from(items2Map.keys())]);
 
     // Compare items
     const comparison = Array.from(allProductIds).map(productId => {
@@ -617,7 +626,7 @@ export const yearEndCountService = {
    * Get most recently locked year
    */
   async getMostRecentLockedYear(): Promise<number | null> {
-    const lockedYear = await prisma.lockedYear.findFirst({
+    const lockedYear = await dbClient.lockedYear.findFirst({
       orderBy: { year: 'desc' },
     });
     return lockedYear?.year || null;
@@ -638,7 +647,7 @@ export const yearEndCountService = {
     }
 
     // Check if year is locked
-    const lockedYear = await prisma.lockedYear.findUnique({
+    const lockedYear = await dbClient.lockedYear.findUnique({
       where: { year },
     });
 
@@ -653,7 +662,7 @@ export const yearEndCountService = {
     }
 
     // Create unlock audit record
-    await prisma.yearUnlockAudit.create({
+    await dbClient.yearUnlockAudit.create({
       data: {
         year,
         reasonCategory,
@@ -662,7 +671,7 @@ export const yearEndCountService = {
     });
 
     // Delete the locked year record to unlock it
-    await prisma.lockedYear.delete({
+    await dbClient.lockedYear.delete({
       where: { year },
     });
 
@@ -678,7 +687,7 @@ export const yearEndCountService = {
    * Get unlock history for a year
    */
   async getUnlockHistory(year: number) {
-    const history = await prisma.yearUnlockAudit.findMany({
+    const history = await dbClient.yearUnlockAudit.findMany({
       where: { year },
       orderBy: { unlockedAt: 'asc' },
     });
@@ -692,7 +701,7 @@ export const yearEndCountService = {
    */
   async checkPendingCount() {
     // Get the latest purchase year
-    const latestPurchase = await prisma.purchaseLot.findFirst({
+    const latestPurchase = await dbClient.purchaseLot.findFirst({
       orderBy: { year: 'desc' },
       select: { year: true },
     });
@@ -702,7 +711,7 @@ export const yearEndCountService = {
     }
 
     // Get the latest confirmed count
-    const latestConfirmedCount = await prisma.yearEndCount.findFirst({
+    const latestConfirmedCount = await dbClient.yearEndCount.findFirst({
       where: { status: 'confirmed' },
       orderBy: { year: 'desc' },
       select: { year: true },
@@ -720,4 +729,7 @@ export const yearEndCountService = {
       latestCountYear,
     };
   },
-};
+});
+
+// Default export for production use
+export const yearEndCountService = createYearEndCountService();
