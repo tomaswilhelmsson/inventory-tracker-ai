@@ -41,4 +41,6 @@ module.exports = {
     },
   },
   testTimeout: 10000,
+  // Run tests sequentially to avoid database race conditions with in-memory SQLite
+  maxWorkers: 1,
 };
