@@ -1,13 +1,18 @@
+import { PrismaClient } from '@prisma/client';
 import prisma from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 
-export const inventoryService = {
+/**
+ * Create inventory service with dependency injection support
+ * @param dbClient - Prisma client instance (defaults to production client)
+ */
+export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
   /**
    * Get lots by FIFO order (oldest first)
    * CRITICAL: MUST use ORDER BY purchaseDate ASC
    */
   async getLotsByFIFOOrder(productId: number) {
-    return await prisma.purchaseLot.findMany({
+    return await dbClient.purchaseLot.findMany({
       where: {
         productId,
         remainingQuantity: { gt: 0 },
@@ -29,7 +34,7 @@ export const inventoryService = {
    * CRITICAL: MUST use ORDER BY purchaseDate ASC for consistency
    */
   async getCurrentInventoryQuantity(productId: number) {
-    const lots = await prisma.purchaseLot.findMany({
+    const lots = await dbClient.purchaseLot.findMany({
       where: {
         productId,
         remainingQuantity: { gt: 0 },
@@ -45,7 +50,7 @@ export const inventoryService = {
    * CRITICAL: MUST use ORDER BY purchaseDate ASC
    */
   async getCurrentInventoryValue(productId: number) {
-    const lots = await prisma.purchaseLot.findMany({
+    const lots = await dbClient.purchaseLot.findMany({
       where: {
         productId,
         remainingQuantity: { gt: 0 },
@@ -83,7 +88,7 @@ export const inventoryService = {
       where.supplierId = filters.supplierId;
     }
 
-    const lots = await prisma.purchaseLot.findMany({
+    const lots = await dbClient.purchaseLot.findMany({
       where,
       orderBy: { purchaseDate: 'asc' }, // CRITICAL: FIFO ordering
       include: {
@@ -190,7 +195,7 @@ export const inventoryService = {
 
     // Get ALL lots for the product in REVERSE FIFO order (newest first)
     // We process newest first to "fill up" the target quantity from the back
-    const lots = await prisma.purchaseLot.findMany({
+    const lots = await dbClient.purchaseLot.findMany({
       where: { productId },
       orderBy: { purchaseDate: 'desc' }, // CRITICAL: Newest first for distributing remaining inventory
     });
@@ -225,9 +230,9 @@ export const inventoryService = {
     }
 
     // Apply updates in a transaction
-    await prisma.$transaction(
+    await dbClient.$transaction(
       updates.map((update) =>
-        prisma.purchaseLot.update({
+        dbClient.purchaseLot.update({
           where: { id: update.id },
           data: { remainingQuantity: update.newRemainingQuantity },
         })
@@ -239,4 +244,7 @@ export const inventoryService = {
       targetQuantity,
     };
   },
-};
+});
+
+// Export default instance using production Prisma client
+export const inventoryService = createInventoryService();

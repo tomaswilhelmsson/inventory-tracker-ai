@@ -43,6 +43,10 @@ backups/
 coverage/
 .nyc_output/
 
+# Test artifacts
+*.test.db
+test-results/
+
 # Temporary files
 tmp/
 temp/
