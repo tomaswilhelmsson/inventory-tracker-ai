@@ -70,6 +70,12 @@
             </template>
           </Column>
 
+          <Column field="verificationNumber" :header="t('purchases.table.verificationNumber')" sortable style="width: 140px">
+            <template #body="{ data }">
+              <span class="verification-number">{{ data.verificationNumber || '-' }}</span>
+            </template>
+          </Column>
+
           <Column field="quantity" :header="t('purchases.table.quantity')" sortable style="width: 150px">
             <template #body="{ data }">
               <span class="quantity-badge">{{ n(data.quantity, 'integer') }} {{ data.productSnapshot?.unit?.name || data.product?.unit?.name || t('units.names.pieces') }}</span>
@@ -187,21 +193,33 @@
           </div>
         </div>
 
-        <div class="field">
-          <label for="purchaseDate">{{ t('purchases.form.purchaseDate') }} *</label>
-          <DatePicker
-            id="purchaseDate"
-            v-model="formData.purchaseDate"
-            :class="{ 'p-invalid': formErrors.purchaseDate }"
-            dateFormat="yy-mm-dd"
-            showIcon
-            @date-select="onDateChange"
-          />
-          <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
-          <Message v-if="yearLockWarning" severity="warn" :closable="false" class="year-warning">
-            <i class="pi pi-exclamation-triangle"></i>
-            {{ t('purchases.messages.yearLockedWarning', { year: selectedYear }) }}
-          </Message>
+        <div class="field-row">
+          <div class="field">
+            <label for="purchaseDate">{{ t('purchases.form.purchaseDate') }} *</label>
+            <DatePicker
+              id="purchaseDate"
+              v-model="formData.purchaseDate"
+              :class="{ 'p-invalid': formErrors.purchaseDate }"
+              dateFormat="yy-mm-dd"
+              showIcon
+              @date-select="onDateChange"
+            />
+            <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
+            <Message v-if="yearLockWarning" severity="warn" :closable="false" class="year-warning">
+              <i class="pi pi-exclamation-triangle"></i>
+              {{ t('purchases.messages.yearLockedWarning', { year: selectedYear }) }}
+            </Message>
+          </div>
+
+          <div class="field">
+            <label for="verificationNumber">{{ t('purchases.form.verificationNumber') }}</label>
+            <InputText
+              id="verificationNumber"
+              v-model="formData.verificationNumber"
+              :placeholder="t('purchases.form.verificationNumberPlaceholder')"
+              maxlength="50"
+            />
+          </div>
         </div>
 
         <div class="field-row">
@@ -320,6 +338,7 @@ interface Purchase {
   unitCost: number;
   remainingQuantity: number;
   year: number;
+  verificationNumber?: string;
   product?: Product;
   supplier?: Supplier;
   productSnapshot?: ProductSnapshot;
@@ -332,6 +351,7 @@ interface FormData {
   purchaseDate: Date | null;
   quantity: number | null;
   unitCost: number | null;
+  verificationNumber: string;
 }
 
 interface FormErrors {
@@ -365,6 +385,7 @@ const formData = ref<FormData>({
   purchaseDate: null,
   quantity: null,
   unitCost: null,
+  verificationNumber: '',
 });
 
 const formErrors = ref<FormErrors>({});
@@ -396,7 +417,8 @@ const filteredPurchases = computed(() => {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(p => 
       (p.product?.name && p.product.name.toLowerCase().includes(query)) ||
-      (p.supplier?.name && p.supplier.name.toLowerCase().includes(query))
+      (p.supplier?.name && p.supplier.name.toLowerCase().includes(query)) ||
+      (p.verificationNumber && p.verificationNumber.toLowerCase().includes(query))
     );
   }
   
@@ -551,6 +573,7 @@ const openEditDialog = async (purchase: Purchase) => {
     purchaseDate: new Date(purchase.purchaseDate),
     quantity: purchase.quantity,
     unitCost: purchase.unitCost,
+    verificationNumber: purchase.verificationNumber || '',
   };
   dialogVisible.value = true;
 };
@@ -600,6 +623,7 @@ const savePurchase = async () => {
       purchaseDate: formData.value.purchaseDate!.toISOString().split('T')[0],
       quantity: formData.value.quantity,
       unitCost: formData.value.unitCost,
+      verificationNumber: formData.value.verificationNumber || undefined,
     };
 
     if (editMode.value && currentPurchaseId.value) {
@@ -686,6 +710,7 @@ const resetForm = () => {
     purchaseDate: null,
     quantity: null,
     unitCost: null,
+    verificationNumber: '',
   };
   formErrors.value = {};
 };
@@ -744,6 +769,12 @@ onMounted(() => {
 .quantity-badge {
   font-weight: 600;
   color: var(--primary-color);
+}
+
+.verification-number {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: var(--text-color-secondary);
 }
 
 .action-buttons {

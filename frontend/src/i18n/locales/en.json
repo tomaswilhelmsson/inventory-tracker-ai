@@ -208,7 +208,9 @@
       "quantityPlaceholder": "Enter quantity",
       "unitCost": "Unit Cost",
       "unitCostPlaceholder": "Enter unit cost",
-      "totalCost": "Total Cost"
+      "totalCost": "Total Cost",
+      "verificationNumber": "Verification #",
+      "verificationNumberPlaceholder": "Enter invoice/receipt number (optional)"
     },
     "table": {
       "purchaseDate": "Purchase Date",
@@ -217,7 +219,8 @@
       "quantity": "Quantity",
       "remaining": "Remaining",
       "unitCost": "Unit Cost",
-      "totalCost": "Total Cost"
+      "totalCost": "Total Cost",
+      "verificationNumber": "Verification #"
     },
     "messages": {
       "createSuccess": "Purchase created successfully",

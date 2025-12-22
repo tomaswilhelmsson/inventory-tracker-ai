@@ -208,7 +208,9 @@
       "quantityPlaceholder": "Ange antal",
       "unitCost": "Styckpris",
       "unitCostPlaceholder": "Ange styckpris",
-      "totalCost": "Totalkostnad"
+      "totalCost": "Totalkostnad",
+      "verificationNumber": "Verifikationsnr",
+      "verificationNumberPlaceholder": "Ange faktura-/kvittonummer (valfritt)"
     },
     "table": {
       "purchaseDate": "Inköpsdatum",
@@ -217,7 +219,8 @@
       "quantity": "Antal",
       "remaining": "Återstående",
       "unitCost": "Styckpris",
-      "totalCost": "Totalkostnad"
+      "totalCost": "Totalkostnad",
+      "verificationNumber": "Verifikationsnr"
     },
     "messages": {
       "createSuccess": "Inköp skapades framgångsrikt",
