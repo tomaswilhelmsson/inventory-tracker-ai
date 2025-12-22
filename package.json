@@ -4,7 +4,7 @@
   "description": "Full-stack FIFO inventory tracking system",
   "main": "backend/dist/server.js",
   "scripts": {
-    "dev:backend": "nodemon --exec ts-node backend/src/server.ts",
+    "dev:backend": "TS_NODE_TRANSPILE_ONLY=true nodemon --exec ts-node backend/src/server.ts",
     "build:backend": "tsc -p backend/tsconfig.json",
     "start:backend": "node backend/dist/server.js",
     "dev:frontend": "cd frontend && npm run dev",
@@ -18,7 +18,10 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPattern=src/services",
     "test:integration": "jest --testPathPattern=tests/integration",
-    "test:e2e": "jest --testPathPattern=tests/e2e"
+    "test:e2e": "jest --testPathPattern=tests/e2e",
+    "clear:data": "ts-node backend/scripts/clear-data.ts",
+    "import:legacy": "ts-node backend/scripts/import-legacy-data.ts",
+    "verify:import": "ts-node backend/scripts/verify-import.ts"
   },
   "keywords": [
     "inventory",
@@ -38,6 +41,7 @@
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.1",
     "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
     "csv-writer": "^1.6.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

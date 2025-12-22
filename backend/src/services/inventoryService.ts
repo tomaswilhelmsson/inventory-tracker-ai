@@ -127,19 +127,23 @@ export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
         return;
       }
 
-      if (!productInventory[lot.productId]) {
-        productInventory[lot.productId] = {
-          productId: lot.productId,
-          productName: lot.product.name,
-          unit: lot.product.unit,
+      // Type guard - now TypeScript knows productId and product are not null
+      const productId = lot.productId;
+      const product = lot.product;
+
+      if (!productInventory[productId]) {
+        productInventory[productId] = {
+          productId: productId,
+          productName: product.name,
+          unit: product.unit,
           quantity: 0,
           value: 0,
           lots: [],
         };
       }
 
-      productInventory[lot.productId].quantity += lot.remainingQuantity;
-      productInventory[lot.productId].value += lot.remainingQuantity * lot.unitCost;
+      productInventory[productId].quantity += lot.remainingQuantity;
+      productInventory[productId].value += lot.remainingQuantity * lot.unitCost;
       
       // Get supplier name from relation or snapshot
       let supplierName = 'Unknown';
@@ -152,7 +156,7 @@ export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
         supplierName = snapshot.name || 'Unknown';
       }
       
-      productInventory[lot.productId].lots.push({
+      productInventory[productId].lots.push({
         id: lot.id,
         purchaseDate: lot.purchaseDate,
         remainingQuantity: lot.remainingQuantity,

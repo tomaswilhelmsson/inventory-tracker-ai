@@ -68,6 +68,7 @@ model PurchaseLot {
   unitCost          Float    // Cost per unit (never changes)
   remainingQuantity Int      // Current remaining quantity (decrements via FIFO)
   year              Int      // Extracted from purchaseDate
+  verificationNumber String? // Optional invoice/verification reference number
   
   // JSON snapshots - immutable transaction data (preserves data even if supplier/product deleted)
   productSnapshot   String   // JSON: {id, name, description, unit: {id, name}, supplierIdRef}
