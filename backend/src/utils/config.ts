@@ -5,7 +5,12 @@ dotenv.config();
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
-  jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+  jwtSecret: process.env.JWT_SECRET || (() => {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET environment variable is required in production');
+    }
+    return 'dev-secret-key-not-for-production';
+  })(),
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   database: {

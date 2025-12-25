@@ -28,12 +28,13 @@ router.post(
         where: { username },
       });
 
-      if (!user) {
-        throw new AppError(401, 'Invalid credentials');
-      }
+      // Always perform bcrypt comparison to prevent timing attacks
+      // Use dummy hash for non-existent users to maintain constant time
+      const passwordHash = user?.passwordHash || '$2b$10$invalidhashtopreventtimingattack.intentionallybadhashabcdefgh';
 
-      const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-      if (!isValidPassword) {
+      const isValidPassword = await bcrypt.compare(password, passwordHash);
+      
+      if (!user || !isValidPassword) {
         throw new AppError(401, 'Invalid credentials');
       }
 

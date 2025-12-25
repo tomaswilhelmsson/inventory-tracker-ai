@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { config } from './utils/config';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
@@ -13,10 +14,48 @@ import yearEndCountRoutes from './routes/yearEndCount';
 
 const app = express();
 
-// Middleware
-app.use(cors({ origin: config.frontendUrl }));
+// Rate limiting configuration
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login attempts per windowMs
+  message: 'Too many login attempts from this IP, please try again later',
+  skipSuccessfulRequests: true, // Don't count successful logins
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later',
+});
+
+// CORS configuration with origin validation
+const allowedOrigins = [
+  config.frontendUrl,
+  // Add additional allowed origins from environment if provided
+  ...(process.env.CORS_ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || []),
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Apply general API rate limiting to all /api/* routes
+app.use('/api/', apiLimiter);
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -24,6 +63,7 @@ app.get('/health', (_req, res) => {
 });
 
 // Public routes
+app.use('/api/auth/login', authLimiter); // Apply stricter rate limit to login
 app.use('/api/auth', authRoutes);
 
 // Protected routes (require authentication)
