@@ -184,6 +184,7 @@ export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
    * 
    * @param productId - The product to adjust
    * @param targetQuantity - The FINAL quantity that should remain (from physical count)
+   * @param txClient - Optional transaction client for atomic operations
    * 
    * Example: If lots are [100, 200, 300] and targetQuantity is 250:
    *   - Lot 1 (oldest): 0 remaining (fully consumed)
@@ -192,14 +193,17 @@ export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
    * 
    * This follows FIFO: oldest inventory consumed first, newest inventory remains
    */
-  async consumeInventoryFIFO(productId: number, targetQuantity: number) {
+  async consumeInventoryFIFO(productId: number, targetQuantity: number, txClient?: any) {
     if (targetQuantity < 0) {
       throw new AppError(400, 'Target quantity cannot be negative');
     }
 
+    // Use transaction client if provided, otherwise use default dbClient
+    const client = txClient || dbClient;
+
     // Get ALL lots for the product in REVERSE FIFO order (newest first)
     // We process newest first to "fill up" the target quantity from the back
-    const lots = await dbClient.purchaseLot.findMany({
+    const lots = await client.purchaseLot.findMany({
       where: { productId },
       orderBy: { purchaseDate: 'desc' }, // CRITICAL: Newest first for distributing remaining inventory
     });
@@ -233,15 +237,27 @@ export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
       }
     }
 
-    // Apply updates in a transaction
-    await dbClient.$transaction(
-      updates.map((update) =>
-        dbClient.purchaseLot.update({
+    // If we're already in a transaction (txClient provided), apply updates directly
+    // Otherwise, wrap in a new transaction
+    if (txClient) {
+      // Execute updates within the provided transaction
+      for (const update of updates) {
+        await client.purchaseLot.update({
           where: { id: update.id },
           data: { remainingQuantity: update.newRemainingQuantity },
-        })
-      )
-    );
+        });
+      }
+    } else {
+      // Apply updates in a new transaction
+      await dbClient.$transaction(
+        updates.map((update) =>
+          dbClient.purchaseLot.update({
+            where: { id: update.id },
+            data: { remainingQuantity: update.newRemainingQuantity },
+          })
+        )
+      );
+    }
 
     return {
       updatedLots: updates.length,

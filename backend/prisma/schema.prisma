@@ -55,14 +55,22 @@ model Product {
   purchaseLots PurchaseLot[]
   yearEndCountItems YearEndCountItem[]
   
+  // Performance indexes for frequently filtered queries
+  @@index([supplierId])
+  @@index([unitId])
   @@map("products")
 }
 
 // PurchaseLot entity - FIFO tracking
 model PurchaseLot {
   id                Int      @id @default(autoincrement())
+  
+  // Foreign keys are nullable to preserve purchase history when products/suppliers
+  // are deleted. Historical data is maintained in productSnapshot and supplierSnapshot
+  // JSON fields, ensuring complete audit trail even after entity deletion.
   productId         Int?     // Foreign key for reference/filtering - nullable to allow deletion
   supplierId        Int?     // Foreign key for reference/filtering - nullable to allow deletion
+  
   purchaseDate      DateTime
   quantity          Int      // Original purchase quantity (never changes)
   unitCost          Float    // Cost per unit (never changes)
@@ -97,6 +105,9 @@ model YearEndCount {
   items       YearEndCountItem[]
   
   @@unique([year, revision])
+  // Performance indexes for frequently queried fields
+  @@index([year])
+  @@index([status])
   @@map("year_end_counts")
 }
 
@@ -111,6 +122,9 @@ model YearEndCountItem {
   value             Float?
   createdAt         DateTime @default(now())
   
+  // CASCADE DELETE WARNING: When a YearEndCount is deleted, all associated items
+  // are automatically deleted. This is intentional for draft counts but should
+  // be prevented at application level for confirmed counts to preserve audit trail.
   yearEndCount YearEndCount @relation(fields: [yearEndCountId], references: [id], onDelete: Cascade)
   product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
   

@@ -282,57 +282,71 @@ export const createYearEndCountService = (
       throw new AppError(404, 'Year-end count not found');
     }
 
-    // Get lot breakdown for each product
-    const reportItems = await Promise.all(
-      count.items.map(async (item) => {
-        const lots = await dbClient.purchaseLot.findMany({
-          where: {
-            productId: item.productId,
-            remainingQuantity: { gt: 0 },
+    // PERFORMANCE FIX: Batch fetch all lots in a single query instead of N queries
+    // This eliminates the N+1 query problem
+    const productIds = count.items.map(item => item.productId);
+    const allLots = await dbClient.purchaseLot.findMany({
+      where: {
+        productId: { in: productIds },
+        remainingQuantity: { gt: 0 },
+      },
+      orderBy: { purchaseDate: 'asc' }, // CRITICAL: FIFO ordering
+      include: {
+        supplier: {
+          select: {
+            name: true,
           },
-          orderBy: { purchaseDate: 'asc' }, // CRITICAL: FIFO ordering
-          include: {
-            supplier: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        });
+        },
+      },
+    });
 
-        return {
-          productId: item.productId,
-          productName: item.product.name,
-          supplierName: item.product.supplier.name,
-          expectedQuantity: item.expectedQuantity,
-          countedQuantity: item.countedQuantity,
-          variance: item.variance,
-          value: item.value,
-          lotBreakdown: lots.map((lot) => {
-            // Get supplier name from relation or snapshot
-            let supplierName = 'Unknown';
-            if (lot.supplier?.name) {
-              supplierName = lot.supplier.name;
-            } else if (lot.supplierSnapshot) {
-              const snapshot = typeof lot.supplierSnapshot === 'string' 
-                ? JSON.parse(lot.supplierSnapshot) 
-                : lot.supplierSnapshot;
-              supplierName = snapshot.name || 'Unknown';
-            }
-            
-            return {
-              purchaseDate: lot.purchaseDate,
-              year: lot.year,
-              quantity: lot.quantity,
-              remainingQuantity: lot.remainingQuantity,
-              unitCost: lot.unitCost,
-              lotValue: lot.remainingQuantity * lot.unitCost,
-              supplier: supplierName,
-            };
-          }),
-        };
-      })
-    );
+    // Group lots by product in memory
+    const lotsByProduct = allLots.reduce((acc, lot) => {
+      if (lot.productId !== null) {
+        if (!acc[lot.productId]) {
+          acc[lot.productId] = [];
+        }
+        acc[lot.productId].push(lot);
+      }
+      return acc;
+    }, {} as Record<number, typeof allLots>);
+
+    // Build report items using pre-fetched lots
+    const reportItems = count.items.map((item) => {
+      const lots = lotsByProduct[item.productId] || [];
+      
+      return {
+        productId: item.productId,
+        productName: item.product.name,
+        supplierName: item.product.supplier.name,
+        expectedQuantity: item.expectedQuantity,
+        countedQuantity: item.countedQuantity,
+        variance: item.variance,
+        value: item.value,
+        lotBreakdown: lots.map((lot) => {
+          // Get supplier name from relation or snapshot
+          let supplierName = 'Unknown';
+          if (lot.supplier?.name) {
+            supplierName = lot.supplier.name;
+          } else if (lot.supplierSnapshot) {
+            const snapshot = typeof lot.supplierSnapshot === 'string' 
+              ? JSON.parse(lot.supplierSnapshot) 
+              : lot.supplierSnapshot;
+            supplierName = snapshot.name || 'Unknown';
+          }
+          
+          return {
+            purchaseDate: lot.purchaseDate,
+            year: lot.year,
+            quantity: lot.quantity,
+            remainingQuantity: lot.remainingQuantity,
+            unitCost: lot.unitCost,
+            lotValue: lot.remainingQuantity * lot.unitCost,
+            supplier: supplierName,
+          };
+        }),
+      };
+    });
 
     const totalExpected = count.items.reduce((sum, item) => sum + item.expectedQuantity, 0);
     const totalCounted = count.items.reduce((sum, item) => sum + (item.countedQuantity || 0), 0);
@@ -390,36 +404,42 @@ export const createYearEndCountService = (
       );
     }
 
-    // Update lot quantities using FIFO for each product
-    for (const item of count.items) {
-      await inventoryServiceInstance.consumeInventoryFIFO(item.productId, item.countedQuantity!);
-    }
+    // CRITICAL: Wrap all updates in a transaction to ensure atomicity
+    // Either all changes succeed or all are rolled back
+    const confirmedCount = await dbClient.$transaction(async (tx) => {
+      // Update lot quantities using FIFO for each product
+      for (const item of count.items) {
+        await inventoryServiceInstance.consumeInventoryFIFO(item.productId, item.countedQuantity!, tx);
+      }
 
-    // Lock the year
-    await dbClient.lockedYear.create({
-      data: {
-        year: count.year,
-      },
-    });
+      // Lock the year
+      await tx.lockedYear.create({
+        data: {
+          year: count.year,
+        },
+      });
 
-    // Update count status
-    const confirmedCount = await dbClient.yearEndCount.update({
-      where: { id: countId },
-      data: {
-        status: 'confirmed',
-        confirmedAt: new Date(),
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
+      // Update count status
+      const updated = await tx.yearEndCount.update({
+        where: { id: countId },
+        data: {
+          status: 'confirmed',
+          confirmedAt: new Date(),
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  name: true,
+                },
               },
             },
           },
         },
-      },
+      });
+
+      return updated;
     });
 
     return {
