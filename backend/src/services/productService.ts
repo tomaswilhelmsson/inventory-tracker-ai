@@ -7,10 +7,16 @@ export const productService = {
     const where: any = {};
 
     if (filters?.search) {
-      where.name = {
-        contains: filters.search,
-        mode: 'insensitive' as const,
-      };
+      // Sanitize search input: trim whitespace and limit length to prevent DoS
+      const sanitizedSearch = filters.search.trim().substring(0, 100);
+      
+      // Only apply filter if there's actual content after sanitization
+      if (sanitizedSearch.length > 0) {
+        where.name = {
+          contains: sanitizedSearch,
+          mode: 'insensitive' as const,
+        };
+      }
     }
 
     if (filters?.supplierId) {

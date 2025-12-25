@@ -53,8 +53,9 @@ beforeAll(async () => {
     )
   `);
 
+  await testPrisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "purchase_lots"`);
   await testPrisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "purchase_lots" (
+    CREATE TABLE "purchase_lots" (
       "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       "productId" INTEGER,
       "supplierId" INTEGER,
@@ -63,6 +64,7 @@ beforeAll(async () => {
       "unitCost" REAL NOT NULL,
       "remainingQuantity" INTEGER NOT NULL,
       "year" INTEGER NOT NULL,
+      "verificationNumber" TEXT,
       "productSnapshot" TEXT NOT NULL,
       "supplierSnapshot" TEXT NOT NULL,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -73,6 +75,22 @@ beforeAll(async () => {
 
   await testPrisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "fifo_index" ON "purchase_lots"("productId", "purchaseDate", "remainingQuantity")
+  `);
+
+  await testPrisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "products_supplierId_idx" ON "products"("supplierId")
+  `);
+
+  await testPrisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "products_unitId_idx" ON "products"("unitId")
+  `);
+
+  await testPrisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "year_end_counts_year_idx" ON "year_end_counts"("year")
+  `);
+
+  await testPrisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "year_end_counts_status_idx" ON "year_end_counts"("status")
   `);
 
   await testPrisma.$executeRawUnsafe(`

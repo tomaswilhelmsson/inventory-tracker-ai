@@ -4,10 +4,13 @@ import { AppError } from '../middleware/errorHandler';
 export const supplierService = {
   // Get all suppliers with optional search
   async getAll(search?: string) {
-    const where = search
+    // Sanitize search input: trim whitespace and limit length to prevent DoS
+    const sanitizedSearch = search?.trim().substring(0, 100);
+    
+    const where = sanitizedSearch && sanitizedSearch.length > 0
       ? {
           name: {
-            contains: search,
+            contains: sanitizedSearch,
             mode: 'insensitive' as const,
           },
         }

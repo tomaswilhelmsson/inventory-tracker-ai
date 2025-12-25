@@ -199,4 +199,42 @@ export const exportService = {
       console.error('Error cleaning up temp file:', error);
     }
   },
+
+  /**
+   * Clean up old temporary files (files older than 1 hour)
+   * Should be called periodically to prevent disk space issues
+   */
+  cleanupOldTempFiles() {
+    try {
+      const tmpDir = path.join(process.cwd(), 'tmp');
+      
+      // Create tmp directory if it doesn't exist
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+        return;
+      }
+
+      const files = fs.readdirSync(tmpDir);
+      const now = Date.now();
+      const ONE_HOUR = 60 * 60 * 1000;
+      let deletedCount = 0;
+
+      for (const file of files) {
+        const filePath = path.join(tmpDir, file);
+        const stats = fs.statSync(filePath);
+
+        // Delete files older than 1 hour
+        if (now - stats.mtimeMs > ONE_HOUR) {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        }
+      }
+
+      if (deletedCount > 0) {
+        console.log(`Cleaned up ${deletedCount} old temporary file(s)`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up old temp files:', error);
+    }
+  },
 };

@@ -11,6 +11,7 @@ import unitRoutes from './routes/units';
 import purchaseRoutes from './routes/purchases';
 import inventoryRoutes from './routes/inventory';
 import yearEndCountRoutes from './routes/yearEndCount';
+import { exportService } from './services/exportService';
 
 const app = express();
 
@@ -83,5 +84,13 @@ app.listen(config.port, () => {
   console.log(`📊 Environment: ${config.nodeEnv}`);
   console.log(`🔗 Frontend URL: ${config.frontendUrl}`);
 });
+
+// Schedule cleanup of old temp files every hour
+setInterval(() => {
+  exportService.cleanupOldTempFiles();
+}, 60 * 60 * 1000); // Run every hour
+
+// Run initial cleanup on startup
+exportService.cleanupOldTempFiles();
 
 export default app;

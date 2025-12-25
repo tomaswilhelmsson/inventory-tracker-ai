@@ -1,5 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
-import { body, param, validationResult } from 'express-validator';
+import { body, param, query, validationResult } from 'express-validator';
 import multer from 'multer';
 import fs from 'fs';
 import { yearEndCountService } from '../services/yearEndCountService';
@@ -9,7 +9,23 @@ import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
 const router = Router();
-const upload = multer({ dest: 'tmp/' });
+
+// Configure Multer with security restrictions
+const upload = multer({
+  dest: 'tmp/',
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max file size
+    files: 1, // Only allow 1 file per upload
+  },
+  fileFilter: (_req, file, cb) => {
+    // Only accept CSV files
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'));
+    }
+  },
+});
 
 // Validation middleware
 const validateRequest = (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -110,6 +126,8 @@ router.get(
   '/:year/compare',
   [
     param('year').isInt().withMessage('Valid year is required'),
+    query('revision1').isInt({ min: 1 }).withMessage('revision1 must be a positive integer'),
+    query('revision2').isInt({ min: 1 }).withMessage('revision2 must be a positive integer'),
   ],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -117,10 +135,6 @@ router.get(
       const year = parseInt(req.params.year);
       const revision1 = parseInt(req.query.revision1 as string);
       const revision2 = parseInt(req.query.revision2 as string);
-
-      if (!revision1 || !revision2) {
-        throw new AppError(400, 'Both revision1 and revision2 query parameters are required');
-      }
 
       const comparison = await yearEndCountService.compareRevisions(year, revision1, revision2);
       res.json(comparison);

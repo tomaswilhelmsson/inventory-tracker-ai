@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import prisma from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { validatePurchaseDate, validateQuantity } from '../utils/validation';
 
 /**
  * Factory function to create purchaseService with injectable dependencies
@@ -106,10 +107,14 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
     quantity: number;
     unitCost: number;
   }) {
+    // Validate purchase date
+    validatePurchaseDate(data.purchaseDate);
+
     // Validate quantity and unitCost
     if (data.quantity <= 0) {
       throw new AppError(400, 'Quantity must be greater than 0');
     }
+    validateQuantity(data.quantity, 'Quantity');
 
     if (data.unitCost <= 0) {
       throw new AppError(400, 'Unit cost must be greater than 0');
@@ -220,9 +225,17 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
       throw new AppError(400, `Cannot update purchase from locked year ${lot.year}`);
     }
 
+    // Validate purchase date if provided
+    if (data.purchaseDate) {
+      validatePurchaseDate(data.purchaseDate);
+    }
+
     // Validate updates
-    if (data.quantity !== undefined && data.quantity <= 0) {
-      throw new AppError(400, 'Quantity must be greater than 0');
+    if (data.quantity !== undefined) {
+      if (data.quantity <= 0) {
+        throw new AppError(400, 'Quantity must be greater than 0');
+      }
+      validateQuantity(data.quantity, 'Quantity');
     }
 
     if (data.unitCost !== undefined && data.unitCost <= 0) {
