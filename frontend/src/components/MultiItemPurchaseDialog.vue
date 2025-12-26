@@ -62,6 +62,21 @@
 
         <div class="field-row">
           <div class="field">
+            <label for="invoiceTotal">{{ $t('purchases.multiItem.invoiceTotal') }}</label>
+            <InputNumber
+              id="invoiceTotal"
+              v-model="formData.invoiceTotal"
+              mode="currency"
+              currency="USD"
+              :minFractionDigits="2"
+              :min="0"
+              :placeholder="$t('purchases.multiItem.invoiceTotalPlaceholder')"
+              @input="recalculateTotals"
+            />
+            <small class="field-hint">{{ $t('purchases.multiItem.invoiceTotalHint') }}</small>
+          </div>
+
+          <div class="field">
             <label for="shippingCost">{{ $t('purchases.multiItem.shippingCost') }} *</label>
             <InputNumber
               id="shippingCost"
@@ -336,6 +351,7 @@ const formData = ref({
   supplierId: null as number | null,
   purchaseDate: new Date(),
   verificationNumber: '',
+  invoiceTotal: null as number | null,
   shippingCost: 0,
   notes: '',
   items: [createEmptyLineItem()] as LineItem[],
@@ -381,14 +397,37 @@ const validationStatus = computed(() => {
   const allItemsValid = formData.value.items.every(item => 
     item.productId && item.quantity && (item.unitCost || item.totalCost)
   );
+  if (invoiceTotalMismatch.value !== null) {
+    return 'warning';
+  }
   return allItemsValid ? 'valid' : 'invalid';
 });
 
 const validationIcon = computed(() => {
-  return validationStatus.value === 'valid' ? 'pi pi-check-circle' : 'pi pi-exclamation-circle';
+  if (validationStatus.value === 'valid') return 'pi pi-check-circle';
+  if (validationStatus.value === 'warning') return 'pi pi-exclamation-triangle';
+  return 'pi pi-exclamation-circle';
+});
+
+const invoiceTotalMismatch = computed(() => {
+  if (!formData.value.invoiceTotal) return null;
+  const diff = Math.abs(calculatedTotal.value - formData.value.invoiceTotal);
+  // Allow $0.01 tolerance for rounding
+  if (diff > 0.01) {
+    return diff;
+  }
+  return null;
 });
 
 const validationMessage = computed(() => {
+  if (invoiceTotalMismatch.value !== null) {
+    const diff = invoiceTotalMismatch.value;
+    return t('purchases.multiItem.invoiceMismatch', { 
+      calculated: formatCurrency(calculatedTotal.value),
+      entered: formatCurrency(formData.value.invoiceTotal!),
+      diff: formatCurrency(diff)
+    });
+  }
   if (validationStatus.value === 'valid') {
     return t('purchases.multiItem.validationSuccess');
   }
@@ -405,6 +444,7 @@ const canSubmit = computed(() => {
       item.productId && item.quantity && (item.unitCost || item.totalCost)
     ) &&
     !supplierMismatchError.value
+    // Note: invoiceTotalMismatch is a warning, not a blocker
   );
 });
 
@@ -564,6 +604,7 @@ function resetForm() {
     supplierId: null,
     purchaseDate: new Date(),
     verificationNumber: '',
+    invoiceTotal: null,
     shippingCost: 0,
     notes: '',
     items: [createEmptyLineItem()],
@@ -773,8 +814,19 @@ defineExpose({ resetForm });
   color: var(--orange-700);
 }
 
+.validation-message.warning {
+  background: var(--yellow-50);
+  color: var(--yellow-700);
+}
+
 .validation-message i {
   font-size: 1.25rem;
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--text-color-secondary);
+  margin-top: 0.25rem;
 }
 
 .p-error {
