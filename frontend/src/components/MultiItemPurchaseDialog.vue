@@ -582,7 +582,7 @@ async function saveBatch() {
       })),
     };
 
-    await api.post('/api/purchases/batch', payload);
+    await api.post('/purchases/batch', payload);
 
     toast.add({
       severity: 'success',
@@ -626,7 +626,7 @@ function resetForm() {
 async function loadSuppliers() {
   loadingSuppliers.value = true;
   try {
-    const response = await api.get('/api/suppliers');
+    const response = await api.get('/suppliers');
     suppliers.value = response.data;
   } catch (error) {
     toast.add({
@@ -643,7 +643,7 @@ async function loadSuppliers() {
 async function loadProducts() {
   loadingProducts.value = true;
   try {
-    const response = await api.get('/api/products');
+    const response = await api.get('/products');
     products.value = response.data;
   } catch (error) {
     toast.add({
