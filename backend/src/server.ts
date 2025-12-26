@@ -15,18 +15,20 @@ import { exportService } from './services/exportService';
 
 const app = express();
 
-// Rate limiting configuration
+// Rate limiting configuration (disabled in development)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login attempts per windowMs
+  max: config.nodeEnv === 'development' ? 0 : 5, // Disabled in dev, 5 attempts in prod
   message: 'Too many login attempts from this IP, please try again later',
   skipSuccessfulRequests: true, // Don't count successful logins
+  skip: () => config.nodeEnv === 'development', // Skip rate limiting in development
 });
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: config.nodeEnv === 'development' ? 0 : 100, // Disabled in dev, 100 requests in prod
   message: 'Too many requests from this IP, please try again later',
+  skip: () => config.nodeEnv === 'development', // Skip rate limiting in development
 });
 
 // CORS configuration with origin validation
