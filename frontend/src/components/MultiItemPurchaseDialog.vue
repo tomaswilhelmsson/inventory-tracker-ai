@@ -12,18 +12,28 @@
         <div class="field-row">
           <div class="field">
             <label for="supplier">{{ $t('purchases.form.supplier') }} *</label>
-            <Dropdown
-              id="supplier"
-              v-model="formData.supplierId"
-              :options="suppliers"
-              optionLabel="name"
-              optionValue="id"
-              :placeholder="$t('purchases.form.supplierPlaceholder')"
-              :class="{ 'p-invalid': formErrors.supplierId }"
-              :loading="loadingSuppliers"
-              filter
-              @change="onSupplierChange"
-            />
+            <div class="dropdown-with-add">
+              <Dropdown
+                id="supplier"
+                v-model="formData.supplierId"
+                :options="suppliers"
+                optionLabel="name"
+                optionValue="id"
+                :placeholder="$t('purchases.form.supplierPlaceholder')"
+                :class="{ 'p-invalid': formErrors.supplierId }"
+                :loading="loadingSuppliers"
+                filter
+                @change="onSupplierChange"
+                style="flex: 1"
+              />
+              <Button
+                icon="pi pi-plus"
+                size="small"
+                outlined
+                @click="showQuickSupplierDialog"
+                v-tooltip.top="$t('suppliers.addSupplier')"
+              />
+            </div>
             <small v-if="formErrors.supplierId" class="p-error">{{ formErrors.supplierId }}</small>
           </div>
 
@@ -220,6 +230,63 @@
       />
     </template>
   </Dialog>
+
+  <!-- Quick Add Supplier Dialog -->
+  <Dialog
+    v-model:visible="quickSupplierDialogVisible"
+    :header="$t('suppliers.addSupplier')"
+    modal
+    :style="{ width: '500px' }"
+  >
+    <div class="form-container">
+      <div class="field">
+        <label for="quickSupplierName">{{ $t('suppliers.form.name') }} *</label>
+        <InputText
+          id="quickSupplierName"
+          v-model="quickSupplierForm.name"
+          :placeholder="$t('suppliers.form.namePlaceholder')"
+          autofocus
+        />
+      </div>
+
+      <div class="field">
+        <label for="quickSupplierContact">{{ $t('suppliers.form.contactPerson') }}</label>
+        <InputText
+          id="quickSupplierContact"
+          v-model="quickSupplierForm.contactPerson"
+          :placeholder="$t('suppliers.form.contactPersonPlaceholder')"
+        />
+      </div>
+
+      <div class="field">
+        <label for="quickSupplierEmail">{{ $t('suppliers.form.email') }}</label>
+        <InputText
+          id="quickSupplierEmail"
+          v-model="quickSupplierForm.email"
+          type="email"
+          :placeholder="$t('suppliers.form.emailPlaceholder')"
+        />
+      </div>
+
+      <div class="field">
+        <label for="quickSupplierPhone">{{ $t('suppliers.form.phone') }}</label>
+        <InputText
+          id="quickSupplierPhone"
+          v-model="quickSupplierForm.phone"
+          :placeholder="$t('suppliers.form.phonePlaceholder')"
+        />
+      </div>
+    </div>
+
+    <template #footer>
+      <Button :label="$t('common.cancel')" text @click="quickSupplierDialogVisible = false" />
+      <Button
+        :label="$t('common.create')"
+        :loading="savingQuickAdd"
+        @click="saveQuickSupplier"
+      />
+    </template>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -250,6 +317,11 @@ const products = ref<any[]>([]);
 const loadingSuppliers = ref(false);
 const loadingProducts = ref(false);
 const saving = ref(false);
+
+// Quick add supplier
+const quickSupplierDialogVisible = ref(false);
+const quickSupplierForm = ref({ name: '', contactPerson: '', email: '', phone: '' });
+const savingQuickAdd = ref(false);
 
 interface LineItem {
   productId: number | null;
@@ -537,6 +609,49 @@ async function loadProducts() {
   }
 }
 
+// Quick add supplier
+function showQuickSupplierDialog() {
+  quickSupplierForm.value = { name: '', contactPerson: '', email: '', phone: '' };
+  quickSupplierDialogVisible.value = true;
+}
+
+async function saveQuickSupplier() {
+  if (!quickSupplierForm.value.name) {
+    toast.add({
+      severity: 'warn',
+      summary: t('common.warning'),
+      detail: t('validation.required'),
+      life: 3000,
+    });
+    return;
+  }
+
+  savingQuickAdd.value = true;
+  try {
+    const response = await api.post('/suppliers', quickSupplierForm.value);
+    
+    await loadSuppliers();
+    formData.value.supplierId = response.data.id;
+    
+    quickSupplierDialogVisible.value = false;
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('suppliers.messages.createSuccess'),
+      life: 3000,
+    });
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('suppliers.messages.saveFailed'),
+      life: 3000,
+    });
+  } finally {
+    savingQuickAdd.value = false;
+  }
+}
+
 watch(visible, (newVal) => {
   if (newVal) {
     loadSuppliers();
@@ -673,5 +788,18 @@ defineExpose({ resetForm });
 
 .text-secondary {
   color: var(--text-color-secondary);
+}
+
+.dropdown-with-add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 0;
 }
 </style>

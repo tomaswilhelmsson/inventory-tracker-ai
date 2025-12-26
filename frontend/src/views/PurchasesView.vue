@@ -173,44 +173,65 @@
         <div class="field-row">
           <div class="field">
             <label for="product">{{ t('purchases.form.product') }} *</label>
-            <Dropdown
-              id="product"
-              v-model="formData.productId"
-              :options="products"
-              optionLabel="name"
-              optionValue="id"
-              :placeholder="t('purchases.form.productPlaceholder')"
-              :class="{ 'p-invalid': formErrors.productId }"
-              :loading="loadingProducts"
-              filter
-              @change="onProductChange"
-            >
-              <template #option="slotProps">
-                <div class="product-option">
-                  <div>{{ slotProps.option.name }}</div>
-                  <small class="text-secondary">
-                    {{ t('purchases.form.supplier') }}: {{ slotProps.option.supplier?.name || t('common.unknown') }}
-                  </small>
-                </div>
-              </template>
-            </Dropdown>
+            <div class="dropdown-with-add">
+              <Dropdown
+                id="product"
+                v-model="formData.productId"
+                :options="products"
+                optionLabel="name"
+                optionValue="id"
+                :placeholder="t('purchases.form.productPlaceholder')"
+                :class="{ 'p-invalid': formErrors.productId }"
+                :loading="loadingProducts"
+                filter
+                @change="onProductChange"
+                style="flex: 1"
+              >
+                <template #option="slotProps">
+                  <div class="product-option">
+                    <div>{{ slotProps.option.name }}</div>
+                    <small class="text-secondary">
+                      {{ t('purchases.form.supplier') }}: {{ slotProps.option.supplier?.name || t('common.unknown') }}
+                    </small>
+                  </div>
+                </template>
+              </Dropdown>
+              <Button
+                icon="pi pi-plus"
+                size="small"
+                outlined
+                @click="showQuickProductDialog"
+                v-tooltip.top="t('products.addProduct')"
+              />
+            </div>
             <small v-if="formErrors.productId" class="p-error">{{ formErrors.productId }}</small>
           </div>
 
           <div class="field">
             <label for="supplier">{{ t('purchases.form.supplier') }} *</label>
-            <Dropdown
-              id="supplier"
-              v-model="formData.supplierId"
-              :options="suppliers"
-              optionLabel="name"
-              optionValue="id"
-              :placeholder="t('purchases.form.supplierPlaceholder')"
-              :class="{ 'p-invalid': formErrors.supplierId }"
-              :loading="loadingSuppliers"
-              :disabled="!!formData.productId"
-              filter
-            />
+            <div class="dropdown-with-add">
+              <Dropdown
+                id="supplier"
+                v-model="formData.supplierId"
+                :options="suppliers"
+                optionLabel="name"
+                optionValue="id"
+                :placeholder="t('purchases.form.supplierPlaceholder')"
+                :class="{ 'p-invalid': formErrors.supplierId }"
+                :loading="loadingSuppliers"
+                :disabled="!!formData.productId"
+                filter
+                style="flex: 1"
+              />
+              <Button
+                icon="pi pi-plus"
+                size="small"
+                outlined
+                @click="showQuickSupplierDialog"
+                v-tooltip.top="t('suppliers.addSupplier')"
+                :disabled="!!formData.productId"
+              />
+            </div>
             <small v-if="formErrors.supplierId" class="p-error">{{ formErrors.supplierId }}</small>
           </div>
         </div>
@@ -296,6 +317,118 @@
       v-model:visible="multiItemDialogVisible"
       @batch-created="onBatchCreated"
     />
+
+    <!-- Quick Add Product Dialog -->
+    <Dialog
+      v-model:visible="quickProductDialogVisible"
+      :header="t('products.addProduct')"
+      modal
+      :style="{ width: '500px' }"
+    >
+      <div class="form-container">
+        <div class="field">
+          <label for="quickProductName">{{ t('products.form.name') }} *</label>
+          <InputText
+            id="quickProductName"
+            v-model="quickProductForm.name"
+            :placeholder="t('products.form.namePlaceholder')"
+            autofocus
+          />
+        </div>
+
+        <div class="field">
+          <label for="quickProductSupplier">{{ t('products.form.supplier') }} *</label>
+          <Dropdown
+            id="quickProductSupplier"
+            v-model="quickProductForm.supplierId"
+            :options="suppliers"
+            optionLabel="name"
+            optionValue="id"
+            :placeholder="t('products.form.supplierPlaceholder')"
+            filter
+          />
+        </div>
+
+        <div class="field">
+          <label for="quickProductUnit">{{ t('products.form.unit') }} *</label>
+          <Dropdown
+            id="quickProductUnit"
+            v-model="quickProductForm.unitId"
+            :options="units"
+            optionLabel="name"
+            optionValue="id"
+            :placeholder="t('products.form.unitPlaceholder')"
+            filter
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button :label="t('common.cancel')" text @click="quickProductDialogVisible = false" />
+        <Button
+          :label="t('common.create')"
+          :loading="savingQuickAdd"
+          @click="saveQuickProduct"
+        />
+      </template>
+    </Dialog>
+
+    <!-- Quick Add Supplier Dialog -->
+    <Dialog
+      v-model:visible="quickSupplierDialogVisible"
+      :header="t('suppliers.addSupplier')"
+      modal
+      :style="{ width: '500px' }"
+    >
+      <div class="form-container">
+        <div class="field">
+          <label for="quickSupplierName">{{ t('suppliers.form.name') }} *</label>
+          <InputText
+            id="quickSupplierName"
+            v-model="quickSupplierForm.name"
+            :placeholder="t('suppliers.form.namePlaceholder')"
+            autofocus
+          />
+        </div>
+
+        <div class="field">
+          <label for="quickSupplierContact">{{ t('suppliers.form.contactPerson') }}</label>
+          <InputText
+            id="quickSupplierContact"
+            v-model="quickSupplierForm.contactPerson"
+            :placeholder="t('suppliers.form.contactPersonPlaceholder')"
+          />
+        </div>
+
+        <div class="field">
+          <label for="quickSupplierEmail">{{ t('suppliers.form.email') }}</label>
+          <InputText
+            id="quickSupplierEmail"
+            v-model="quickSupplierForm.email"
+            type="email"
+            :placeholder="t('suppliers.form.emailPlaceholder')"
+          />
+        </div>
+
+        <div class="field">
+          <label for="quickSupplierPhone">{{ t('suppliers.form.phone') }}</label>
+          <InputText
+            id="quickSupplierPhone"
+            v-model="quickSupplierForm.phone"
+            :placeholder="t('suppliers.form.phonePlaceholder')"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button :label="t('common.cancel')" text @click="quickSupplierDialogVisible = false" />
+        <Button
+          :label="t('common.create')"
+          :loading="savingQuickAdd"
+          @click="saveQuickSupplier"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -415,6 +548,14 @@ const dialogVisible = ref(false);
 const multiItemDialogVisible = ref(false);
 const editMode = ref(false);
 const currentPurchaseId = ref<number | null>(null);
+
+// Quick add dialogs
+const quickProductDialogVisible = ref(false);
+const quickSupplierDialogVisible = ref(false);
+const quickProductForm = ref({ name: '', supplierId: null as number | null, unitId: null as number | null });
+const quickSupplierForm = ref({ name: '', contactPerson: '', email: '', phone: '' });
+const savingQuickAdd = ref(false);
+const units = ref<any[]>([]);
 
 const formData = ref<FormData>({
   productId: null,
@@ -778,6 +919,113 @@ const filterByBatch = (batchId: number) => {
   searchQuery.value = `#${batchId}`;
 };
 
+// Quick add product
+const showQuickProductDialog = async () => {
+  if (suppliers.value.length === 0) {
+    await fetchSuppliers();
+  }
+  if (units.value.length === 0) {
+    await fetchUnits();
+  }
+  quickProductForm.value = { name: '', supplierId: null, unitId: null };
+  quickProductDialogVisible.value = true;
+};
+
+const saveQuickProduct = async () => {
+  if (!quickProductForm.value.name || !quickProductForm.value.supplierId || !quickProductForm.value.unitId) {
+    toast.add({
+      severity: 'warn',
+      summary: t('common.warning'),
+      detail: t('validation.required'),
+      life: 3000,
+    });
+    return;
+  }
+
+  savingQuickAdd.value = true;
+  try {
+    const response = await api.post('/products', {
+      name: quickProductForm.value.name,
+      supplierId: quickProductForm.value.supplierId,
+      unitId: quickProductForm.value.unitId,
+    });
+    
+    await fetchProducts();
+    formData.value.productId = response.data.id;
+    formData.value.supplierId = quickProductForm.value.supplierId;
+    
+    quickProductDialogVisible.value = false;
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('products.messages.createSuccess'),
+      life: 3000,
+    });
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('products.messages.saveFailed'),
+      life: 3000,
+    });
+  } finally {
+    savingQuickAdd.value = false;
+  }
+};
+
+// Quick add supplier
+const showQuickSupplierDialog = () => {
+  quickSupplierForm.value = { name: '', contactPerson: '', email: '', phone: '' };
+  quickSupplierDialogVisible.value = true;
+};
+
+const saveQuickSupplier = async () => {
+  if (!quickSupplierForm.value.name) {
+    toast.add({
+      severity: 'warn',
+      summary: t('common.warning'),
+      detail: t('validation.required'),
+      life: 3000,
+    });
+    return;
+  }
+
+  savingQuickAdd.value = true;
+  try {
+    const response = await api.post('/suppliers', quickSupplierForm.value);
+    
+    await fetchSuppliers();
+    formData.value.supplierId = response.data.id;
+    
+    quickSupplierDialogVisible.value = false;
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('suppliers.messages.createSuccess'),
+      life: 3000,
+    });
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('suppliers.messages.saveFailed'),
+      life: 3000,
+    });
+  } finally {
+    savingQuickAdd.value = false;
+  }
+};
+
+// Fetch units
+const fetchUnits = async () => {
+  try {
+    const response = await api.get('/units');
+    units.value = response.data;
+  } catch (error: any) {
+    console.error('Failed to fetch units:', error);
+  }
+};
+
 // Load data on mount
 onMounted(() => {
   fetchPurchases();
@@ -921,5 +1169,11 @@ onMounted(() => {
   color: var(--red-500);
   font-size: 0.75rem;
   margin-top: 0.25rem;
+}
+
+.dropdown-with-add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
 }
 </style>
