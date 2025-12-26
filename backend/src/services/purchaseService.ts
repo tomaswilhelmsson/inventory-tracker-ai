@@ -2,6 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import prisma from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { validatePurchaseDate, validateQuantity } from '../utils/validation';
+import { calculateExclVAT, calculateInclVAT } from '../utils/vatCalculations';
+import { config } from '../utils/config';
 
 /**
  * Factory function to create purchaseService with injectable dependencies
@@ -73,7 +75,8 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
           select: {
             id: true,
             verificationNumber: true,
-            invoiceTotal: true,
+            invoiceTotalInclVAT: true,
+            invoiceTotalExclVAT: true,
             shippingCost: true,
           },
         },
@@ -99,7 +102,8 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
           select: {
             id: true,
             verificationNumber: true,
-            invoiceTotal: true,
+            invoiceTotalInclVAT: true,
+            invoiceTotalExclVAT: true,
             shippingCost: true,
           },
         },
@@ -127,6 +131,9 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
     purchaseDate: Date;
     quantity: number;
     unitCost: number;
+    vatRate?: number; // Optional VAT rate (defaults to config default)
+    pricesIncludeVAT?: boolean; // Whether unitCost includes VAT (default true)
+    verificationNumber?: string; // Optional invoice/verification number
   }) {
     // Validate purchase date
     validatePurchaseDate(data.purchaseDate);
@@ -169,6 +176,29 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
       throw new AppError(400, 'Supplier not found');
     }
 
+    // VAT calculations
+    const vatRate = data.vatRate !== undefined ? data.vatRate : config.vat.defaultRate;
+    const pricesIncludeVAT = data.pricesIncludeVAT !== undefined ? data.pricesIncludeVAT : true;
+    
+    // Validate VAT rate
+    if (vatRate < 0 || vatRate > 1) {
+      throw new AppError(400, 'VAT rate must be between 0 and 1');
+    }
+    
+    // Calculate both VAT-inclusive and VAT-exclusive costs
+    let unitCostInclVAT: number;
+    let unitCostExclVAT: number;
+    
+    if (pricesIncludeVAT) {
+      // User entered price including VAT
+      unitCostInclVAT = data.unitCost;
+      unitCostExclVAT = calculateExclVAT(data.unitCost, vatRate);
+    } else {
+      // User entered price excluding VAT
+      unitCostExclVAT = data.unitCost;
+      unitCostInclVAT = calculateInclVAT(data.unitCost, vatRate);
+    }
+
     // Create immutable snapshots
     const productSnapshot = JSON.stringify({
       id: product.id,
@@ -195,9 +225,17 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
 
     const newLot = await dbClient.purchaseLot.create({
       data: {
-        ...data,
+        productId: data.productId,
+        supplierId: data.supplierId,
+        purchaseDate: data.purchaseDate,
+        quantity: data.quantity,
+        unitCost: unitCostExclVAT, // Legacy field - use excl VAT
+        unitCostExclVAT,
+        unitCostInclVAT,
+        vatRate,
         year,
         remainingQuantity: data.quantity, // Initialize remaining = quantity
+        verificationNumber: data.verificationNumber,
         productSnapshot,
         supplierSnapshot,
       },
@@ -512,9 +550,12 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
           supplierId: data.supplierId,
           purchaseDate: data.purchaseDate,
           verificationNumber: data.verificationNumber,
-          invoiceTotal,
+          invoiceTotalInclVAT: invoiceTotal,
+          invoiceTotalExclVAT: invoiceTotal, // Will be updated with VAT handling
           shippingCost: data.shippingCost,
           notes: data.notes,
+          vatRate: 0, // Will be updated with VAT handling
+          pricesIncludeVAT: true,
         },
       });
 
