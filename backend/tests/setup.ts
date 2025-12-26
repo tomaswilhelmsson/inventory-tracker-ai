@@ -53,12 +53,27 @@ beforeAll(async () => {
     )
   `);
 
+  await testPrisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "purchase_batches" (
+      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      "supplierId" INTEGER NOT NULL,
+      "purchaseDate" DATETIME NOT NULL,
+      "verificationNumber" TEXT,
+      "invoiceTotal" REAL NOT NULL,
+      "shippingCost" REAL NOT NULL,
+      "notes" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE RESTRICT
+    )
+  `);
+
   await testPrisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "purchase_lots"`);
   await testPrisma.$executeRawUnsafe(`
     CREATE TABLE "purchase_lots" (
       "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       "productId" INTEGER,
       "supplierId" INTEGER,
+      "batchId" INTEGER,
       "purchaseDate" DATETIME NOT NULL,
       "quantity" INTEGER NOT NULL,
       "unitCost" REAL NOT NULL,
@@ -69,12 +84,17 @@ beforeAll(async () => {
       "supplierSnapshot" TEXT NOT NULL,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE SET NULL,
-      FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE SET NULL
+      FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE SET NULL,
+      FOREIGN KEY ("batchId") REFERENCES "purchase_batches"("id") ON DELETE SET NULL
     )
   `);
 
   await testPrisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "fifo_index" ON "purchase_lots"("productId", "purchaseDate", "remainingQuantity")
+  `);
+
+  await testPrisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "purchase_lots_batchId_idx" ON "purchase_lots"("batchId")
   `);
 
   await testPrisma.$executeRawUnsafe(`
@@ -158,6 +178,7 @@ beforeEach(async () => {
     'year_end_count_items',
     'year_end_counts',
     'purchase_lots',
+    'purchase_batches',
     'products',
     'suppliers',
     'units',

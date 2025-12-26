@@ -28,6 +28,7 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
     productId?: number;
     supplierId?: number;
     year?: number;
+    batchId?: number;
     hasRemainingInventory?: boolean;
   }) {
     const where: any = {};
@@ -42,6 +43,10 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
 
     if (filters?.year) {
       where.year = filters.year;
+    }
+
+    if (filters?.batchId !== undefined) {
+      where.batchId = filters.batchId;
     }
 
     if (filters?.hasRemainingInventory) {
@@ -64,11 +69,19 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
             name: true,
           },
         },
+        batch: {
+          select: {
+            id: true,
+            verificationNumber: true,
+            invoiceTotal: true,
+            shippingCost: true,
+          },
+        },
       },
     });
 
     // Parse JSON snapshots and add to response
-    return lots.map(lot => ({
+    return lots.map((lot: any) => ({
       ...lot,
       productSnapshot: JSON.parse(lot.productSnapshot),
       supplierSnapshot: JSON.parse(lot.supplierSnapshot),
@@ -82,6 +95,14 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
       include: {
         product: true,
         supplier: true,
+        batch: {
+          select: {
+            id: true,
+            verificationNumber: true,
+            invoiceTotal: true,
+            shippingCost: true,
+          },
+        },
       },
     });
 
@@ -313,6 +334,309 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
     });
 
     return { message: 'Purchase lot deleted successfully' };
+  },
+
+  /**
+   * Calculate shipping cost allocation per line item proportionally based on subtotal
+   * @param items - Array of line items with quantity and unitCost
+   * @param totalShipping - Total shipping cost to distribute
+   * @returns Array of shipping allocations per item
+   */
+  calculateShippingAllocation(
+    items: Array<{ quantity: number; unitCost: number }>,
+    totalShipping: number
+  ): number[] {
+    if (totalShipping === 0) {
+      return items.map(() => 0);
+    }
+
+    // Calculate subtotal for each item
+    const subtotals = items.map(item => item.quantity * item.unitCost);
+    const totalSubtotal = subtotals.reduce((sum, subtotal) => sum + subtotal, 0);
+
+    // Distribute shipping proportionally
+    return subtotals.map(subtotal => (subtotal / totalSubtotal) * totalShipping);
+  },
+
+  /**
+   * Validate invoice total matches sum of line items + shipping (within tolerance)
+   * @param lineItemsTotal - Sum of all line item totals
+   * @param shippingCost - Shipping cost
+   * @param invoiceTotal - Expected invoice total
+   * @param tolerance - Acceptable difference (default $0.01)
+   * @throws AppError if mismatch exceeds tolerance
+   */
+  validateInvoiceTotal(
+    lineItemsTotal: number,
+    shippingCost: number,
+    invoiceTotal: number,
+    tolerance: number = 0.01
+  ): void {
+    const expectedTotal = lineItemsTotal + shippingCost;
+    const difference = Math.abs(expectedTotal - invoiceTotal);
+
+    if (difference > tolerance) {
+      throw new AppError(
+        400,
+        `Invoice total mismatch: Expected ${expectedTotal.toFixed(2)}, got ${invoiceTotal.toFixed(2)} (difference: $${difference.toFixed(2)})`
+      );
+    }
+  },
+
+  /**
+   * Create a batch of purchase lots from a single invoice
+   * @param data - Batch purchase data
+   * @returns Created batch with all lots
+   */
+  async createBatch(data: {
+    supplierId: number;
+    purchaseDate: Date;
+    verificationNumber?: string;
+    shippingCost: number;
+    notes?: string;
+    items: Array<{
+      productId: number;
+      quantity: number;
+      unitCost?: number;  // Either unitCost or totalCost required
+      totalCost?: number; // Either unitCost or totalCost required
+    }>;
+  }) {
+    // Validate purchase date
+    validatePurchaseDate(data.purchaseDate);
+
+    // Validate at least 1 item
+    if (!data.items || data.items.length === 0) {
+      throw new AppError(400, 'At least 1 line item is required');
+    }
+
+    // Validate shipping cost >= 0
+    if (data.shippingCost < 0) {
+      throw new AppError(400, 'Shipping cost cannot be negative');
+    }
+
+    // Extract year from purchase date
+    const year = new Date(data.purchaseDate).getFullYear();
+
+    // Check if year is locked
+    const yearLocked = await this.isYearLocked(year);
+    if (yearLocked) {
+      throw new AppError(400, `Cannot create purchase for locked year ${year}`);
+    }
+
+    // Verify supplier exists
+    const supplier = await dbClient.supplier.findUnique({
+      where: { id: data.supplierId },
+    });
+    if (!supplier) {
+      throw new AppError(400, 'Supplier not found');
+    }
+
+    // Process each item: validate, fetch product details, calculate costs
+    const processedItems = await Promise.all(
+      data.items.map(async (item) => {
+        // Validate either unitCost or totalCost provided (not both)
+        if (item.unitCost !== undefined && item.totalCost !== undefined) {
+          throw new AppError(400, 'Provide either unitCost or totalCost, not both');
+        }
+        if (item.unitCost === undefined && item.totalCost === undefined) {
+          throw new AppError(400, 'Either unitCost or totalCost is required');
+        }
+
+        // Validate quantity
+        if (item.quantity <= 0) {
+          throw new AppError(400, 'Quantity must be greater than 0');
+        }
+        validateQuantity(item.quantity, 'Quantity');
+
+        // Calculate unitCost or totalCost
+        let unitCost: number;
+        let totalCost: number;
+
+        if (item.unitCost !== undefined) {
+          if (item.unitCost <= 0) {
+            throw new AppError(400, 'Unit cost must be greater than 0');
+          }
+          unitCost = item.unitCost;
+          totalCost = unitCost * item.quantity;
+        } else {
+          // Calculate from totalCost
+          if (item.totalCost! <= 0) {
+            throw new AppError(400, 'Total cost must be greater than 0');
+          }
+          totalCost = item.totalCost!;
+          unitCost = totalCost / item.quantity;
+        }
+
+        // Fetch product details
+        const product = await dbClient.product.findUnique({
+          where: { id: item.productId },
+          include: { unit: true, supplier: true },
+        });
+        if (!product) {
+          throw new AppError(400, `Product with ID ${item.productId} not found`);
+        }
+
+        // Validate product belongs to the same supplier
+        if (product.supplierId !== data.supplierId) {
+          throw new AppError(
+            400,
+            `Product "${product.name}" belongs to a different supplier. All products must be from the same supplier.`
+          );
+        }
+
+        return {
+          productId: item.productId,
+          product,
+          quantity: item.quantity,
+          unitCost,
+          totalCost,
+        };
+      })
+    );
+
+    // Calculate total of all line items
+    const lineItemsTotal = processedItems.reduce((sum, item) => sum + item.totalCost, 0);
+    const invoiceTotal = lineItemsTotal + data.shippingCost;
+
+    // Calculate shipping allocation per item
+    const shippingAllocations = this.calculateShippingAllocation(
+      processedItems.map(item => ({ quantity: item.quantity, unitCost: item.unitCost })),
+      data.shippingCost
+    );
+
+    // Create batch and lots in a transaction
+    const result = await dbClient.$transaction(async (tx) => {
+      // Create purchase batch
+      const batch = await tx.purchaseBatch.create({
+        data: {
+          supplierId: data.supplierId,
+          purchaseDate: data.purchaseDate,
+          verificationNumber: data.verificationNumber,
+          invoiceTotal,
+          shippingCost: data.shippingCost,
+          notes: data.notes,
+        },
+      });
+
+      // Create snapshots once (shared across items)
+      const supplierSnapshot = JSON.stringify({
+        id: supplier.id,
+        name: supplier.name,
+        contactPerson: supplier.contactPerson || '',
+        email: supplier.email || '',
+        phone: supplier.phone || '',
+        address: supplier.address || '',
+        city: supplier.city || '',
+        country: supplier.country || '',
+        taxId: supplier.taxId || '',
+      });
+
+      // Create all purchase lots
+      const lots = await Promise.all(
+        processedItems.map(async (item, index) => {
+          // Calculate final unit cost including shipping allocation
+          const shippingPerUnit = shippingAllocations[index] / item.quantity;
+          const finalUnitCost = item.unitCost + shippingPerUnit;
+
+          // Create product snapshot
+          const productSnapshot = JSON.stringify({
+            id: item.product.id,
+            name: item.product.name,
+            description: item.product.description || '',
+            unit: {
+              id: item.product.unit.id,
+              name: item.product.unit.name,
+            },
+            supplierIdRef: item.product.supplierId,
+          });
+
+          return tx.purchaseLot.create({
+            data: {
+              productId: item.productId,
+              supplierId: data.supplierId,
+              batchId: batch.id,
+              purchaseDate: data.purchaseDate,
+              quantity: item.quantity,
+              unitCost: finalUnitCost, // Includes shipping allocation
+              remainingQuantity: item.quantity,
+              year,
+              verificationNumber: data.verificationNumber,
+              productSnapshot,
+              supplierSnapshot,
+            },
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              supplier: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          });
+        })
+      );
+
+      return { batch, lots };
+    });
+
+    // Return with parsed snapshots
+    return {
+      batch: result.batch,
+      lots: result.lots.map(lot => ({
+        ...lot,
+        productSnapshot: JSON.parse(lot.productSnapshot),
+        supplierSnapshot: JSON.parse(lot.supplierSnapshot),
+      })),
+    };
+  },
+
+  /**
+   * Get purchase batch by ID with all associated lots
+   * @param id - Batch ID
+   * @returns Batch with lots
+   */
+  async getBatchById(id: number) {
+    const batch = await dbClient.purchaseBatch.findUnique({
+      where: { id },
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        purchaseLots: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!batch) {
+      throw new AppError(404, 'Purchase batch not found');
+    }
+
+    return {
+      ...batch,
+      purchaseLots: batch.purchaseLots.map((lot: any) => ({
+        ...lot,
+        productSnapshot: JSON.parse(lot.productSnapshot),
+        supplierSnapshot: JSON.parse(lot.supplierSnapshot),
+      })),
+    };
   },
 });
 

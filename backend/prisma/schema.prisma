@@ -23,8 +23,8 @@ model Unit {
 
 // Supplier entity
 model Supplier {
-  id            Int           @id @default(autoincrement())
-  name          String        @unique
+  id            Int              @id @default(autoincrement())
+  name          String           @unique
   contactPerson String?
   email         String?
   phone         String?
@@ -33,10 +33,11 @@ model Supplier {
   country       String?
   taxId         String?
   notes         String?
-  createdAt     DateTime      @default(now())
+  createdAt     DateTime         @default(now())
   
-  products      Product[]
-  purchaseLots  PurchaseLot[]
+  products        Product[]
+  purchaseLots    PurchaseLot[]
+  purchaseBatches PurchaseBatch[]
   
   @@map("suppliers")
 }
@@ -61,34 +62,54 @@ model Product {
   @@map("products")
 }
 
+// PurchaseBatch entity - groups lots from same invoice/delivery
+model PurchaseBatch {
+  id                 Int           @id @default(autoincrement())
+  supplierId         Int
+  purchaseDate       DateTime
+  verificationNumber String?       // Invoice number
+  invoiceTotal       Float         // Grand total including shipping
+  shippingCost       Float         // Total shipping cost
+  notes              String?       // Optional invoice notes
+  createdAt          DateTime      @default(now())
+  
+  supplier      Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseLots  PurchaseLot[]
+  
+  @@map("purchase_batches")
+}
+
 // PurchaseLot entity - FIFO tracking
 model PurchaseLot {
-  id                Int      @id @default(autoincrement())
+  id                Int            @id @default(autoincrement())
   
   // Foreign keys are nullable to preserve purchase history when products/suppliers
   // are deleted. Historical data is maintained in productSnapshot and supplierSnapshot
   // JSON fields, ensuring complete audit trail even after entity deletion.
-  productId         Int?     // Foreign key for reference/filtering - nullable to allow deletion
-  supplierId        Int?     // Foreign key for reference/filtering - nullable to allow deletion
+  productId         Int?           // Foreign key for reference/filtering - nullable to allow deletion
+  supplierId        Int?           // Foreign key for reference/filtering - nullable to allow deletion
+  batchId           Int?           // Foreign key to PurchaseBatch (null for single-item purchases)
   
   purchaseDate      DateTime
-  quantity          Int      // Original purchase quantity (never changes)
-  unitCost          Float    // Cost per unit (never changes)
-  remainingQuantity Int      // Current remaining quantity (decrements via FIFO)
-  year              Int      // Extracted from purchaseDate
-  verificationNumber String? // Optional invoice/verification reference number
+  quantity          Int            // Original purchase quantity (never changes)
+  unitCost          Float          // Cost per unit (includes shipping allocation if part of batch)
+  remainingQuantity Int            // Current remaining quantity (decrements via FIFO)
+  year              Int            // Extracted from purchaseDate
+  verificationNumber String?       // Optional invoice/verification reference number
   
   // JSON snapshots - immutable transaction data (preserves data even if supplier/product deleted)
-  productSnapshot   String   // JSON: {id, name, description, unit: {id, name}, supplierIdRef}
-  supplierSnapshot  String   // JSON: {id, name, contactPerson, email, phone, address, city, country, taxId}
+  productSnapshot   String         // JSON: {id, name, description, unit: {id, name}, supplierIdRef}
+  supplierSnapshot  String         // JSON: {id, name, contactPerson, email, phone, address, city, country, taxId}
   
-  createdAt         DateTime @default(now())
+  createdAt         DateTime       @default(now())
   
-  product     Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
-  supplier    Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  supplier    Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  batch       PurchaseBatch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
   
   // CRITICAL: Index for FIFO ordering - MANDATORY for data integrity
   @@index([productId, purchaseDate, remainingQuantity], name: "fifo_index")
+  @@index([batchId])
   @@map("purchase_lots")
 }
 
