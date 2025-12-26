@@ -237,9 +237,9 @@
       "title": "Add Multi-Item Purchase",
       "lineItems": "Line Items",
       "addItem": "Add Item",
-      "invoiceTotal": "Invoice Total (Optional)",
+      "invoiceTotal": "Invoice Total",
       "invoiceTotalPlaceholder": "Enter total from invoice",
-      "invoiceTotalHint": "If entered, will validate against calculated total",
+      "invoiceTotalHint": "Will validate against calculated total",
       "shippingCost": "Shipping Cost",
       "shippingCostPlaceholder": "Enter shipping cost",
       "notes": "Notes",
@@ -259,7 +259,8 @@
       "createError": "Failed to create batch purchase",
       "errors": {
         "supplierRequired": "Supplier is required",
-        "dateRequired": "Purchase date is required"
+        "dateRequired": "Purchase date is required",
+        "invoiceTotalRequired": "Invoice total is required"
       }
     }
   },

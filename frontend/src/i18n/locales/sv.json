@@ -237,9 +237,9 @@
       "title": "Lägg till flerartikels-inköp",
       "lineItems": "Radartiklar",
       "addItem": "Lägg till artikel",
-      "invoiceTotal": "Fakturabelopp (Valfritt)",
+      "invoiceTotal": "Fakturabelopp",
       "invoiceTotalPlaceholder": "Ange totalt belopp från faktura",
-      "invoiceTotalHint": "Om angivet, kommer att validera mot beräknat totalt",
+      "invoiceTotalHint": "Kommer att validera mot beräknat totalt",
       "shippingCost": "Fraktkostnad",
       "shippingCostPlaceholder": "Ange fraktkostnad",
       "notes": "Anteckningar",
@@ -259,7 +259,8 @@
       "createError": "Misslyckades med att skapa batchinköp",
       "errors": {
         "supplierRequired": "Leverantör krävs",
-        "dateRequired": "Inköpsdatum krävs"
+        "dateRequired": "Inköpsdatum krävs",
+        "invoiceTotalRequired": "Fakturabelopp krävs"
       }
     }
   },

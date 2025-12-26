@@ -62,7 +62,7 @@
 
         <div class="field-row">
           <div class="field">
-            <label for="invoiceTotal">{{ $t('purchases.multiItem.invoiceTotal') }}</label>
+            <label for="invoiceTotal">{{ $t('purchases.multiItem.invoiceTotal') }} *</label>
             <InputNumber
               id="invoiceTotal"
               v-model="formData.invoiceTotal"
@@ -71,9 +71,11 @@
               :minFractionDigits="2"
               :min="0"
               :placeholder="$t('purchases.multiItem.invoiceTotalPlaceholder')"
+              :class="{ 'p-invalid': formErrors.invoiceTotal }"
               @input="recalculateTotals"
             />
-            <small class="field-hint">{{ $t('purchases.multiItem.invoiceTotalHint') }}</small>
+            <small v-if="formErrors.invoiceTotal" class="p-error">{{ formErrors.invoiceTotal }}</small>
+            <small v-else class="field-hint">{{ $t('purchases.multiItem.invoiceTotalHint') }}</small>
           </div>
 
           <div class="field">
@@ -360,6 +362,7 @@ const formData = ref({
 const formErrors = ref({
   supplierId: '',
   purchaseDate: '',
+  invoiceTotal: '',
 });
 
 function createEmptyLineItem(): LineItem {
@@ -410,7 +413,7 @@ const validationIcon = computed(() => {
 });
 
 const invoiceTotalMismatch = computed(() => {
-  if (!formData.value.invoiceTotal) return null;
+  if (!formData.value.invoiceTotal || formData.value.invoiceTotal <= 0) return null;
   const diff = Math.abs(calculatedTotal.value - formData.value.invoiceTotal);
   // Allow $0.01 tolerance for rounding
   if (diff > 0.01) {
@@ -439,6 +442,8 @@ const supplierMismatchError = ref('');
 const canSubmit = computed(() => {
   return (
     formData.value.supplierId &&
+    formData.value.invoiceTotal !== null &&
+    formData.value.invoiceTotal > 0 &&
     formData.value.items.length > 0 &&
     formData.value.items.every(item => 
       item.productId && item.quantity && (item.unitCost || item.totalCost)
@@ -553,6 +558,7 @@ async function saveBatch() {
   formErrors.value = {
     supplierId: formData.value.supplierId ? '' : t('purchases.multiItem.errors.supplierRequired'),
     purchaseDate: formData.value.purchaseDate ? '' : t('purchases.multiItem.errors.dateRequired'),
+    invoiceTotal: formData.value.invoiceTotal && formData.value.invoiceTotal > 0 ? '' : t('purchases.multiItem.errors.invoiceTotalRequired'),
   };
 
   if (Object.values(formErrors.value).some(e => e)) {
@@ -612,6 +618,7 @@ function resetForm() {
   formErrors.value = {
     supplierId: '',
     purchaseDate: '',
+    invoiceTotal: '',
   };
   supplierMismatchError.value = '';
 }
