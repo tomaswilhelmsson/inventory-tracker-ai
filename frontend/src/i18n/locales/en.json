@@ -77,7 +77,7 @@
       "contactPerson": "Contact Person",
       "contactPersonPlaceholder": "e.g., John Smith",
       "email": "Email Address",
-      "emailPlaceholder": "e.g., supplier@example.com",
+      "emailPlaceholder": "Enter email address",
       "phone": "Phone Number",
       "phonePlaceholder": "e.g., +1 234 567 8900",
       "address": "Street Address",
