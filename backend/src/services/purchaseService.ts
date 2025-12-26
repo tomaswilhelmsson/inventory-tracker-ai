@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import prisma from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { validatePurchaseDate, validateQuantity } from '../utils/validation';
-import { calculateExclVAT, calculateInclVAT } from '../utils/vatCalculations';
+import { calculateExclVAT, calculateInclVAT, allocateShipping, validateInvoiceTotal } from '../utils/vatCalculations';
 import { config } from '../utils/config';
 
 /**
@@ -430,8 +430,11 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
     supplierId: number;
     purchaseDate: Date;
     verificationNumber?: string;
+    invoiceTotal: number; // Grand total from invoice (always incl VAT)
     shippingCost: number;
     notes?: string;
+    vatRate?: number; // VAT rate for batch (defaults to config)
+    pricesIncludeVAT?: boolean; // Whether line item prices include VAT (default true)
     items: Array<{
       productId: number;
       quantity: number;
@@ -467,6 +470,15 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
     });
     if (!supplier) {
       throw new AppError(400, 'Supplier not found');
+    }
+
+    // VAT configuration
+    const vatRate = data.vatRate !== undefined ? data.vatRate : config.vat.defaultRate;
+    const pricesIncludeVAT = data.pricesIncludeVAT !== undefined ? data.pricesIncludeVAT : true;
+    
+    // Validate VAT rate
+    if (vatRate < 0 || vatRate > 1) {
+      throw new AppError(400, 'VAT rate must be between 0 and 1');
     }
 
     // Process each item: validate, fetch product details, calculate costs
@@ -522,40 +534,85 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
           );
         }
 
+        // Calculate VAT amounts based on entry mode
+        let unitCostInclVAT: number;
+        let unitCostExclVAT: number;
+        
+        if (pricesIncludeVAT) {
+          // User entered prices including VAT
+          unitCostInclVAT = unitCost;
+          unitCostExclVAT = calculateExclVAT(unitCost, vatRate);
+        } else {
+          // User entered prices excluding VAT
+          unitCostExclVAT = unitCost;
+          unitCostInclVAT = calculateInclVAT(unitCost, vatRate);
+        }
+
         return {
           productId: item.productId,
           product,
           quantity: item.quantity,
-          unitCost,
+          unitCost, // Original entered value
           totalCost,
+          unitCostInclVAT,
+          unitCostExclVAT,
         };
       })
     );
 
-    // Calculate total of all line items
-    const lineItemsTotal = processedItems.reduce((sum, item) => sum + item.totalCost, 0);
-    const invoiceTotal = lineItemsTotal + data.shippingCost;
-
-    // Calculate shipping allocation per item
-    const shippingAllocations = this.calculateShippingAllocation(
-      processedItems.map(item => ({ quantity: item.quantity, unitCost: item.unitCost })),
+    // Calculate totals (excl VAT for proper accounting)
+    const lineItemsTotalExclVAT = processedItems.reduce(
+      (sum, item) => sum + (item.quantity * item.unitCostExclVAT), 
+      0
+    );
+    
+    // Calculate shipping allocation per item (based on excl VAT amounts)
+    const shippingAllocations = allocateShipping(
+      processedItems.map(item => ({ 
+        quantity: item.quantity, 
+        unitCostExclVAT: item.unitCostExclVAT 
+      })),
       data.shippingCost
     );
+
+    // Validate invoice total matches calculated total
+    const validation = validateInvoiceTotal(
+      processedItems.map(item => ({ 
+        quantity: item.quantity, 
+        unitCost: item.unitCost // As entered by user
+      })),
+      data.shippingCost,
+      vatRate,
+      data.invoiceTotal,
+      pricesIncludeVAT
+    );
+    
+    if (!validation.isValid) {
+      throw new AppError(
+        400,
+        `Invoice total mismatch: entered ${data.invoiceTotal.toFixed(2)}, calculated ${validation.calculatedTotal.toFixed(2)} (difference: ${validation.difference.toFixed(2)})`
+      );
+    }
 
     // Create batch and lots in a transaction
     const result = await dbClient.$transaction(async (tx) => {
       // Create purchase batch
+      // Invoice total from user (always incl VAT)
+      // Calculate excl VAT total from line items + shipping
+      const totalExclVAT = lineItemsTotalExclVAT + data.shippingCost;
+      const totalInclVAT = calculateInclVAT(totalExclVAT, vatRate);
+      
       const batch = await tx.purchaseBatch.create({
         data: {
           supplierId: data.supplierId,
           purchaseDate: data.purchaseDate,
           verificationNumber: data.verificationNumber,
-          invoiceTotalInclVAT: invoiceTotal,
-          invoiceTotalExclVAT: invoiceTotal, // Will be updated with VAT handling
+          invoiceTotalInclVAT: data.invoiceTotal,
+          invoiceTotalExclVAT: totalExclVAT,
           shippingCost: data.shippingCost,
           notes: data.notes,
-          vatRate: 0, // Will be updated with VAT handling
-          pricesIncludeVAT: true,
+          vatRate,
+          pricesIncludeVAT,
         },
       });
 
@@ -575,9 +632,10 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
       // Create all purchase lots
       const lots = await Promise.all(
         processedItems.map(async (item, index) => {
-          // Calculate final unit cost including shipping allocation
+          // Calculate final unit cost including shipping allocation (excl VAT basis)
           const shippingPerUnit = shippingAllocations[index] / item.quantity;
-          const finalUnitCost = item.unitCost + shippingPerUnit;
+          const finalUnitCostExclVAT = item.unitCostExclVAT + shippingPerUnit;
+          const finalUnitCostInclVAT = calculateInclVAT(finalUnitCostExclVAT, vatRate);
 
           // Create product snapshot
           const productSnapshot = JSON.stringify({
@@ -598,7 +656,10 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
               batchId: batch.id,
               purchaseDate: data.purchaseDate,
               quantity: item.quantity,
-              unitCost: finalUnitCost, // Includes shipping allocation
+              unitCost: finalUnitCostExclVAT, // Legacy field: excl VAT for backward compatibility
+              unitCostExclVAT: finalUnitCostExclVAT,
+              unitCostInclVAT: finalUnitCostInclVAT,
+              vatRate,
               remainingQuantity: item.quantity,
               year,
               verificationNumber: data.verificationNumber,

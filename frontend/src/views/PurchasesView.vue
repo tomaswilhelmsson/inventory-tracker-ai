@@ -293,6 +293,34 @@
             />
             <small v-if="formErrors.unitCost" class="p-error">{{ formErrors.unitCost }}</small>
           </div>
+
+          <div class="field">
+            <label for="vatRate">{{ t('purchases.form.vatRate') }}</label>
+            <InputNumber
+              id="vatRate"
+              v-model="formData.vatRate"
+              suffix="%"
+              :minFractionDigits="0"
+              :maxFractionDigits="2"
+              :min="0"
+              :max="100"
+              :placeholder="t('purchases.form.vatRatePlaceholder')"
+            />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field field-checkbox">
+            <label for="pricesIncludeVAT">
+              <input
+                type="checkbox"
+                id="pricesIncludeVAT"
+                v-model="formData.pricesIncludeVAT"
+              />
+              {{ t('purchases.form.pricesIncludeVAT') }}
+            </label>
+            <small class="field-hint">{{ t('purchases.form.pricesIncludeVATHint') }}</small>
+          </div>
         </div>
 
         <div v-if="formData.quantity && formData.unitCost" class="total-display">
@@ -521,6 +549,8 @@ interface FormData {
   quantity: number | null;
   unitCost: number | null;
   verificationNumber: string;
+  vatRate: number;
+  pricesIncludeVAT: boolean;
 }
 
 interface FormErrors {
@@ -564,6 +594,8 @@ const formData = ref<FormData>({
   quantity: null,
   unitCost: null,
   verificationNumber: '',
+  vatRate: 25,
+  pricesIncludeVAT: true,
 });
 
 const formErrors = ref<FormErrors>({});
@@ -596,7 +628,7 @@ const filteredPurchases = computed(() => {
     
     // Check if searching for batch ID (format: #123)
     const batchMatch = query.match(/^#(\d+)$/);
-    if (batchMatch) {
+    if (batchMatch && batchMatch[1]) {
       const batchId = parseInt(batchMatch[1], 10);
       filtered = filtered.filter(p => p.batchId === batchId);
     } else {
@@ -761,6 +793,8 @@ const openEditDialog = async (purchase: Purchase) => {
     quantity: purchase.quantity,
     unitCost: purchase.unitCost,
     verificationNumber: purchase.verificationNumber || '',
+    vatRate: 25, // Default for edit - can't retrieve old VAT data for now
+    pricesIncludeVAT: true,
   };
   dialogVisible.value = true;
 };
@@ -811,6 +845,8 @@ const savePurchase = async () => {
       quantity: formData.value.quantity,
       unitCost: formData.value.unitCost,
       verificationNumber: formData.value.verificationNumber || undefined,
+      vatRate: formData.value.vatRate ? formData.value.vatRate / 100 : 0,
+      pricesIncludeVAT: formData.value.pricesIncludeVAT,
     };
 
     if (editMode.value && currentPurchaseId.value) {
@@ -898,6 +934,8 @@ const resetForm = () => {
     quantity: null,
     unitCost: null,
     verificationNumber: '',
+    vatRate: 25,
+    pricesIncludeVAT: true,
   };
   formErrors.value = {};
 };

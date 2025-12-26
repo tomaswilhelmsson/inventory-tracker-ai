@@ -349,13 +349,18 @@ async function importPurchases(purchases: LegacyPurchase[]) {
     });
     
     // Create purchase lot
+    // Legacy data has price_excluding_vat, so we assume no VAT (rate = 0)
+    // unitCostExclVAT = unitCostInclVAT when vatRate = 0
     const lot = await prisma.purchaseLot.create({
       data: {
         productId,
         supplierId,
         quantity,
         remainingQuantity,
-        unitCost,
+        unitCost, // Legacy field (excl VAT)
+        unitCostExclVAT: unitCost,
+        unitCostInclVAT: unitCost,
+        vatRate: 0, // Legacy data: no VAT
         purchaseDate,
         year,
         verificationNumber: legacyPurchase.verification_number || null,
@@ -376,6 +381,61 @@ async function importPurchases(purchases: LegacyPurchase[]) {
   if (skipped > 0) {
     console.log(`  ⚠️  Skipped ${skipped} purchases (duplicates or invalid data)`);
   }
+}
+
+/**
+ * Update product suppliers based on purchase history
+ * Assigns each product to its most common supplier
+ */
+async function updateProductSuppliers() {
+  console.log('\n🔄 Updating product suppliers based on purchase history...');
+  
+  // Get all products
+  const products = await prisma.product.findMany();
+  
+  let updated = 0;
+  
+  for (const product of products) {
+    // Get all purchase lots for this product
+    const lots = await prisma.purchaseLot.findMany({
+      where: { productId: product.id },
+      select: { supplierId: true },
+    });
+    
+    if (lots.length === 0) {
+      continue;
+    }
+    
+    // Count purchases by supplier
+    const supplierCounts = new Map<number, number>();
+    for (const lot of lots) {
+      if (lot.supplierId) {
+        supplierCounts.set(lot.supplierId, (supplierCounts.get(lot.supplierId) || 0) + 1);
+      }
+    }
+    
+    // Find most common supplier
+    let mostCommonSupplierId = product.supplierId;
+    let maxCount = 0;
+    
+    for (const [supplierId, count] of supplierCounts.entries()) {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommonSupplierId = supplierId;
+      }
+    }
+    
+    // Update product if supplier changed
+    if (mostCommonSupplierId !== product.supplierId) {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { supplierId: mostCommonSupplierId },
+      });
+      updated++;
+    }
+  }
+  
+  console.log(`  ✓ Updated ${updated} product suppliers`);
 }
 
 /**
@@ -537,6 +597,9 @@ async function main() {
     await importSuppliers(data.suppliers);
     await importProducts(data.products);
     await importPurchases(data.purchases);
+    
+    // Update product suppliers based on purchase history
+    await updateProductSuppliers();
     
     // Create year-end counts from snapshot tables
     if (data.purchases2023.length > 0) {

@@ -72,7 +72,7 @@
               :min="0"
               :placeholder="$t('purchases.multiItem.invoiceTotalPlaceholder')"
               :class="{ 'p-invalid': formErrors.invoiceTotal }"
-              @input="recalculateTotals"
+              @update:modelValue="recalculateTotals"
             />
             <small v-if="formErrors.invoiceTotal" class="p-error">{{ formErrors.invoiceTotal }}</small>
             <small v-else class="field-hint">{{ $t('purchases.multiItem.invoiceTotalHint') }}</small>
@@ -88,8 +88,38 @@
               :minFractionDigits="2"
               :min="0"
               :placeholder="$t('purchases.multiItem.shippingCostPlaceholder')"
-              @input="recalculateTotals"
+              @update:modelValue="recalculateTotals"
             />
+          </div>
+
+          <div class="field">
+            <label for="vatRate">{{ $t('purchases.form.vatRate') }}</label>
+            <InputNumber
+              id="vatRate"
+              v-model="formData.vatRate"
+              suffix="%"
+              :minFractionDigits="0"
+              :maxFractionDigits="2"
+              :min="0"
+              :max="100"
+              :placeholder="$t('purchases.form.vatRatePlaceholder')"
+              @update:modelValue="recalculateTotals"
+            />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field field-checkbox">
+            <label for="pricesIncludeVAT">
+              <input
+                type="checkbox"
+                id="pricesIncludeVAT"
+                v-model="formData.pricesIncludeVAT"
+                @change="recalculateTotals"
+              />
+              {{ $t('purchases.form.pricesIncludeVAT') }}
+            </label>
+            <small class="field-hint">{{ $t('purchases.form.pricesIncludeVATHint') }}</small>
           </div>
 
           <div class="field">
@@ -148,7 +178,7 @@
                 :min="1"
                 :useGrouping="true"
                 :placeholder="$t('purchases.form.quantityPlaceholder')"
-                @input="onQuantityChange(index)"
+                @update:modelValue="onQuantityChange(index)"
               />
             </template>
           </Column>
@@ -163,7 +193,7 @@
                 :min="0"
                 :disabled="data.totalCost !== null && data.totalCost !== undefined"
                 :placeholder="$t('purchases.form.unitCostPlaceholder')"
-                @input="onUnitCostChange(index)"
+                @update:modelValue="onUnitCostChange(index)"
               />
             </template>
           </Column>
@@ -178,7 +208,7 @@
                 :min="0"
                 :disabled="data.unitCost !== null && data.unitCost !== undefined"
                 :placeholder="$t('purchases.multiItem.totalCostPlaceholder')"
-                @input="onTotalCostChange(index)"
+                @update:modelValue="onTotalCostChange(index)"
               />
             </template>
           </Column>
@@ -214,15 +244,27 @@
       <!-- Summary section -->
       <div class="summary-section">
         <div class="summary-row">
-          <span>{{ $t('purchases.multiItem.subtotal') }}:</span>
-          <strong>{{ formatCurrency(calculatedSubtotal) }}</strong>
+          <span>{{ $t('purchases.multiItem.subtotalExclVAT') }}:</span>
+          <strong>{{ formatCurrency(subtotalExclVAT) }}</strong>
+        </div>
+        <div class="summary-row">
+          <span>{{ $t('purchases.multiItem.subtotalInclVAT') }}:</span>
+          <strong>{{ formatCurrency(subtotalInclVAT) }}</strong>
         </div>
         <div class="summary-row">
           <span>{{ $t('purchases.multiItem.shipping') }}:</span>
           <strong>{{ formatCurrency(formData.shippingCost || 0) }}</strong>
         </div>
+        <div class="summary-row">
+          <span>{{ $t('purchases.multiItem.totalExclVAT') }}:</span>
+          <strong>{{ formatCurrency(totalExclVAT) }}</strong>
+        </div>
+        <div class="summary-row">
+          <span>{{ $t('purchases.multiItem.vatAmount') }} ({{ formData.vatRate }}%):</span>
+          <strong>{{ formatCurrency(vatAmount) }}</strong>
+        </div>
         <div class="summary-row total-row">
-          <span>{{ $t('purchases.multiItem.total') }}:</span>
+          <span>{{ $t('purchases.multiItem.totalInclVAT') }}:</span>
           <strong>{{ formatCurrency(calculatedTotal) }}</strong>
         </div>
         <div v-if="validationMessage" :class="['validation-message', validationStatus]">
@@ -355,6 +397,8 @@ const formData = ref({
   verificationNumber: '',
   invoiceTotal: null as number | null,
   shippingCost: 0,
+  vatRate: 25, // Default 25% VAT
+  pricesIncludeVAT: true, // Default: prices include VAT
   notes: '',
   items: [createEmptyLineItem()] as LineItem[],
 });
@@ -377,7 +421,10 @@ function createEmptyLineItem(): LineItem {
 }
 
 const filteredProducts = computed(() => {
-  if (!formData.value.supplierId) return products.value;
+  if (!formData.value.supplierId) {
+    return products.value;
+  }
+  
   return products.value.filter(p => p.supplierId === formData.value.supplierId);
 });
 
@@ -392,8 +439,46 @@ const calculatedSubtotal = computed(() => {
   }, 0);
 });
 
+// VAT calculations
+const vatRateDecimal = computed(() => {
+  return (formData.value.vatRate || 0) / 100;
+});
+
+const subtotalExclVAT = computed(() => {
+  if (formData.value.pricesIncludeVAT) {
+    // Convert from incl VAT to excl VAT
+    return calculatedSubtotal.value / (1 + vatRateDecimal.value);
+  } else {
+    // Already excl VAT
+    return calculatedSubtotal.value;
+  }
+});
+
+const subtotalInclVAT = computed(() => {
+  if (formData.value.pricesIncludeVAT) {
+    // Already incl VAT
+    return calculatedSubtotal.value;
+  } else {
+    // Convert from excl VAT to incl VAT
+    return calculatedSubtotal.value * (1 + vatRateDecimal.value);
+  }
+});
+
+const totalExclVAT = computed(() => {
+  return subtotalExclVAT.value + (formData.value.shippingCost || 0);
+});
+
+const totalInclVAT = computed(() => {
+  return totalExclVAT.value * (1 + vatRateDecimal.value);
+});
+
+const vatAmount = computed(() => {
+  return totalInclVAT.value - totalExclVAT.value;
+});
+
 const calculatedTotal = computed(() => {
-  return calculatedSubtotal.value + (formData.value.shippingCost || 0);
+  // Grand total is always incl VAT
+  return totalInclVAT.value;
 });
 
 const validationStatus = computed(() => {
@@ -504,10 +589,18 @@ function onProductSelect(index: number) {
 function onQuantityChange(index: number) {
   const item = formData.value.items[index];
   
-  if (item.quantity && item.unitCost) {
-    item.totalCost = null; // Clear totalCost when quantity changes with unitCost
-  } else if (item.quantity && item.totalCost) {
-    // Recalculate unit cost from total cost
+  if (!item.quantity || item.quantity <= 0) {
+    // Clear calculations if quantity is invalid
+    item.unitCost = null;
+    recalculateTotals();
+    return;
+  }
+  
+  if (item.unitCost) {
+    // User entered unit cost, clear total cost
+    item.totalCost = null;
+  } else if (item.totalCost) {
+    // User entered total cost, recalculate unit cost
     item.unitCost = item.totalCost / item.quantity;
   }
   
@@ -523,9 +616,12 @@ function onUnitCostChange(index: number) {
 function onTotalCostChange(index: number) {
   const item = formData.value.items[index];
   
-  // Calculate unit cost from total cost
-  if (item.totalCost && item.quantity) {
+  // Calculate unit cost from total cost if quantity is available
+  if (item.totalCost && item.quantity && item.quantity > 0) {
     item.unitCost = item.totalCost / item.quantity;
+  } else {
+    // Can't calculate unit cost yet, will be calculated when quantity is entered
+    item.unitCost = null;
   }
   
   recalculateTotals();
@@ -536,20 +632,47 @@ function recalculateTotals() {
   const shipping = formData.value.shippingCost || 0;
   
   // Calculate shipping allocation for each item
-  formData.value.items.forEach(item => {
-    if (item.quantity && (item.unitCost || item.totalCost)) {
-      const itemSubtotal = item.totalCost || (item.quantity * item.unitCost!);
-      const shippingAllocation = subtotal > 0 ? (itemSubtotal / subtotal) * shipping : 0;
-      const shippingPerUnit = item.quantity > 0 ? shippingAllocation / item.quantity : 0;
-      
-      const baseUnitCost = item.unitCost || (item.totalCost! / item.quantity);
-      
-      item.shippingAllocation = shippingAllocation;
-      item.finalUnitCost = baseUnitCost + shippingPerUnit;
-    } else {
+  formData.value.items.forEach((item, index) => {
+    // Check if we have enough information to calculate
+    if (!item.quantity || item.quantity <= 0) {
       item.shippingAllocation = 0;
       item.finalUnitCost = 0;
+      return;
     }
+    
+    // Need either unitCost or totalCost
+    if (!item.unitCost && !item.totalCost) {
+      item.shippingAllocation = 0;
+      item.finalUnitCost = 0;
+      return;
+    }
+    
+    // Calculate item subtotal and base unit cost
+    let itemSubtotal: number;
+    let baseUnitCost: number;
+    
+    if (item.totalCost && item.totalCost > 0) {
+      // User entered total cost
+      itemSubtotal = item.totalCost;
+      baseUnitCost = item.totalCost / item.quantity;
+    } else if (item.unitCost && item.unitCost > 0) {
+      // User entered unit cost
+      itemSubtotal = item.quantity * item.unitCost;
+      baseUnitCost = item.unitCost;
+    } else {
+      // Invalid cost data
+      item.shippingAllocation = 0;
+      item.finalUnitCost = 0;
+      return;
+    }
+    
+    // Calculate shipping allocation
+    const shippingAllocation = subtotal > 0 ? (itemSubtotal / subtotal) * shipping : 0;
+    const shippingPerUnit = shippingAllocation / item.quantity;
+    
+    // Set final values
+    item.shippingAllocation = shippingAllocation;
+    item.finalUnitCost = baseUnitCost + shippingPerUnit;
   });
 }
 
@@ -571,8 +694,11 @@ async function saveBatch() {
     const payload = {
       supplierId: formData.value.supplierId,
       purchaseDate: formData.value.purchaseDate.toISOString(),
+      invoiceTotal: formData.value.invoiceTotal,
       verificationNumber: formData.value.verificationNumber || undefined,
       shippingCost: formData.value.shippingCost || 0,
+      vatRate: formData.value.vatRate ? formData.value.vatRate / 100 : 0, // Convert percentage to decimal
+      pricesIncludeVAT: formData.value.pricesIncludeVAT,
       notes: formData.value.notes || undefined,
       items: formData.value.items.map(item => ({
         productId: item.productId,
@@ -612,6 +738,8 @@ function resetForm() {
     verificationNumber: '',
     invoiceTotal: null,
     shippingCost: 0,
+    vatRate: 25,
+    pricesIncludeVAT: true,
     notes: '',
     items: [createEmptyLineItem()],
   };
@@ -649,7 +777,7 @@ async function loadProducts() {
     toast.add({
       severity: 'error',
       summary: t('common.error'),
-      detail: t('products.errors.loadFailed'),
+      detail: t('products.messages.loadFailed'),
       life: 3000,
     });
   } finally {

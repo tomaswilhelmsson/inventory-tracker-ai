@@ -152,8 +152,11 @@ router.post(
   [
     body('supplierId').isInt().withMessage('Valid supplier ID is required'),
     body('purchaseDate').isISO8601().withMessage('Valid purchase date is required'),
+    body('invoiceTotal').isFloat({ gt: 0 }).withMessage('Invoice total is required and must be > 0'),
     body('verificationNumber').optional().isString().trim().isLength({ max: 100 }),
     body('shippingCost').isFloat({ min: 0 }).withMessage('Shipping cost must be >= 0'),
+    body('vatRate').optional().isFloat({ min: 0, max: 1 }).withMessage('VAT rate must be between 0 and 1'),
+    body('pricesIncludeVAT').optional().isBoolean().withMessage('pricesIncludeVAT must be boolean'),
     body('notes').optional().isString().trim().isLength({ max: 1000 }),
     body('items').isArray({ min: 1 }).withMessage('At least 1 item is required'),
     body('items.*.productId').isInt().withMessage('Valid product ID is required'),
@@ -164,13 +167,16 @@ router.post(
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { supplierId, purchaseDate, verificationNumber, shippingCost, notes, items } = req.body;
+      const { supplierId, purchaseDate, invoiceTotal, verificationNumber, shippingCost, vatRate, pricesIncludeVAT, notes, items } = req.body;
 
       const result = await purchaseService.createBatch({
         supplierId,
         purchaseDate: new Date(purchaseDate),
+        invoiceTotal,
         verificationNumber,
         shippingCost,
+        vatRate,
+        pricesIncludeVAT,
         notes,
         items,
       });

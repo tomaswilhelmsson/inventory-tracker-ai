@@ -155,6 +155,9 @@ export const TestFactory = {
         supplierId: data.supplierId,
         quantity: data.quantity,
         unitCost: data.unitCost,
+        unitCostExclVAT: data.unitCost, // Default: no VAT for legacy tests
+        unitCostInclVAT: data.unitCost,
+        vatRate: 0, // Default: no VAT for legacy tests
         purchaseDate: data.purchaseDate,
         year: data.purchaseDate.getFullYear(),
         remainingQuantity: data.quantity, // Initially equals quantity
