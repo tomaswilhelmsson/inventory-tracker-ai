@@ -21,4 +21,14 @@ export const config = {
     bucketName: process.env.GCS_BUCKET_NAME || '',
     keyFile: process.env.GCS_KEY_FILE || '',
   },
+  vat: {
+    defaultRate: (() => {
+      const rate = parseFloat(process.env.DEFAULT_VAT_RATE || '0');
+      if (isNaN(rate) || rate < 0 || rate > 1) {
+        console.warn(`Invalid DEFAULT_VAT_RATE: ${process.env.DEFAULT_VAT_RATE}. Using 0.`);
+        return 0;
+      }
+      return rate;
+    })(),
+  },
 };

@@ -64,14 +64,20 @@ model Product {
 
 // PurchaseBatch entity - groups lots from same invoice/delivery
 model PurchaseBatch {
-  id                 Int           @id @default(autoincrement())
-  supplierId         Int
-  purchaseDate       DateTime
-  verificationNumber String?       // Invoice number
-  invoiceTotal       Float         // Grand total including shipping
-  shippingCost       Float         // Total shipping cost
-  notes              String?       // Optional invoice notes
-  createdAt          DateTime      @default(now())
+  id                  Int           @id @default(autoincrement())
+  supplierId          Int
+  purchaseDate        DateTime
+  verificationNumber  String?       // Invoice number
+  invoiceTotalInclVAT Float         // Grand total including VAT (renamed from invoiceTotal)
+  invoiceTotalExclVAT Float?        // Calculated total excluding VAT
+  shippingCost        Float         // Total shipping cost
+  notes               String?       // Optional invoice notes
+  
+  // VAT fields
+  vatRate             Float         @default(0) // VAT rate used (e.g., 0.25 for 25%)
+  pricesIncludeVAT    Boolean       @default(true) // Entry mode: true = prices entered include VAT
+  
+  createdAt           DateTime      @default(now())
   
   supplier      Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   purchaseLots  PurchaseLot[]
@@ -90,18 +96,23 @@ model PurchaseLot {
   supplierId        Int?           // Foreign key for reference/filtering - nullable to allow deletion
   batchId           Int?           // Foreign key to PurchaseBatch (null for single-item purchases)
   
-  purchaseDate      DateTime
-  quantity          Int            // Original purchase quantity (never changes)
-  unitCost          Float          // Cost per unit (includes shipping allocation if part of batch)
-  remainingQuantity Int            // Current remaining quantity (decrements via FIFO)
-  year              Int            // Extracted from purchaseDate
-  verificationNumber String?       // Optional invoice/verification reference number
+  purchaseDate       DateTime
+  quantity           Int            // Original purchase quantity (never changes)
+  unitCost           Float          // DEPRECATED: Use unitCostExclVAT for new code (kept for backward compat)
+  remainingQuantity  Int            // Current remaining quantity (decrements via FIFO)
+  year               Int            // Extracted from purchaseDate
+  verificationNumber String?        // Optional invoice/verification reference number
+  
+  // VAT fields
+  vatRate            Float          @default(0) // VAT rate used (e.g., 0.25 for 25%)
+  unitCostExclVAT    Float?         // Cost per unit excluding VAT (primary for FIFO)
+  unitCostInclVAT    Float?         // Cost per unit including VAT (for audit trail)
   
   // JSON snapshots - immutable transaction data (preserves data even if supplier/product deleted)
-  productSnapshot   String         // JSON: {id, name, description, unit: {id, name}, supplierIdRef}
-  supplierSnapshot  String         // JSON: {id, name, contactPerson, email, phone, address, city, country, taxId}
+  productSnapshot    String         // JSON: {id, name, description, unit: {id, name}, supplierIdRef}
+  supplierSnapshot   String         // JSON: {id, name, contactPerson, email, phone, address, city, country, taxId}
   
-  createdAt         DateTime       @default(now())
+  createdAt          DateTime       @default(now())
   
   product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   supplier    Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
