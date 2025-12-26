@@ -232,6 +232,31 @@
       "loadFailed": "Failed to load purchases",
       "saveFailed": "Failed to save purchase",
       "noProducts": "No products available. Please create a product first."
+    },
+    "multiItem": {
+      "title": "Add Multi-Item Purchase",
+      "lineItems": "Line Items",
+      "addItem": "Add Item",
+      "shippingCost": "Shipping Cost",
+      "shippingCostPlaceholder": "Enter shipping cost",
+      "notes": "Notes",
+      "notesPlaceholder": "Optional invoice notes",
+      "unitCost": "Unit Cost",
+      "totalCost": "Total Cost",
+      "totalCostPlaceholder": "Or enter total cost",
+      "shipping": "Shipping",
+      "finalUnitCost": "Final Unit Cost",
+      "subtotal": "Subtotal",
+      "total": "Grand Total",
+      "validationSuccess": "Ready to create",
+      "validationIncomplete": "Complete all fields",
+      "supplierMismatch": "All products must be from the same supplier",
+      "createSuccess": "Batch purchase created successfully",
+      "createError": "Failed to create batch purchase",
+      "errors": {
+        "supplierRequired": "Supplier is required",
+        "dateRequired": "Purchase date is required"
+      }
     }
   },
   "inventory": {

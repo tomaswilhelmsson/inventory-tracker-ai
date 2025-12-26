@@ -2,7 +2,15 @@
   <div class="purchases-view">
     <div class="header">
       <h1>{{ t('purchases.title') }}</h1>
-      <Button :label="t('purchases.addPurchase')" icon="pi pi-plus" @click="openCreateDialog" />
+      <div class="header-actions">
+        <Button :label="t('purchases.addPurchase')" icon="pi pi-plus" @click="openCreateDialog" />
+        <Button 
+          :label="t('purchases.multiItem.title')" 
+          icon="pi pi-table" 
+          @click="multiItemDialogVisible = true"
+          severity="secondary"
+        />
+      </div>
     </div>
 
     <Card>
@@ -73,6 +81,20 @@
           <Column field="verificationNumber" :header="t('purchases.table.verificationNumber')" sortable style="width: 140px">
             <template #body="{ data }">
               <span class="verification-number">{{ data.verificationNumber || '-' }}</span>
+            </template>
+          </Column>
+
+          <Column field="batchId" header="Batch" sortable style="width: 100px">
+            <template #body="{ data }">
+              <Tag 
+                v-if="data.batchId" 
+                :value="`#${data.batchId}`" 
+                severity="info"
+                style="cursor: pointer"
+                @click="filterByBatch(data.batchId)"
+                v-tooltip.top="'View all items from this invoice'"
+              />
+              <span v-else class="text-secondary">-</span>
             </template>
           </Column>
 
@@ -268,6 +290,12 @@
         />
       </template>
     </Dialog>
+
+    <!-- Multi-Item Purchase Dialog -->
+    <MultiItemPurchaseDialog
+      v-model:visible="multiItemDialogVisible"
+      @batch-created="onBatchCreated"
+    />
   </div>
 </template>
 
@@ -291,6 +319,7 @@ import Dropdown from 'primevue/dropdown';
 import DatePicker from 'primevue/datepicker';
 import Tag from 'primevue/tag';
 import Message from 'primevue/message';
+import MultiItemPurchaseDialog from '@/components/MultiItemPurchaseDialog.vue';
 
 interface Supplier {
   id: number;
@@ -339,6 +368,13 @@ interface Purchase {
   remainingQuantity: number;
   year: number;
   verificationNumber?: string;
+  batchId?: number | null;
+  batch?: {
+    id: number;
+    verificationNumber: string;
+    invoiceTotal: number;
+    shippingCost: number;
+  };
   product?: Product;
   supplier?: Supplier;
   productSnapshot?: ProductSnapshot;
@@ -376,6 +412,7 @@ const loadingProducts = ref(false);
 const loadingSuppliers = ref(false);
 const saving = ref(false);
 const dialogVisible = ref(false);
+const multiItemDialogVisible = ref(false);
 const editMode = ref(false);
 const currentPurchaseId = ref<number | null>(null);
 
@@ -415,11 +452,20 @@ const filteredPurchases = computed(() => {
   // Filter by search query
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(p => 
-      (p.product?.name && p.product.name.toLowerCase().includes(query)) ||
-      (p.supplier?.name && p.supplier.name.toLowerCase().includes(query)) ||
-      (p.verificationNumber && p.verificationNumber.toLowerCase().includes(query))
-    );
+    
+    // Check if searching for batch ID (format: #123)
+    const batchMatch = query.match(/^#(\d+)$/);
+    if (batchMatch) {
+      const batchId = parseInt(batchMatch[1], 10);
+      filtered = filtered.filter(p => p.batchId === batchId);
+    } else {
+      // Regular search
+      filtered = filtered.filter(p => 
+        (p.product?.name && p.product.name.toLowerCase().includes(query)) ||
+        (p.supplier?.name && p.supplier.name.toLowerCase().includes(query)) ||
+        (p.verificationNumber && p.verificationNumber.toLowerCase().includes(query))
+      );
+    }
   }
   
   return filtered;
@@ -715,7 +761,22 @@ const resetForm = () => {
   formErrors.value = {};
 };
 
+// Handle batch created event
+const onBatchCreated = async () => {
+  await fetchPurchases();
+  multiItemDialogVisible.value = false;
+  toast.add({
+    severity: 'success',
+    summary: t('common.success'),
+    detail: t('purchases.multiItem.createSuccess'),
+    life: 3000,
+  });
+};
 
+// Filter purchases by batch ID
+const filterByBatch = (batchId: number) => {
+  searchQuery.value = `#${batchId}`;
+};
 
 // Load data on mount
 onMounted(() => {
@@ -742,6 +803,11 @@ onMounted(() => {
   margin: 0;
   font-size: 2rem;
   font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .table-header {

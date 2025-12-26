@@ -232,6 +232,31 @@
       "loadFailed": "Misslyckades med att ladda inköp",
       "saveFailed": "Misslyckades med att spara inköp",
       "noProducts": "Inga produkter tillgängliga. Skapa en produkt först."
+    },
+    "multiItem": {
+      "title": "Lägg till flerartikels-inköp",
+      "lineItems": "Radartiklar",
+      "addItem": "Lägg till artikel",
+      "shippingCost": "Fraktkostnad",
+      "shippingCostPlaceholder": "Ange fraktkostnad",
+      "notes": "Anteckningar",
+      "notesPlaceholder": "Valfria fakturaanteckningar",
+      "unitCost": "Styckpris",
+      "totalCost": "Totalkostnad",
+      "totalCostPlaceholder": "Eller ange totalkostnad",
+      "shipping": "Frakt",
+      "finalUnitCost": "Slutligt styckpris",
+      "subtotal": "Delsumma",
+      "total": "Totalsumma",
+      "validationSuccess": "Redo att skapa",
+      "validationIncomplete": "Fyll i alla fält",
+      "supplierMismatch": "Alla produkter måste vara från samma leverantör",
+      "createSuccess": "Batchinköp skapades framgångsrikt",
+      "createError": "Misslyckades med att skapa batchinköp",
+      "errors": {
+        "supplierRequired": "Leverantör krävs",
+        "dateRequired": "Inköpsdatum krävs"
+      }
     }
   },
   "inventory": {
