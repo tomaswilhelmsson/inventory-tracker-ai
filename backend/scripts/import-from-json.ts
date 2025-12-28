@@ -27,9 +27,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from project root
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const prisma = new PrismaClient();
 
@@ -241,8 +242,12 @@ async function importProducts(products: LegacyProduct[]) {
       data: {
         name: legacyProduct.product_name,
         description: legacyProduct.product_description || null,
-        supplierId: defaultSupplierId,
         unitId: unitId,
+        suppliers: {
+          create: {
+            supplierId: defaultSupplierId,
+          },
+        },
       },
     });
     
@@ -385,57 +390,88 @@ async function importPurchases(purchases: LegacyPurchase[]) {
 
 /**
  * Update product suppliers based on purchase history
- * Assigns each product to its most common supplier
+ * Creates ProductSupplier entries for all suppliers that have sold each product
+ * Sets preferredUnitCost based on most recent purchases
  */
 async function updateProductSuppliers() {
   console.log('\n🔄 Updating product suppliers based on purchase history...');
   
-  // Get all products
-  const products = await prisma.product.findMany();
+  // Get all products with their current suppliers
+  const products = await prisma.product.findMany({
+    include: {
+      suppliers: true,
+    },
+  });
   
-  let updated = 0;
+  let added = 0;
+  let skipped = 0;
   
   for (const product of products) {
-    // Get all purchase lots for this product
+    // Get all unique suppliers that have sold this product
     const lots = await prisma.purchaseLot.findMany({
       where: { productId: product.id },
-      select: { supplierId: true },
+      select: { 
+        supplierId: true,
+        unitCostExclVAT: true,
+        unitCost: true,
+        purchaseDate: true,
+      },
+      orderBy: { purchaseDate: 'desc' },
     });
     
     if (lots.length === 0) {
       continue;
     }
     
-    // Count purchases by supplier
-    const supplierCounts = new Map<number, number>();
+    // Get unique supplier IDs from purchase history
+    const supplierIds = new Set<number>();
     for (const lot of lots) {
       if (lot.supplierId) {
-        supplierCounts.set(lot.supplierId, (supplierCounts.get(lot.supplierId) || 0) + 1);
+        supplierIds.add(lot.supplierId);
       }
     }
     
-    // Find most common supplier
-    let mostCommonSupplierId = product.supplierId;
-    let maxCount = 0;
+    // Get existing supplier associations
+    const existingSupplierIds = new Set(product.suppliers.map(ps => ps.supplierId));
     
-    for (const [supplierId, count] of supplierCounts.entries()) {
-      if (count > maxCount) {
-        maxCount = count;
-        mostCommonSupplierId = supplierId;
+    // Add missing supplier associations
+    for (const supplierId of Array.from(supplierIds)) {
+      if (existingSupplierIds.has(supplierId)) {
+        skipped++;
+        continue;
       }
-    }
-    
-    // Update product if supplier changed
-    if (mostCommonSupplierId !== product.supplierId) {
-      await prisma.product.update({
-        where: { id: product.id },
-        data: { supplierId: mostCommonSupplierId },
+      
+      // Calculate preferred unit cost from 3 most recent purchases from this supplier
+      const recentLots = lots
+        .filter(lot => lot.supplierId === supplierId)
+        .slice(0, 3);
+      
+      let preferredUnitCost: number | null = null;
+      if (recentLots.length > 0) {
+        const totalCost = recentLots.reduce((sum, lot) => {
+          const cost = lot.unitCostExclVAT || lot.unitCost;
+          return sum + cost;
+        }, 0);
+        preferredUnitCost = totalCost / recentLots.length;
+      }
+      
+      // Create ProductSupplier association
+      await prisma.productSupplier.create({
+        data: {
+          productId: product.id,
+          supplierId: supplierId,
+          preferredUnitCost,
+        },
       });
-      updated++;
+      
+      added++;
     }
   }
   
-  console.log(`  ✓ Updated ${updated} product suppliers`);
+  console.log(`  ✓ Added ${added} product-supplier associations`);
+  if (skipped > 0) {
+    console.log(`  ↻ Skipped ${skipped} existing associations`);
+  }
 }
 
 /**
@@ -535,7 +571,7 @@ async function createYearEndCount(year: number, purchases: LegacyPurchase[]) {
   });
   
   // Create count items
-  for (const [productId, inventory] of productInventory.entries()) {
+  for (const [productId, inventory] of Array.from(productInventory.entries())) {
     await prisma.yearEndCountItem.create({
       data: {
         yearEndCountId: count.id,
@@ -570,7 +606,8 @@ async function main() {
   console.log('🚀 Starting JSON data import...\n');
   console.log('📁 Reading JSON file: csv/wiltm_se_db_1.json');
   
-  const jsonPath = path.join(process.cwd(), 'csv', 'wiltm_se_db_1.json');
+  // Go up one level from backend to find csv directory
+  const jsonPath = path.join(process.cwd(), '..', 'csv', 'wiltm_se_db_1.json');
   
   if (!fs.existsSync(jsonPath)) {
     console.error(`❌ JSON file not found: ${jsonPath}`);

@@ -23,14 +23,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { usePrimeVue } from 'primevue/config';
 import Dropdown from 'primevue/dropdown';
-import { saveLocale, updateHtmlLang } from '@/i18n';
+import { updateHtmlLang } from '@/i18n';
+import { usePreferencesStore } from '@/stores/preferences';
+import { useAuthStore } from '@/stores/auth';
 
 const { locale } = useI18n();
 const primevue = usePrimeVue();
+const preferencesStore = usePreferencesStore();
+const authStore = useAuthStore();
 
 const languages = [
   { code: 'en', name: 'English' },
@@ -38,6 +42,16 @@ const languages = [
 ];
 
 const selectedLocale = ref(locale.value);
+
+// Sync with preferences store on mount
+onMounted(() => {
+  if (authStore.isAuthenticated) {
+    selectedLocale.value = preferencesStore.language;
+    locale.value = preferencesStore.language;
+    updateHtmlLang(preferencesStore.language);
+    updatePrimeVueLocale(preferencesStore.language);
+  }
+});
 
 // PrimeVue locale configurations
 const primeLocales: Record<string, any> = {
@@ -138,17 +152,39 @@ if (primevue.config && primevue.config.locale) {
   primevue.config.locale = primeLocales[locale.value];
 }
 
-// Watch for external locale changes
+// Watch for preference store language changes
+watch(() => preferencesStore.language, (newLang) => {
+  selectedLocale.value = newLang;
+  locale.value = newLang;
+  updateHtmlLang(newLang);
+  updatePrimeVueLocale(newLang);
+});
+
+// Watch for external locale changes (fallback for unauthenticated users)
 watch(locale, (newLocale) => {
   selectedLocale.value = newLocale;
   updatePrimeVueLocale(newLocale);
 });
 
-function changeLanguage() {
-  locale.value = selectedLocale.value;
-  saveLocale(selectedLocale.value);
-  updateHtmlLang(selectedLocale.value);
-  updatePrimeVueLocale(selectedLocale.value);
+async function changeLanguage() {
+  const newLang = selectedLocale.value as 'en' | 'sv';
+  
+  // Update i18n immediately for responsive UI
+  locale.value = newLang;
+  updateHtmlLang(newLang);
+  updatePrimeVueLocale(newLang);
+  
+  // Save to server if authenticated
+  if (authStore.isAuthenticated) {
+    try {
+      await preferencesStore.updateLanguage(newLang);
+    } catch (error) {
+      console.error('Failed to save language preference:', error);
+      // Preferences store will rollback on error, so we need to sync back
+      selectedLocale.value = preferencesStore.language;
+      locale.value = preferencesStore.language;
+    }
+  }
 }
 
 function updatePrimeVueLocale(newLocale: string) {

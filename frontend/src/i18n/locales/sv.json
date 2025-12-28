@@ -30,7 +30,12 @@
     "noData": "Ingen data tillgänglig",
     "noRecordsFound": "Inga poster hittades",
     "selectYear": "Välj år",
-    "allYears": "Alla år"
+    "allYears": "Alla år",
+    "showDisabled": "Visa inaktiverade",
+    "hideDisabled": "Dölj inaktiverade",
+    "disabled": "Inaktiverad",
+    "enable": "Aktivera",
+    "disable": "Inaktivera"
   },
   "nav": {
     "dashboard": "Instrumentpanel",
@@ -41,6 +46,7 @@
     "inventory": "Lager",
     "yearEndCount": "Årsbokslut",
     "reports": "Rapporter",
+    "backupRestore": "Backup & Återställning",
     "logout": "Logga ut"
   },
   "login": {
@@ -107,7 +113,12 @@
       "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",
       "deleteWarning": "Denna leverantör har {products} produkt(er) och {purchases} inköp. Ta bort dessa först.",
       "cannotDelete": "Kan inte ta bort",
-      "loadFailed": "Misslyckades med att ladda leverantörer"
+      "loadFailed": "Misslyckades med att ladda leverantörer",
+      "disableSuccess": "Leverantör inaktiverades framgångsrikt",
+      "enableSuccess": "Leverantör aktiverades framgångsrikt",
+      "disableConfirm": "Är du säker på att du vill inaktivera \"{name}\"? Den kommer att döljas från rullgardinsmenyer men historisk data kommer att finnas kvar.",
+      "enableConfirm": "Är du säker på att du vill aktivera \"{name}\"?",
+      "toggleFailed": "Misslyckades med att ändra leverantörsstatus"
     }
   },
   "products": {
@@ -117,6 +128,8 @@
     "deleteProduct": "Ta bort produkt",
     "productDetails": "Produktdetaljer",
     "searchProducts": "Sök produkter...",
+    "quickAddSupplier": "Snabblägg till",
+    "quickAddSupplierTitle": "Snabblägg till leverantör",
     "form": {
       "name": "Produktnamn",
       "namePlaceholder": "Ange produktnamn",
@@ -140,11 +153,33 @@
       "deleteSuccess": "Produkt raderades framgångsrikt",
       "deleteFailed": "Misslyckades med att ta bort produkt",
       "deleteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",
-      "cannotDelete": "Kan inte ta bort produkt med inköpshistorik",
+      "cannotDelete": "Kan inte ta bort produkt med inköpshistorik. Överväg att inaktivera istället.",
       "loadFailed": "Misslyckades med att ladda produkter",
       "saveFailed": "Misslyckades med att spara produkt",
       "noSuppliers": "Inga leverantörer tillgängliga. Skapa en leverantör först.",
-      "noUnits": "Inga enheter tillgängliga. Skapa en enhet först."
+      "noUnits": "Inga enheter tillgängliga. Skapa en enhet först.",
+      "disableSuccess": "Produkt inaktiverades framgångsrikt",
+      "enableSuccess": "Produkt aktiverades framgångsrikt",
+      "disableConfirm": "Är du säker på att du vill inaktivera \"{name}\"? Den kommer att döljas från rullgardinsmenyer men historisk data kommer att finnas kvar.",
+      "enableConfirm": "Är du säker på att du vill aktivera \"{name}\"?",
+      "toggleFailed": "Misslyckades med att ändra produktstatus"
+    },
+    "history": {
+      "title": "Inköpshistorik - {name}",
+      "currentInventory": "Nuvarande lager",
+      "expectedQuantity": "Förväntat antal",
+      "actualQuantity": "Verkligt antal (från senaste räkning)",
+      "purchaseHistory": "Inköpshistorik",
+      "purchaseDate": "Inköpsdatum",
+      "supplier": "Leverantör",
+      "quantity": "Antal",
+      "remaining": "Återstående",
+      "unitCost": "Styckpris",
+      "totalCost": "Totalkostnad",
+      "year": "År",
+      "noPurchases": "Ingen inköpshistorik tillgänglig",
+      "loadFailed": "Misslyckades med att ladda inköpshistorik",
+      "asOfToday": "Per idag"
     }
   },
   "units": {
@@ -254,6 +289,7 @@
       "totalCost": "Totalkostnad",
       "totalCostPlaceholder": "Eller ange totalkostnad",
       "shipping": "Frakt",
+      "shippingIncludesVAT": "Frakt inkluderar moms",
       "finalUnitCost": "Slutligt styckpris",
       "subtotal": "Delsumma",
       "subtotalExclVAT": "Delsumma (exkl. moms)",
@@ -360,10 +396,21 @@
       "unit": "Enhet"
     },
     "summary": {
+      "title": "Räkningssammanfattning",
       "totalExpected": "Totalt förväntat",
       "totalCounted": "Totalt räknat",
       "totalVariance": "Total avvikelse",
       "totalValue": "Totalt värde"
+    },
+    "tooltips": {
+      "expectedQuantity": "Det beräknade antalet baserat på FIFO (First-In-First-Out) från alla inköp och tidigare räkningar. Detta är vad systemet förväntar sig att du har i lager.",
+      "actualCount": "Ange den fysiska räkningen från ditt lager. Detta är vad du faktiskt har i lager efter räkning.",
+      "variance": "Skillnaden mellan vad du räknade och vad som förväntades. Positivt betyder att du har mer än förväntat, negativt betyder mindre.",
+      "valueFIFO": "Det monetära värdet av denna produkt baserat på FIFO-kostnadsredovisning (använder kostnaden för de äldsta inköpen först).",
+      "totalExpected": "Summan av alla förväntade kvantiteter över alla produkter baserat på inköpshistorik och FIFO-beräkningar.",
+      "totalCounted": "Summan av alla fysiskt räknade kvantiteter över alla produkter.",
+      "totalVariance": "Den totala skillnaden mellan räknat och förväntat. Visar övergripande lagernoggrannhet.",
+      "totalValue": "Totalt lagervärde beräknat med FIFO-metoden över alla produkter."
     },
     "confirmDialog": {
       "header": "Bekräfta årsbokslut",
@@ -525,5 +572,53 @@
     "selectLanguage": "Välj språk",
     "english": "English",
     "swedish": "Svenska"
+  },
+  "backup": {
+    "title": "Backup & Återställning",
+    "exportSection": {
+      "title": "Exportera databas",
+      "description": "Ladda ner en komplett backup av din databas som en JSON-fil",
+      "hint": "Använd detta innan du testar ändringar eller större operationer",
+      "downloadButton": "Ladda ner backup",
+      "downloading": "Exporterar...",
+      "lastExport": "Senaste export:",
+      "never": "Aldrig"
+    },
+    "importSection": {
+      "title": "Importera databas",
+      "description": "⚠️ Varning: Detta kommer ersätta all nuvarande data",
+      "hint": "Importera endast backup-filer skapade av detta system",
+      "chooseFile": "Välj fil",
+      "importButton": "Importera",
+      "importing": "Importerar...",
+      "fileSelected": "Vald fil:"
+    },
+    "confirmDialog": {
+      "title": "Bekräfta återställning av databas",
+      "warning": "Detta kommer permanent radera all nuvarande data och ersätta den med backup-filens innehåll.",
+      "backupFile": "Backup-fil:",
+      "exportedAt": "Exporterad:",
+      "checkbox": "Jag förstår att detta inte kan ångras",
+      "cancelButton": "Avbryt",
+      "confirmButton": "Återställ databas"
+    },
+    "messages": {
+      "exportSuccess": "Databas-backup nedladdad framgångsrikt",
+      "exportError": "Misslyckades med att exportera databasen",
+      "importSuccess": "Databasen återställd framgångsrikt",
+      "importError": "Misslyckades med att importera databasen",
+      "fileTooLarge": "Filen är för stor (max 100MB)",
+      "invalidFile": "Vänligen välj en JSON-fil",
+      "confirmRequired": "Vänligen bekräfta genom att kryssa i rutan",
+      "noFileSelected": "Vänligen välj en fil först"
+    },
+    "summary": {
+      "title": "Importsammanfattning",
+      "unitsImported": "Enheter importerade:",
+      "suppliersImported": "Leverantörer importerade:",
+      "productsImported": "Produkter importerade:",
+      "purchaseLotsImported": "Inköpspartier importerade:",
+      "yearEndCountsImported": "Årsbokslut importerade:"
+    }
   }
 }

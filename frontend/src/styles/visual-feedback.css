@@ -1,0 +1,345 @@
+/* ============================================
+   Visual Feedback System
+   ============================================
+   
+   Provides consistent color-coding and visual
+   indicators throughout the application for
+   improved usability and quick data scanning.
+   ============================================ */
+
+/* Animations */
+@keyframes gentle-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes attention-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(251, 146, 60, 0);
+  }
+  50% { 
+    transform: scale(1.01);
+    box-shadow: 0 0 0 8px rgba(251, 146, 60, 0.2);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .gentle-pulse,
+  .attention-pulse,
+  .shimmer {
+    animation: none !important;
+  }
+}
+
+/* ============================================
+   Row Status Indicators
+   ============================================ */
+
+.row-complete {
+  border-left: 5px solid var(--green-500);
+  background: linear-gradient(90deg, var(--green-50) 0%, transparent 10%);
+}
+
+.row-partial {
+  border-left: 5px solid var(--yellow-500);
+  background: linear-gradient(90deg, var(--yellow-50) 0%, transparent 10%);
+}
+
+.row-incomplete {
+  border-left: 5px solid var(--orange-500);
+  background: linear-gradient(90deg, var(--orange-50) 0%, transparent 10%);
+}
+
+.row-empty {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.row-warning {
+  border-left: 5px solid var(--orange-500);
+  background: var(--orange-50);
+}
+
+.row-error {
+  border-left: 5px solid var(--red-500);
+  background: var(--red-50);
+}
+
+.row-success {
+  border-left: 5px solid var(--green-500);
+  background: var(--green-50);
+}
+
+/* ============================================
+   Alert Boxes
+   ============================================ */
+
+.alert-box {
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.alert-box.alert-warning {
+  background: linear-gradient(135deg, var(--orange-50) 0%, var(--yellow-50) 100%);
+  border: 3px solid var(--orange-500);
+}
+
+.alert-box.alert-error {
+  background: linear-gradient(135deg, var(--red-50) 0%, var(--orange-50) 100%);
+  border: 3px solid var(--red-500);
+}
+
+.alert-box.alert-success {
+  background: linear-gradient(135deg, var(--green-50) 0%, var(--blue-50) 100%);
+  border: 3px solid var(--green-500);
+}
+
+.alert-box.alert-info {
+  background: linear-gradient(135deg, var(--blue-50) 0%, var(--purple-50) 100%);
+  border: 3px solid var(--blue-500);
+}
+
+.alert-box.attention-pulse {
+  animation: attention-pulse 2s ease-in-out infinite;
+}
+
+.alert-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.alert-content {
+  flex: 1;
+}
+
+.alert-content strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 1.1em;
+}
+
+.alert-content .highlight {
+  color: var(--red-700);
+  font-weight: 700;
+  font-size: 1.05em;
+}
+
+/* ============================================
+   Badge Status Indicators
+   ============================================ */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.status-badge.badge-success {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.status-badge.badge-warning {
+  background: var(--orange-100);
+  color: var(--orange-800);
+}
+
+.status-badge.badge-danger {
+  background: var(--red-100);
+  color: var(--red-800);
+}
+
+.status-badge.badge-info {
+  background: var(--blue-100);
+  color: var(--blue-800);
+}
+
+.status-badge.badge-locked {
+  background: var(--orange-100);
+  color: var(--orange-800);
+  animation: gentle-pulse 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Batch Grouping
+   ============================================ */
+
+.batch-group-0 {
+  background: rgba(59, 130, 246, 0.05); /* Blue-50 at 5% */
+}
+
+.batch-group-1 {
+  background: rgba(168, 85, 247, 0.05); /* Purple-50 at 5% */
+}
+
+.batch-group-2 {
+  background: rgba(20, 184, 166, 0.05); /* Teal-50 at 5% */
+}
+
+/* Hover effect for batch groups */
+.batch-group-0:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.batch-group-1:hover {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.batch-group-2:hover {
+  background: rgba(20, 184, 166, 0.1);
+}
+
+/* ============================================
+   High-Value Item Highlighting
+   ============================================ */
+
+.high-value-item {
+  position: relative;
+  background: linear-gradient(90deg, var(--yellow-50) 0%, transparent 50%);
+  border-left: 3px solid var(--yellow-600);
+}
+
+.high-value-item:hover {
+  background: linear-gradient(90deg, var(--yellow-100) 0%, var(--yellow-50) 50%, transparent 100%);
+}
+
+/* ============================================
+   Uncounted Items Highlighting
+   ============================================ */
+
+.uncounted-item {
+  background: var(--orange-50);
+  border-left: 5px solid var(--orange-500);
+  animation: gentle-pulse 3s ease-in-out infinite;
+}
+
+.uncounted-item td:first-child::before {
+  content: '⏱';
+  margin-right: 0.5rem;
+  font-size: 1.1rem;
+}
+
+/* ============================================
+   Large Variance Highlighting
+   ============================================ */
+
+.large-variance-positive {
+  background: var(--green-50);
+  border-left: 5px solid var(--green-500);
+  font-weight: 600;
+}
+
+.large-variance-negative {
+  background: var(--red-50);
+  border-left: 5px solid var(--red-500);
+  font-weight: 600;
+}
+
+.medium-variance {
+  background: var(--yellow-50);
+}
+
+/* ============================================
+   Progress Bar Gradients
+   ============================================ */
+
+.progress-excellent .p-progressbar-value {
+  background: linear-gradient(90deg, var(--green-500), var(--green-600)) !important;
+}
+
+.progress-good .p-progressbar-value {
+  background: linear-gradient(90deg, var(--blue-500), var(--green-500)) !important;
+}
+
+.progress-okay .p-progressbar-value {
+  background: linear-gradient(90deg, var(--yellow-500), var(--blue-500)) !important;
+}
+
+.progress-started .p-progressbar-value {
+  background: linear-gradient(90deg, var(--orange-500), var(--yellow-500)) !important;
+}
+
+.progress-beginning .p-progressbar-value {
+  background: linear-gradient(90deg, var(--red-500), var(--orange-500)) !important;
+}
+
+/* ============================================
+   Loading Skeletons
+   ============================================ */
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-100) 0%,
+    var(--surface-200) 50%,
+    var(--surface-100) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.skeleton-row {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-cell {
+  height: 1.5rem;
+  flex: 1;
+}
+
+/* ============================================
+   Hover Effects for Tables
+   ============================================ */
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background: var(--surface-100) !important;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+/* ============================================
+   Visual Completion Indicator
+   ============================================ */
+
+.completion-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface-50);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.completion-indicator .progress-text {
+  font-weight: 600;
+}
+
+.completion-indicator.complete {
+  background: var(--green-50);
+  color: var(--green-800);
+}
+
+.completion-indicator.incomplete {
+  background: var(--orange-50);
+  color: var(--orange-800);
+}

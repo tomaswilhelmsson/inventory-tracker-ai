@@ -34,7 +34,7 @@
             </div>
             <div class="summary-details">
               <div class="summary-label">{{ t('inventory.totalInventoryValue') }}</div>
-              <div class="summary-value">{{ n(totalInventoryValue, 'currency') }}</div>
+              <div class="summary-value">{{ formatCurrency(totalInventoryValue) }}</div>
             </div>
           </div>
         </template>
@@ -102,20 +102,21 @@
             <template #body="{ data }">
               <Tag
                 :value="`${n(data.totalQuantity, 'integer')} ${data.productUnit}`"
-                :severity="data.totalQuantity > 0 ? 'success' : 'danger'"
+                :severity="getQuantitySeverity(data.totalQuantity)"
+                :icon="getQuantityIcon(data.totalQuantity)"
               />
             </template>
           </Column>
 
           <Column field="averageUnitCost" :header="t('inventory.table.avgUnitCost')" sortable style="width: 150px">
             <template #body="{ data }">
-              {{ n(data.averageUnitCost, 'currency') }}
+              {{ formatCurrency(data.averageUnitCost) }}
             </template>
           </Column>
 
           <Column field="totalValue" :header="t('inventory.table.totalValue')" sortable style="width: 150px">
             <template #body="{ data }">
-              <strong>{{ n(data.totalValue, 'currency') }}</strong>
+              <strong>{{ formatCurrency(data.totalValue) }}</strong>
             </template>
           </Column>
 
@@ -164,10 +165,10 @@
             <strong>{{ t('inventory.lotsDialog.totalQuantity') }}:</strong> {{ n(selectedProduct.totalQuantity, 'integer') }} {{ selectedProduct.productUnit }}
           </div>
           <div class="summary-item">
-            <strong>{{ t('inventory.lotsDialog.avgUnitCost') }}:</strong> {{ n(selectedProduct.averageUnitCost, 'currency') }}
+            <strong>{{ t('inventory.lotsDialog.avgUnitCost') }}:</strong> {{ formatCurrency(selectedProduct.averageUnitCost) }}
           </div>
           <div class="summary-item">
-            <strong>{{ t('inventory.lotsDialog.totalValue') }}:</strong> {{ n(selectedProduct.totalValue, 'currency') }}
+            <strong>{{ t('inventory.lotsDialog.totalValue') }}:</strong> {{ formatCurrency(selectedProduct.totalValue) }}
           </div>
         </div>
 
@@ -202,13 +203,13 @@
 
           <Column field="unitCost" :header="t('inventory.lotsDialog.unitCost')">
             <template #body="{ data }">
-              {{ n(data.unitCost, 'currency') }}
+              {{ formatCurrency(data.unitCost) }}
             </template>
           </Column>
 
           <Column :header="t('inventory.lotsDialog.lotValue')">
             <template #body="{ data }">
-              <strong>{{ n(data.remainingQuantity * data.unitCost, 'currency') }}</strong>
+              <strong>{{ formatCurrency(data.remainingQuantity * data.unitCost) }}</strong>
             </template>
           </Column>
 
@@ -236,6 +237,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import { useCurrency } from '@/composables/useCurrency';
 
 import Button from 'primevue/button';
 import Card from 'primevue/card';
@@ -279,6 +281,7 @@ interface InventoryItem {
 
 const toast = useToast();
 const { t, n, d } = useI18n();
+const { formatCurrency } = useCurrency();
 
 const inventoryItems = ref<InventoryItem[]>([]);
 const loading = ref(false);
@@ -338,11 +341,21 @@ const fetchInventory = async () => {
         const totalValue = lots.reduce((sum, lot) => sum + (lot.remainingQuantity * lot.unitCost), 0);
         const averageUnitCost = totalQuantity > 0 ? totalValue / totalQuantity : 0;
 
+        // Determine supplier display name
+        let supplierName = t('common.unknown');
+        if (product.suppliers && product.suppliers.length > 0) {
+          if (product.suppliers.length === 1) {
+            supplierName = product.suppliers[0].supplier.name;
+          } else {
+            supplierName = `${t('common.multiple')} (${product.suppliers.length})`;
+          }
+        }
+        
         return {
           productId: product.id,
           productName: product.name,
           productUnit: product.unit?.name || t('units.names.pieces'),
-          supplierName: product.supplier?.name || t('common.unknown'),
+          supplierName,
           totalQuantity,
           averageUnitCost,
           totalValue,
@@ -351,11 +364,22 @@ const fetchInventory = async () => {
         };
       } catch (error) {
         console.error(`Failed to fetch lots for product ${product.id}:`, error);
+        
+        // Determine supplier display name for error case
+        let supplierName = t('common.unknown');
+        if (product.suppliers && product.suppliers.length > 0) {
+          if (product.suppliers.length === 1) {
+            supplierName = product.suppliers[0].supplier.name;
+          } else {
+            supplierName = `${t('common.multiple')} (${product.suppliers.length})`;
+          }
+        }
+        
         return {
           productId: product.id,
           productName: product.name,
           productUnit: product.unit?.name || t('units.names.pieces'),
-          supplierName: product.supplier?.name || t('common.unknown'),
+          supplierName,
           totalQuantity: 0,
           averageUnitCost: 0,
           totalValue: 0,
@@ -392,7 +416,18 @@ const viewLots = (item: InventoryItem) => {
   lotsDialogVisible.value = true;
 };
 
+// Visual feedback helpers for quantity status
+const getQuantitySeverity = (quantity: number): string => {
+  if (quantity === 0) return 'danger';   // Red - OUT OF STOCK
+  if (quantity < 10) return 'warning';   // Orange - LOW STOCK
+  return 'success';                      // Green - NORMAL
+};
 
+const getQuantityIcon = (quantity: number): string => {
+  if (quantity === 0) return 'pi pi-times-circle';         // X icon for zero
+  if (quantity < 10) return 'pi pi-exclamation-triangle'; // Warning for low
+  return 'pi pi-check-circle';                            // Check for normal
+};
 
 // Load data on mount
 onMounted(() => {

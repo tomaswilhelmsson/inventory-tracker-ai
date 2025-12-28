@@ -66,10 +66,13 @@
             <InputNumber
               id="invoiceTotal"
               v-model="formData.invoiceTotal"
-              mode="currency"
-              currency="USD"
+              v-normalize-decimal
+              :mode="currency.inputNumberMode.value"
+              :currency="currency.inputNumberMode.value === 'currency' ? currency.currencyCode.value : undefined"
+              :locale="currency.inputNumberLocale.value"
               :minFractionDigits="2"
               :min="0"
+              :useGrouping="false"
               :placeholder="$t('purchases.multiItem.invoiceTotalPlaceholder')"
               :class="{ 'p-invalid': formErrors.invoiceTotal }"
               @update:modelValue="recalculateTotals"
@@ -83,13 +86,24 @@
             <InputNumber
               id="shippingCost"
               v-model="formData.shippingCost"
-              mode="currency"
-              currency="USD"
+              v-normalize-decimal
+              :mode="currency.inputNumberMode.value"
+              :currency="currency.inputNumberMode.value === 'currency' ? currency.currencyCode.value : undefined"
+              :locale="currency.inputNumberLocale.value"
               :minFractionDigits="2"
               :min="0"
+              :useGrouping="false"
               :placeholder="$t('purchases.multiItem.shippingCostPlaceholder')"
               @update:modelValue="recalculateTotals"
             />
+            <label class="checkbox-label">
+              <Checkbox
+                v-model="formData.shippingIncludesVAT"
+                :binary="true"
+                @update:modelValue="recalculateTotals"
+              />
+              {{ $t('purchases.multiItem.shippingIncludesVAT') }}
+            </label>
           </div>
 
           <div class="field">
@@ -146,7 +160,7 @@
           />
         </div>
 
-        <DataTable :value="formData.items" class="line-items-table" scrollable scrollHeight="400px">
+        <DataTable :value="formData.items" class="line-items-table" scrollable scrollHeight="400px" :rowClass="getLineItemRowClass">
           <Column :header="$t('purchases.table.product')" style="min-width: 200px">
             <template #body="{ data, index }">
               <Dropdown
@@ -187,10 +201,13 @@
             <template #body="{ data, index }">
               <InputNumber
                 v-model="data.unitCost"
-                mode="currency"
-                currency="USD"
+                v-normalize-decimal
+                :mode="currency.inputNumberMode.value"
+                :currency="currency.inputNumberMode.value === 'currency' ? currency.currencyCode.value : undefined"
+                :locale="currency.inputNumberLocale.value"
                 :minFractionDigits="2"
                 :min="0"
+                :useGrouping="false"
                 :disabled="data.totalCost !== null && data.totalCost !== undefined"
                 :placeholder="$t('purchases.form.unitCostPlaceholder')"
                 @update:modelValue="onUnitCostChange(index)"
@@ -202,10 +219,13 @@
             <template #body="{ data, index }">
               <InputNumber
                 v-model="data.totalCost"
-                mode="currency"
-                currency="USD"
+                v-normalize-decimal
+                :mode="currency.inputNumberMode.value"
+                :currency="currency.inputNumberMode.value === 'currency' ? currency.currencyCode.value : undefined"
+                :locale="currency.inputNumberLocale.value"
                 :minFractionDigits="2"
                 :min="0"
+                :useGrouping="false"
                 :disabled="data.unitCost !== null && data.unitCost !== undefined"
                 :placeholder="$t('purchases.multiItem.totalCostPlaceholder')"
                 @update:modelValue="onTotalCostChange(index)"
@@ -239,6 +259,19 @@
             </template>
           </Column>
         </DataTable>
+      </div>
+
+      <!-- INVOICE MISMATCH ALERT - Big visual warning (MOVED TO TOP) -->
+      <div v-if="invoiceTotalMismatch !== null" class="alert-box alert-warning attention-pulse">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <strong>Invoice Total Mismatch!</strong>
+          <p>
+            Entered: {{ formatCurrency(formData.invoiceTotal) }} |
+            Calculated: {{ formatCurrency(calculatedTotal) }} |
+            <span class="highlight">Difference: {{ formatCurrency(Math.abs(invoiceTotalMismatch)) }}</span>
+          </p>
+        </div>
       </div>
 
       <!-- Summary section -->
@@ -353,6 +386,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import { useCurrency } from '@/composables/useCurrency';
 
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -363,9 +397,11 @@ import DatePicker from 'primevue/datepicker';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Message from 'primevue/message';
+import Checkbox from 'primevue/checkbox';
 
 const { t, n } = useI18n();
 const toast = useToast();
+const currency = useCurrency();
 
 const emit = defineEmits(['batch-created']);
 
@@ -397,6 +433,7 @@ const formData = ref({
   verificationNumber: '',
   invoiceTotal: null as number | null,
   shippingCost: 0,
+  shippingIncludesVAT: true, // Default: shipping includes VAT
   vatRate: 25, // Default 25% VAT
   pricesIncludeVAT: true, // Default: prices include VAT
   notes: '',
@@ -425,7 +462,10 @@ const filteredProducts = computed(() => {
     return products.value;
   }
   
-  return products.value.filter(p => p.supplierId === formData.value.supplierId);
+  // Filter products that have this supplier in their suppliers array
+  return products.value.filter(p => 
+    p.suppliers && p.suppliers.some(ps => ps.supplierId === formData.value.supplierId)
+  );
 });
 
 const calculatedSubtotal = computed(() => {
@@ -464,12 +504,34 @@ const subtotalInclVAT = computed(() => {
   }
 });
 
+const shippingExclVAT = computed(() => {
+  const shipping = formData.value.shippingCost || 0;
+  if (formData.value.shippingIncludesVAT) {
+    // Convert from incl VAT to excl VAT
+    return shipping / (1 + vatRateDecimal.value);
+  } else {
+    // Already excl VAT
+    return shipping;
+  }
+});
+
+const shippingInclVAT = computed(() => {
+  const shipping = formData.value.shippingCost || 0;
+  if (formData.value.shippingIncludesVAT) {
+    // Already incl VAT
+    return shipping;
+  } else {
+    // Convert from excl VAT to incl VAT
+    return shipping * (1 + vatRateDecimal.value);
+  }
+});
+
 const totalExclVAT = computed(() => {
-  return subtotalExclVAT.value + (formData.value.shippingCost || 0);
+  return subtotalExclVAT.value + shippingExclVAT.value;
 });
 
 const totalInclVAT = computed(() => {
-  return totalExclVAT.value * (1 + vatRateDecimal.value);
+  return subtotalInclVAT.value + shippingInclVAT.value;
 });
 
 const vatAmount = computed(() => {
@@ -558,7 +620,9 @@ function onSupplierChange() {
   formData.value.items.forEach(item => {
     if (item.productId) {
       const product = products.value.find(p => p.id === item.productId);
-      if (product && product.supplierId !== formData.value.supplierId) {
+      // Check if product has the selected supplier in its suppliers array
+      const hasSupplier = product?.suppliers?.some(ps => ps.supplierId === formData.value.supplierId);
+      if (product && !hasSupplier) {
         item.productId = null;
       }
     }
@@ -571,13 +635,14 @@ function onProductSelect(index: number) {
   const product = products.value.find(p => p.id === item.productId);
   
   if (product) {
-    // Auto-set supplier if this is the first product
-    if (!formData.value.supplierId) {
-      formData.value.supplierId = product.supplierId;
+    // Auto-set supplier if this is the first product (use first supplier from product's suppliers)
+    if (!formData.value.supplierId && product.suppliers && product.suppliers.length > 0) {
+      formData.value.supplierId = product.suppliers[0].supplierId;
     }
     
-    // Check if product belongs to selected supplier
-    if (product.supplierId !== formData.value.supplierId) {
+    // Check if product has the selected supplier in its suppliers array
+    const hasSupplier = product.suppliers?.some(ps => ps.supplierId === formData.value.supplierId);
+    if (!hasSupplier) {
       supplierMismatchError.value = t('purchases.multiItem.supplierMismatch');
       item.productId = null;
     } else {
@@ -676,6 +741,27 @@ function recalculateTotals() {
   });
 }
 
+// Visual feedback: Color-code line item rows based on completion status
+function getLineItemRowClass(data: LineItem): string {
+  const hasProduct = !!data.productId;
+  const hasQuantity = data.quantity && data.quantity > 0;
+  const hasCost = (data.unitCost !== null && data.unitCost !== undefined) || 
+                   (data.totalCost !== null && data.totalCost !== undefined);
+  
+  // Complete: all required fields present
+  if (hasProduct && hasQuantity && hasCost) {
+    return 'row-complete';
+  }
+  
+  // Partial: some fields entered
+  if (hasProduct || hasQuantity || hasCost) {
+    return 'row-partial';
+  }
+  
+  // Empty: nothing entered
+  return 'row-empty';
+}
+
 async function saveBatch() {
   // Validate
   formErrors.value = {
@@ -738,6 +824,7 @@ function resetForm() {
     verificationNumber: '',
     invoiceTotal: null,
     shippingCost: 0,
+    shippingIncludesVAT: true,
     vatRate: 25,
     pricesIncludeVAT: true,
     notes: '',
@@ -871,6 +958,17 @@ defineExpose({ resetForm });
 .field label {
   font-weight: 600;
   color: var(--text-color);
+}
+
+.field .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+  cursor: pointer;
+  user-select: none;
 }
 
 .line-items-section {

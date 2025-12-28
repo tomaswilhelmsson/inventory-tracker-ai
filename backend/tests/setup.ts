@@ -40,17 +40,38 @@ beforeAll(async () => {
     )
   `);
 
+  await testPrisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "products"`);
+  await testPrisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "product_suppliers"`);
+  
   await testPrisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "products" (
+    CREATE TABLE "products" (
       "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       "name" TEXT NOT NULL UNIQUE,
       "description" TEXT,
       "unitId" INTEGER NOT NULL,
-      "supplierId" INTEGER NOT NULL,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY ("unitId") REFERENCES "units"("id") ON DELETE RESTRICT,
-      FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE RESTRICT
+      FOREIGN KEY ("unitId") REFERENCES "units"("id") ON DELETE RESTRICT
     )
+  `);
+
+  await testPrisma.$executeRawUnsafe(`
+    CREATE TABLE "product_suppliers" (
+      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      "productId" INTEGER NOT NULL,
+      "supplierId" INTEGER NOT NULL,
+      "preferredUnitCost" REAL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE,
+      FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE CASCADE
+    )
+  `);
+
+  await testPrisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "product_suppliers_productId_supplierId_key" ON "product_suppliers"("productId", "supplierId")
+  `);
+
+  await testPrisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "product_suppliers_supplierId_idx" ON "product_suppliers"("supplierId")
   `);
 
   await testPrisma.$executeRawUnsafe(`
@@ -101,10 +122,6 @@ beforeAll(async () => {
 
   await testPrisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "purchase_lots_batchId_idx" ON "purchase_lots"("batchId")
-  `);
-
-  await testPrisma.$executeRawUnsafe(`
-    CREATE INDEX IF NOT EXISTS "products_supplierId_idx" ON "products"("supplierId")
   `);
 
   await testPrisma.$executeRawUnsafe(`

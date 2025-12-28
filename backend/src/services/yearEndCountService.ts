@@ -100,10 +100,15 @@ export const createYearEndCountService = (
           include: {
             product: {
               include: {
-                supplier: {
-                  select: {
-                    id: true,
-                    name: true,
+                unit: true,
+                suppliers: {
+                  include: {
+                    supplier: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
                   },
                 },
               },
@@ -260,15 +265,20 @@ export const createYearEndCountService = (
   async generateYearEndReport(countId: number) {
     const count = await dbClient.yearEndCount.findUnique({
       where: { id: countId },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                supplier: true,
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  unit: true,
+                  suppliers: {
+                    include: {
+                      supplier: true,
+                    },
+                  },
+                },
               },
             },
-          },
           orderBy: {
             product: {
               name: 'asc',
@@ -315,10 +325,20 @@ export const createYearEndCountService = (
     const reportItems = count.items.map((item) => {
       const lots = lotsByProduct[item.productId] || [];
       
+      // Get supplier name(s) - show first supplier or "Multiple suppliers"
+      let supplierName = 'Unknown';
+      if (item.product.suppliers && item.product.suppliers.length > 0) {
+        if (item.product.suppliers.length === 1) {
+          supplierName = item.product.suppliers[0].supplier.name;
+        } else {
+          supplierName = `Multiple (${item.product.suppliers.map(ps => ps.supplier.name).join(', ')})`;
+        }
+      }
+      
       return {
         productId: item.productId,
         productName: item.product.name,
-        supplierName: item.product.supplier.name,
+        supplierName,
         expectedQuantity: item.expectedQuantity,
         countedQuantity: item.countedQuantity,
         variance: item.variance,
@@ -469,7 +489,8 @@ export const createYearEndCountService = (
             include: {
               product: {
                 include: {
-                  supplier: true,
+                  unit: true,
+                  suppliers: { include: { supplier: true } },
                 },
               },
             },
@@ -492,7 +513,8 @@ export const createYearEndCountService = (
             include: {
               product: {
                 include: {
-                  supplier: true,
+                  unit: true,
+                  suppliers: { include: { supplier: true } },
                 },
               },
             },

@@ -5,8 +5,10 @@ import api from '../services/api';
 import Card from 'primevue/card';
 import ProgressSpinner from 'primevue/progressspinner';
 import CountReminderBanner from '../components/CountReminderBanner.vue';
+import { useCurrency } from '@/composables/useCurrency';
 
 const { t, n } = useI18n();
+const { formatCurrency } = useCurrency();
 const loading = ref(true);
 const inventoryData = ref<any>(null);
 
@@ -40,7 +42,7 @@ onMounted(() => {
       <Card>
         <template #title>{{ t('dashboard.totalInventoryValue') }}</template>
         <template #content>
-          <div class="stat-value">{{ n(inventoryData.totalValue, 'currency') }}</div>
+          <div class="stat-value">{{ formatCurrency(inventoryData.totalValue) }}</div>
         </template>
       </Card>
 
@@ -72,7 +74,7 @@ onMounted(() => {
               <div class="product-name">{{ product.productName }}</div>
               <div class="product-stats">
                 <span>{{ t('inventory.table.totalQuantity') }}: {{ n(product.quantity, 'integer') }} {{ product.unit?.name || t('units.names.pieces') }}</span>
-                <span>{{ t('inventory.table.totalValue') }}: {{ n(product.value, 'currency') }}</span>
+                <span>{{ t('inventory.table.totalValue') }}: {{ formatCurrency(product.value) }}</span>
               </div>
             </div>
           </div>

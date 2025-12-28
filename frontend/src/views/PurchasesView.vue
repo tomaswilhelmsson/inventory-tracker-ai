@@ -22,6 +22,7 @@
           paginator
           :rows="10"
           :rowsPerPageOptions="[5, 10, 20, 50]"
+          :rowClass="getBatchRowClass"
         >
           <template #header>
             <div class="table-header">
@@ -60,6 +61,8 @@
                   :value="t('purchases.locked')"
                   severity="warning"
                   size="small"
+                  icon="pi pi-lock"
+                  class="status-badge badge-locked"
                   v-tooltip.top="t('purchases.yearLockedCannotEdit')"
                 />
               </div>
@@ -115,13 +118,13 @@
 
           <Column field="unitCost" :header="t('purchases.table.unitCost')" sortable style="width: 120px">
             <template #body="{ data }">
-              {{ n(data.unitCost, 'currency') }}
+              {{ formatCurrency(data.unitCost) }}
             </template>
           </Column>
 
           <Column :header="t('purchases.table.totalCost')" style="width: 140px">
             <template #body="{ data }">
-              <strong>{{ n(data.quantity * data.unitCost, 'currency') }}</strong>
+              <strong>{{ formatCurrency(data.quantity * data.unitCost) }}</strong>
             </template>
           </Column>
 
@@ -280,15 +283,28 @@
           </div>
 
           <div class="field">
-            <label for="unitCost">{{ t('purchases.form.unitCost') }} *</label>
+            <label for="unitCost">
+              {{ t('purchases.form.unitCost') }} *
+              <Button 
+                v-if="suggestedPrice !== null" 
+                :label="`${t('purchases.form.suggestedPrice')}: ${formatCurrency(suggestedPrice)}`"
+                size="small"
+                text
+                @click="applySuggestedPrice"
+                class="suggested-price-btn"
+              />
+            </label>
             <InputNumber
               id="unitCost"
               v-model="formData.unitCost"
+              v-normalize-decimal
               :class="{ 'p-invalid': formErrors.unitCost }"
-              mode="currency"
-              currency="USD"
+              :mode="currency.inputNumberMode.value"
+              :currency="currency.inputNumberMode.value === 'currency' ? currency.currencyCode.value : undefined"
+              :locale="currency.inputNumberLocale.value"
               :minFractionDigits="2"
               :min="0"
+              :useGrouping="false"
               :placeholder="t('purchases.form.unitCostPlaceholder')"
             />
             <small v-if="formErrors.unitCost" class="p-error">{{ formErrors.unitCost }}</small>
@@ -325,7 +341,7 @@
 
         <div v-if="formData.quantity && formData.unitCost" class="total-display">
           <strong>{{ t('purchases.form.totalCost') }}:</strong>
-          <span class="total-amount">{{ n(formData.quantity * formData.unitCost, 'currency') }}</span>
+          <span class="total-amount">{{ formatCurrency(formData.quantity * formData.unitCost) }}</span>
         </div>
       </div>
 
@@ -461,7 +477,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { useI18n } from 'vue-i18n';
@@ -565,6 +581,11 @@ const toast = useToast();
 const confirm = useConfirm();
 const { t, n, d } = useI18n();
 
+// Import currency composable
+import { useCurrency } from '@/composables/useCurrency';
+const currency = useCurrency();
+const { formatCurrency } = currency;
+
 const purchases = ref<Purchase[]>([]);
 const products = ref<Product[]>([]);
 const suppliers = ref<Supplier[]>([]);
@@ -601,6 +622,7 @@ const formData = ref<FormData>({
 const formErrors = ref<FormErrors>({});
 const searchQuery = ref('');
 const selectedYearFilter = ref<number | null>(new Date().getFullYear());
+const suggestedPrice = ref<number | null>(null);
 
 // Computed: available years from purchases
 const availableYears = computed(() => {
@@ -656,6 +678,33 @@ const yearLockWarning = computed(() => {
   return lockedYears.value.includes(selectedYear.value);
 });
 
+// Watch for product and supplier changes to fetch suggested price
+watch(
+  () => [formData.value.productId, formData.value.supplierId],
+  async ([productId, supplierId]) => {
+    suggestedPrice.value = null;
+    
+    if (productId && supplierId) {
+      try {
+        const response = await api.get(`/products/${productId}/suppliers/${supplierId}/suggested-price`);
+        if (response.data && response.data.preferredUnitCost) {
+          suggestedPrice.value = response.data.preferredUnitCost;
+        }
+      } catch (error) {
+        // Silently fail - suggested price is optional
+        suggestedPrice.value = null;
+      }
+    }
+  }
+);
+
+// Apply suggested price to the form
+const applySuggestedPrice = () => {
+  if (suggestedPrice.value !== null) {
+    formData.value.unitCost = suggestedPrice.value;
+  }
+};
+
 // Check if year is locked
 const isYearLocked = (year: number): boolean => {
   return lockedYears.value.includes(year);
@@ -683,7 +732,8 @@ const fetchPurchases = async () => {
 const fetchProducts = async () => {
   loadingProducts.value = true;
   try {
-    const response = await api.get('/products');
+    // Explicitly exclude inactive products from purchase dropdowns
+    const response = await api.get('/products?includeInactive=false');
     products.value = response.data;
   } catch (error: any) {
     toast.add({
@@ -701,7 +751,8 @@ const fetchProducts = async () => {
 const fetchSuppliers = async () => {
   loadingSuppliers.value = true;
   try {
-    const response = await api.get('/suppliers');
+    // Explicitly exclude inactive suppliers from purchase dropdowns
+    const response = await api.get('/suppliers?includeInactive=false');
     suppliers.value = response.data;
   } catch (error: any) {
     toast.add({
@@ -729,8 +780,11 @@ const fetchLockedYears = async () => {
 const onProductChange = () => {
   if (formData.value.productId) {
     const product = products.value.find(p => p.id === formData.value.productId);
-    if (product) {
-      formData.value.supplierId = product.supplierId;
+    if (product && product.suppliers && product.suppliers.length > 0) {
+      // Auto-select the first supplier if not already set
+      if (!formData.value.supplierId) {
+        formData.value.supplierId = product.suppliers[0].supplierId;
+      }
     }
   }
 };
@@ -955,6 +1009,13 @@ const onBatchCreated = async () => {
 // Filter purchases by batch ID
 const filterByBatch = (batchId: number) => {
   searchQuery.value = `#${batchId}`;
+};
+
+// Visual feedback: Batch grouping with rotating colors
+const getBatchRowClass = (data: any): string => {
+  if (!data.batchId) return '';
+  // Rotate through 3 batch colors using modulo
+  return `batch-group-${data.batchId % 3}`;
 };
 
 // Quick add product

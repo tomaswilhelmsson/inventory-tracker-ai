@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import LanguageSelector from './components/LanguageSelector.vue';
+import CurrencySelector from './components/CurrencySelector.vue';
 
 const authStore = useAuthStore();
 const { t } = useI18n();
@@ -30,8 +31,10 @@ const { t } = useI18n();
           <RouterLink to="/inventory" class="nav-link">{{ t('nav.inventory') }}</RouterLink>
           <RouterLink to="/year-end-count" class="nav-link">{{ t('nav.yearEndCount') }}</RouterLink>
           <RouterLink to="/reports" class="nav-link">{{ t('nav.reports') }}</RouterLink>
+          <RouterLink to="/backup-restore" class="nav-link">{{ t('nav.backupRestore') }}</RouterLink>
         </div>
         <div class="navbar-user">
+          <CurrencySelector />
           <LanguageSelector />
           <span class="user-name">{{ authStore.user?.username }}</span>
           <button @click="authStore.logout" class="btn-logout">{{ t('nav.logout') }}</button>

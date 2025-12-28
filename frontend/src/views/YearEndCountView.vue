@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
+import { useCurrency } from '@/composables/useCurrency';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import InputNumber from 'primevue/inputnumber';
@@ -13,9 +14,11 @@ import ProgressBar from 'primevue/progressbar';
 import FileUpload from 'primevue/fileupload';
 import Message from 'primevue/message';
 import Dropdown from 'primevue/dropdown';
+import Tag from 'primevue/tag';
 
 const toast = useToast();
 const { t, n } = useI18n();
+const { formatCurrency } = useCurrency();
 
 const loading = ref(false);
 const countSheet = ref<any>(null);
@@ -56,6 +59,34 @@ const uncountedItems = computed(() => {
 
 const isCountComplete = computed(() => {
   return uncountedItems.value.length === 0;
+});
+
+const totalExpectedQuantity = computed(() => {
+  if (!countSheet.value?.items) return 0;
+  return countSheet.value.items.reduce((sum: number, item: any) => sum + item.expectedQuantity, 0);
+});
+
+const totalCountedQuantity = computed(() => {
+  if (!countSheet.value?.items) return 0;
+  return countSheet.value.items.reduce((sum: number, item: any) => {
+    return sum + (item.countedQuantity ?? 0);
+  }, 0);
+});
+
+const totalVariance = computed(() => {
+  if (!countSheet.value?.items) return 0;
+  return countSheet.value.items.reduce((sum: number, item: any) => {
+    if (item.variance === null) return sum;
+    return sum + item.variance;
+  }, 0);
+});
+
+const totalValue = computed(() => {
+  if (!countSheet.value?.items) return 0;
+  return countSheet.value.items.reduce((sum: number, item: any) => {
+    if (item.value === null) return sum;
+    return sum + item.value;
+  }, 0);
 });
 
 async function initiateCount() {
@@ -130,9 +161,26 @@ async function loadExistingCount() {
 }
 
 async function updateCountItem(item: any) {
+  // Only update if a valid count has been entered
+  if (item.countedQuantity === null || item.countedQuantity === undefined || item.countedQuantity === '') {
+    return; // Don't send request for empty/null values
+  }
+
+  // Ensure it's a valid non-negative number
+  const quantity = Number(item.countedQuantity);
+  if (isNaN(quantity) || quantity < 0) {
+    toast.add({
+      severity: 'warn',
+      summary: t('common.warning'),
+      detail: 'Please enter a valid quantity (0 or greater)',
+      life: 3000,
+    });
+    return;
+  }
+
   try {
     await api.put(`/year-end-count/${countSheet.value.id}/items/${item.productId}`, {
-      countedQuantity: item.countedQuantity,
+      countedQuantity: Math.floor(quantity), // Ensure integer
     });
 
     // Refresh count sheet to get updated variance and value
@@ -323,6 +371,50 @@ function getVarianceIcon(variance: number | null) {
   if (variance === 0) return 'pi-check';
   if (variance > 0) return 'pi-arrow-up';
   return 'pi-arrow-down';
+}
+
+// Visual feedback: Highlight uncounted items and large variances
+function getCountRowClass(data: any): string {
+  // Uncounted items get orange highlight with pulse
+  if (data.countedQuantity === null) {
+    return 'uncounted-item';
+  }
+  
+  // Large variances get special highlighting
+  if (data.variance !== null) {
+    const absVariance = Math.abs(data.variance);
+    if (absVariance > 100) {
+      return data.variance > 0 ? 'large-variance-positive' : 'large-variance-negative';
+    }
+    if (absVariance > 20) {
+      return 'medium-variance';
+    }
+  }
+  
+  return '';
+}
+
+// Get severity for variance Tag display
+function getVarianceSeverity(variance: number | null): string {
+  if (variance === null) return 'secondary';
+  const absVariance = Math.abs(variance);
+  if (absVariance > 100) {
+    return variance > 0 ? 'success' : 'danger'; // Large positive=green, large negative=red
+  }
+  if (absVariance > 20) {
+    return 'warning'; // Medium = orange
+  }
+  if (variance === 0) return 'secondary'; // Zero = gray
+  return variance > 0 ? 'success' : 'warning'; // Small positive=green, small negative=orange
+}
+
+// Progress bar gradient based on completion
+function getProgressClass(value: number): string {
+  if (value >= 90) return 'progress-excellent';  // Green
+  if (value >= 70) return 'progress-good';       // Blue-green
+  if (value >= 40) return 'progress-okay';       // Yellow-blue
+  if (value >= 10) return 'progress-started';    // Orange-yellow
+  return 'progress-beginning';                    // Red-orange
 }
 
 async function checkLockStatus() {
@@ -525,7 +617,7 @@ onMounted(async () => {
               <h3>{{ t('yearEndCount.progress', { counted: countedItems, total: totalItems }) }}</h3>
               <span class="percentage">{{ progress }}%</span>
             </div>
-            <ProgressBar :value="progress" :showValue="false" />
+            <ProgressBar :value="progress" :showValue="false" :class="getProgressClass(progress)" />
             <div v-if="uncountedItems.length > 0" class="uncounted-warning">
               <Message severity="warn" :closable="false">
                 {{ t('yearEndCount.productsNeedCounting', { count: uncountedItems.length }) }}
@@ -535,6 +627,62 @@ onMounted(async () => {
               <Message severity="success" :closable="false">
                 {{ t('yearEndCount.allProductsCounted') }}
               </Message>
+            </div>
+          </div>
+        </template>
+      </Card>
+
+      <!-- Summary Totals -->
+      <Card class="summary-card">
+        <template #title>
+          <h3>{{ t('yearEndCount.summary.title') }}</h3>
+        </template>
+        <template #content>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <label>
+                {{ t('yearEndCount.summary.totalExpected') }}
+                <i 
+                  class="pi pi-question-circle tooltip-icon" 
+                  v-tooltip.top="t('yearEndCount.tooltips.totalExpected')"
+                ></i>
+              </label>
+              <span class="summary-value">{{ n(totalExpectedQuantity, 'integer') }}</span>
+            </div>
+            <div class="summary-item">
+              <label>
+                {{ t('yearEndCount.summary.totalCounted') }}
+                <i 
+                  class="pi pi-question-circle tooltip-icon" 
+                  v-tooltip.top="t('yearEndCount.tooltips.totalCounted')"
+                ></i>
+              </label>
+              <span class="summary-value">{{ n(totalCountedQuantity, 'integer') }}</span>
+            </div>
+            <div class="summary-item">
+              <label>
+                {{ t('yearEndCount.summary.totalVariance') }}
+                <i 
+                  class="pi pi-question-circle tooltip-icon" 
+                  v-tooltip.top="t('yearEndCount.tooltips.totalVariance')"
+                ></i>
+              </label>
+              <span 
+                class="summary-value" 
+                :class="totalVariance >= 0 ? 'text-success' : 'text-danger'"
+              >
+                {{ totalVariance >= 0 ? '+' : '' }}{{ n(totalVariance, 'integer') }}
+              </span>
+            </div>
+            <div class="summary-item">
+              <label>
+                {{ t('yearEndCount.summary.totalValue') }}
+                <i 
+                  class="pi pi-question-circle tooltip-icon" 
+                  v-tooltip.top="t('yearEndCount.tooltips.totalValue')"
+                ></i>
+              </label>
+              <span class="summary-value value-large">{{ formatCurrency(totalValue) }}</span>
             </div>
           </div>
         </template>
@@ -623,23 +771,47 @@ onMounted(async () => {
             :rows="20"
             sortField="product.name"
             :sortOrder="1"
+            :rowClass="getCountRowClass"
           >
             <Column field="product.name" :header="t('yearEndCount.table.productName')" sortable>
               <template #body="{ data }">
                 <div class="product-cell">
                   <span class="product-name">{{ data.product.name }}</span>
-                  <span class="supplier-name">{{ data.product.supplier.name }}</span>
+                  <span class="supplier-name" v-if="data.product.suppliers && data.product.suppliers.length > 0">
+                    {{ data.product.suppliers.length === 1 
+                      ? data.product.suppliers[0].supplier.name 
+                      : `${data.product.suppliers[0].supplier.name} +${data.product.suppliers.length - 1}` }}
+                  </span>
+                  <span class="supplier-name" v-else>{{ $t('common.unknown') }}</span>
                 </div>
               </template>
             </Column>
 
-            <Column field="expectedQuantity" :header="t('yearEndCount.table.expectedQuantity')" sortable>
+            <Column field="expectedQuantity" sortable>
+              <template #header>
+                <div class="header-with-tooltip">
+                  <span>{{ t('yearEndCount.table.expectedQuantity') }}</span>
+                  <i 
+                    class="pi pi-question-circle tooltip-icon" 
+                    v-tooltip.top="t('yearEndCount.tooltips.expectedQuantity')"
+                  ></i>
+                </div>
+              </template>
               <template #body="{ data }">
                 <span class="expected-qty">{{ n(data.expectedQuantity, 'integer') }} {{ data.product?.unit?.name || t('units.names.pieces') }}</span>
               </template>
             </Column>
 
-            <Column field="countedQuantity" :header="t('yearEndCount.table.actualCount')">
+            <Column field="countedQuantity">
+              <template #header>
+                <div class="header-with-tooltip">
+                  <span>{{ t('yearEndCount.table.actualCount') }}</span>
+                  <i 
+                    class="pi pi-question-circle tooltip-icon" 
+                    v-tooltip.top="t('yearEndCount.tooltips.actualCount')"
+                  ></i>
+                </div>
+              </template>
               <template #body="{ data }">
                 <InputNumber
                   v-model="data.countedQuantity"
@@ -652,20 +824,40 @@ onMounted(async () => {
               </template>
             </Column>
 
-            <Column field="variance" :header="t('yearEndCount.table.variance')" sortable>
-              <template #body="{ data }">
-                <div v-if="data.variance !== null" :class="['variance', getVarianceClass(data.variance)]">
-                  <i :class="['pi', getVarianceIcon(data.variance)]"></i>
-                  <span>{{ data.variance >= 0 ? '+' : '' }}{{ n(data.variance, 'integer') }} {{ data.product?.unit?.name || t('units.names.pieces') }}</span>
+            <Column field="variance" sortable>
+              <template #header>
+                <div class="header-with-tooltip">
+                  <span>{{ t('yearEndCount.table.variance') }}</span>
+                  <i 
+                    class="pi pi-question-circle tooltip-icon" 
+                    v-tooltip.top="t('yearEndCount.tooltips.variance')"
+                  ></i>
                 </div>
+              </template>
+              <template #body="{ data }">
+                <Tag 
+                  v-if="data.variance !== null"
+                  :value="`${data.variance >= 0 ? '+' : ''}${n(data.variance, 'integer')} ${data.product?.unit?.name || t('units.names.pieces')}`"
+                  :severity="getVarianceSeverity(data.variance)"
+                  :icon="`pi ${getVarianceIcon(data.variance)}`"
+                />
                 <span v-else class="text-muted">-</span>
               </template>
             </Column>
 
-            <Column field="value" :header="t('yearEndCount.table.valueFIFO')" sortable>
+            <Column field="value" sortable>
+              <template #header>
+                <div class="header-with-tooltip">
+                  <span>{{ t('yearEndCount.table.valueFIFO') }}</span>
+                  <i 
+                    class="pi pi-question-circle tooltip-icon" 
+                    v-tooltip.top="t('yearEndCount.tooltips.valueFIFO')"
+                  ></i>
+                </div>
+              </template>
               <template #body="{ data }">
                 <span v-if="data.value !== null" class="value">
-                  {{ n(data.value, 'currency') }}
+                  {{ formatCurrency(data.value) }}
                 </span>
                 <span v-else class="text-muted">-</span>
               </template>
@@ -698,7 +890,7 @@ onMounted(async () => {
           <p><strong>{{ t('yearEndCount.confirmDialog.totalExpected') }}:</strong> {{ n(reportData.totalExpected, 'integer') }}</p>
           <p><strong>{{ t('yearEndCount.confirmDialog.totalCounted') }}:</strong> {{ n(reportData.totalCounted, 'integer') }}</p>
           <p><strong>{{ t('yearEndCount.confirmDialog.totalVariance') }}:</strong> {{ reportData.totalVariance }}</p>
-          <p><strong>{{ t('yearEndCount.confirmDialog.totalValue') }}:</strong> {{ n(reportData.totalValue, 'currency') }}</p>
+          <p><strong>{{ t('yearEndCount.confirmDialog.totalValue') }}:</strong> {{ formatCurrency(reportData.totalValue) }}</p>
         </div>
       </div>
 
@@ -747,7 +939,7 @@ onMounted(async () => {
             </div>
             <div class="summary-item">
               <label>{{ t('yearEndCount.reportDialog.totalValue') }}:</label>
-              <span class="value-large">{{ n(reportData.totalValue, 'currency') }}</span>
+              <span class="value-large">{{ formatCurrency(reportData.totalValue) }}</span>
             </div>
           </div>
         </div>
@@ -758,14 +950,16 @@ onMounted(async () => {
           <Column field="countedQuantity" :header="t('yearEndCount.reportDialog.counted')" sortable />
           <Column field="variance" :header="t('yearEndCount.reportDialog.variance')" sortable>
             <template #body="{ data }">
-              <span :class="data.variance >= 0 ? 'text-success' : 'text-danger'">
+              <span v-if="data.variance !== null" :class="data.variance >= 0 ? 'text-success' : 'text-danger'">
                 {{ data.variance >= 0 ? '+' : '' }}{{ n(data.variance, 'integer') }}
               </span>
+              <span v-else class="text-muted">-</span>
             </template>
           </Column>
           <Column field="value" :header="t('yearEndCount.reportDialog.value')" sortable>
             <template #body="{ data }">
-              {{ n(data.value, 'currency') }}
+              <span v-if="data.value !== null">{{ formatCurrency(data.value) }}</span>
+              <span v-else class="text-muted">-</span>
             </template>
           </Column>
         </DataTable>
@@ -940,7 +1134,8 @@ onMounted(async () => {
 }
 
 .progress-card,
-.actions-card {
+.actions-card,
+.summary-card {
   margin-bottom: 0;
 }
 
@@ -1078,6 +1273,18 @@ onMounted(async () => {
   margin: 0.5rem 0;
 }
 
+.summary-card h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.summary-value {
+  font-size: 1.5rem !important;
+  font-weight: 700;
+  color: #333;
+}
+
 .report-preview {
   padding: 1rem 0;
 }
@@ -1168,5 +1375,29 @@ onMounted(async () => {
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.header-with-tooltip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tooltip-icon {
+  color: var(--primary-color);
+  font-size: 0.875rem;
+  cursor: help;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.tooltip-icon:hover {
+  opacity: 1;
+}
+
+.summary-item label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 </style>

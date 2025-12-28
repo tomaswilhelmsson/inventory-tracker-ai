@@ -29,13 +29,23 @@ export const exportService = {
       ],
     });
 
-    const records = countSheet.items.map((item: any) => ({
-      productName: item.product.name,
-      supplier: item.product.supplier.name,
-      expectedQuantity: item.expectedQuantity,
-      actualCount: '', // Empty for user to fill
-      notes: '',
-    }));
+    const records = countSheet.items.map((item: any) => {
+      // Get supplier names - show all suppliers separated by comma
+      let supplierName = 'Unknown';
+      if (item.product.suppliers && item.product.suppliers.length > 0) {
+        supplierName = item.product.suppliers
+          .map((ps: any) => ps.supplier.name)
+          .join(', ');
+      }
+
+      return {
+        productName: item.product.name,
+        supplier: supplierName,
+        expectedQuantity: item.expectedQuantity,
+        actualCount: '', // Empty for user to fill
+        notes: '',
+      };
+    });
 
     await csvWriter.writeRecords(records);
     return csvPath;
@@ -74,10 +84,10 @@ export const exportService = {
       // Table header
       const tableTop = doc.y;
       const colWidths = {
-        productName: 200,
-        supplier: 120,
-        expected: 80,
-        actual: 80,
+        productName: 180,
+        supplier: 160,
+        expected: 70,
+        actual: 70,
       };
 
       doc.fontSize(10).font('Helvetica-Bold');
@@ -86,37 +96,50 @@ export const exportService = {
       x += colWidths.productName;
       doc.text('Supplier', x, tableTop, { width: colWidths.supplier });
       x += colWidths.supplier;
-      doc.text('Expected Qty', x, tableTop, { width: colWidths.expected });
+      doc.text('Expected', x, tableTop, { width: colWidths.expected });
       x += colWidths.expected;
-      doc.text('Actual Count', x, tableTop, { width: colWidths.actual });
+      doc.text('Actual', x, tableTop, { width: colWidths.actual });
 
       // Draw line under header
       doc
         .moveTo(50, tableTop + 15)
-        .lineTo(550, tableTop + 15)
+        .lineTo(530, tableTop + 15)
         .stroke();
 
       // Table rows
-      doc.font('Helvetica');
+      doc.font('Helvetica').fontSize(8);
       let y = tableTop + 25;
 
       for (const item of countSheet.items) {
+        // Get supplier names - show all suppliers separated by comma
+        let supplierName = 'Unknown';
+        if (item.product.suppliers && item.product.suppliers.length > 0) {
+          supplierName = item.product.suppliers
+            .map((ps: any) => ps.supplier.name)
+            .join(', ');
+        }
+
+        // Calculate row height based on text height
+        const productHeight = doc.heightOfString(item.product.name, { width: colWidths.productName });
+        const supplierHeight = doc.heightOfString(supplierName, { width: colWidths.supplier });
+        const rowHeight = Math.max(productHeight, supplierHeight, 20) + 5;
+
         // Check if we need a new page
-        if (y > 700) {
+        if (y + rowHeight > 720) {
           doc.addPage();
           y = 50;
         }
 
         x = 50;
-        doc.text(item.product.name, x, y, { width: colWidths.productName });
+        doc.text(item.product.name, x, y, { width: colWidths.productName, lineBreak: true });
         x += colWidths.productName;
-        doc.text(item.product.supplier.name, x, y, { width: colWidths.supplier });
+        doc.text(supplierName, x, y, { width: colWidths.supplier, lineBreak: true });
         x += colWidths.supplier;
         doc.text(item.expectedQuantity.toString(), x, y, { width: colWidths.expected });
         x += colWidths.expected;
-        doc.text('__________', x, y, { width: colWidths.actual }); // Line for manual entry
+        doc.text('_________', x, y, { width: colWidths.actual }); // Line for manual entry
 
-        y += 25;
+        y += rowHeight;
       }
 
       // Footer

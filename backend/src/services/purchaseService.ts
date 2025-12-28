@@ -208,7 +208,7 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
         id: product.unit.id,
         name: product.unit.name,
       },
-      supplierIdRef: product.supplierId,
+      supplierIdRef: data.supplierId, // Use the supplier from the purchase, not from product
     });
 
     const supplierSnapshot = JSON.stringify({
@@ -520,19 +520,14 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
         // Fetch product details
         const product = await dbClient.product.findUnique({
           where: { id: item.productId },
-          include: { unit: true, supplier: true },
+          include: { unit: true },
         });
         if (!product) {
           throw new AppError(400, `Product with ID ${item.productId} not found`);
         }
 
-        // Validate product belongs to the same supplier
-        if (product.supplierId !== data.supplierId) {
-          throw new AppError(
-            400,
-            `Product "${product.name}" belongs to a different supplier. All products must be from the same supplier.`
-          );
-        }
+        // Note: Products can now have multiple suppliers, and purchases can be from any supplier
+        // No validation needed here - the supplierId comes from the batch/purchase data
 
         // Calculate VAT amounts based on entry mode
         let unitCostInclVAT: number;
@@ -643,11 +638,11 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
             name: item.product.name,
             description: item.product.description || '',
             unit: {
-              id: item.product.unit.id,
-              name: item.product.unit.name,
-            },
-            supplierIdRef: item.product.supplierId,
-          });
+            id: item.product.unit.id,
+            name: item.product.unit.name,
+          },
+          supplierIdRef: data.supplierId, // Use supplier from the purchase
+        });
 
           return tx.purchaseLot.create({
             data: {

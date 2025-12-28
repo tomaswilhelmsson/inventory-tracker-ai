@@ -145,7 +145,7 @@
           </div>
           <div class="summary-item">
             <strong>{{ t('reports.totalInventoryValue') }}:</strong>
-            <span class="value-highlight">{{ n(inventoryReportData.totalValue, 'currency') }}</span>
+            <span class="value-highlight">{{ formatCurrency(inventoryReportData.totalValue) }}</span>
           </div>
           <div class="summary-item">
             <strong>{{ t('reports.totalProducts') }}:</strong>
@@ -173,12 +173,12 @@
           </Column>
           <Column field="averageUnitCost" :header="t('reports.avgUnitCost')" sortable>
             <template #body="{ data }">
-              {{ n(data.averageUnitCost, 'currency') }}
+              {{ formatCurrency(data.averageUnitCost) }}
             </template>
           </Column>
           <Column field="totalValue" :header="t('reports.totalValue')" sortable>
             <template #body="{ data }">
-              <strong>{{ n(data.totalValue, 'currency') }}</strong>
+              <strong>{{ formatCurrency(data.totalValue) }}</strong>
             </template>
           </Column>
         </DataTable>
@@ -222,7 +222,7 @@
           </Column>
           <Column field="inventoryValue" :header="t('reports.inventoryValue')" sortable>
             <template #body="{ data }">
-              {{ n(data.inventoryValue, 'currency') }}
+              {{ formatCurrency(data.inventoryValue) }}
             </template>
           </Column>
         </DataTable>
@@ -295,7 +295,7 @@
 
           <Column field="value" :header="t('reports.value')" sortable>
             <template #body="{ data }">
-              {{ n(data.value || 0, 'currency') }}
+              {{ formatCurrency(data.value || 0) }}
             </template>
           </Column>
         </DataTable>
@@ -313,6 +313,7 @@ import { ref, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import { useCurrency } from '@/composables/useCurrency';
 
 import Button from 'primevue/button';
 import Card from 'primevue/card';
@@ -341,6 +342,7 @@ interface ProductActivityItem {
 
 const toast = useToast();
 const { t, n, d } = useI18n();
+const { formatCurrency } = useCurrency();
 
 const loadingInventoryReport = ref(false);
 const loadingPurchaseReport = ref(false);
@@ -393,9 +395,19 @@ const generateInventoryValuationReport = async () => {
         const averageUnitCost = quantity > 0 ? value / quantity : 0;
 
         if (quantity > 0) {
+          // Get supplier name(s)
+          let supplierName = t('common.unknown');
+          if (product.suppliers && product.suppliers.length > 0) {
+            if (product.suppliers.length === 1) {
+              supplierName = product.suppliers[0].supplier.name;
+            } else {
+              supplierName = `${product.suppliers[0].supplier.name} +${product.suppliers.length - 1}`;
+            }
+          }
+          
           items.push({
             productName: product.name,
-            supplierName: product.supplier?.name || t('common.unknown'),
+            supplierName,
             quantity,
             averageUnitCost,
             totalValue: value,
@@ -585,9 +597,19 @@ const generateProductActivityReport = async () => {
         const inventoryValue = lots.reduce((sum: number, lot: any) => sum + (lot.remainingQuantity * lot.unitCost), 0);
         const purchaseCount = product._count?.purchases || 0;
 
+        // Get supplier name(s)
+        let supplierName = t('common.unknown');
+        if (product.suppliers && product.suppliers.length > 0) {
+          if (product.suppliers.length === 1) {
+            supplierName = product.suppliers[0].supplier.name;
+          } else {
+            supplierName = `${product.suppliers[0].supplier.name} +${product.suppliers.length - 1}`;
+          }
+        }
+
         activityData.push({
           productName: product.name,
-          supplierName: product.supplier?.name || t('common.unknown'),
+          supplierName,
           purchaseCount,
           currentInventory,
           inventoryValue,

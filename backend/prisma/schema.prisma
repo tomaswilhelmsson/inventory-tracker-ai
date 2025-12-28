@@ -12,19 +12,19 @@ datasource db {
 
 // Unit entity
 model Unit {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  createdAt DateTime  @default(now())
-  
-  products  Product[]
-  
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  products Product[]
+
   @@map("units")
 }
 
 // Supplier entity
 model Supplier {
-  id            Int              @id @default(autoincrement())
-  name          String           @unique
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
   contactPerson String?
   email         String?
   phone         String?
@@ -33,91 +33,109 @@ model Supplier {
   country       String?
   taxId         String?
   notes         String?
-  createdAt     DateTime         @default(now())
-  
-  products        Product[]
-  purchaseLots    PurchaseLot[]
-  purchaseBatches PurchaseBatch[]
-  
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  productSuppliers ProductSupplier[] // Many-to-many through junction table
+  purchaseLots     PurchaseLot[]
+  purchaseBatches  PurchaseBatch[]
+
+  @@index([isActive])
   @@map("suppliers")
 }
 
 // Product entity
 model Product {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
   description String?
   unitId      Int
-  supplierId  Int
-  createdAt   DateTime  @default(now())
-  
-  unit        Unit      @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  supplier    Supplier  @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  purchaseLots PurchaseLot[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  unit              Unit               @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  suppliers         ProductSupplier[] // Many-to-many through junction table
+  purchaseLots      PurchaseLot[]
   yearEndCountItems YearEndCountItem[]
-  
+
   // Performance indexes for frequently filtered queries
-  @@index([supplierId])
   @@index([unitId])
+  @@index([isActive])
   @@map("products")
+}
+
+// ProductSupplier junction table - many-to-many relationship
+model ProductSupplier {
+  id                Int      @id @default(autoincrement())
+  productId         Int
+  supplierId        Int
+  preferredUnitCost Float? // Optional suggested cost per unit
+  createdAt         DateTime @default(now())
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, supplierId])
+  @@index([supplierId])
+  @@map("product_suppliers")
 }
 
 // PurchaseBatch entity - groups lots from same invoice/delivery
 model PurchaseBatch {
-  id                  Int           @id @default(autoincrement())
+  id                  Int      @id @default(autoincrement())
   supplierId          Int
   purchaseDate        DateTime
-  verificationNumber  String?       // Invoice number
-  invoiceTotalInclVAT Float         // Grand total including VAT (renamed from invoiceTotal)
-  invoiceTotalExclVAT Float?        // Calculated total excluding VAT
-  shippingCost        Float         // Total shipping cost
-  notes               String?       // Optional invoice notes
-  
+  verificationNumber  String? // Invoice number
+  invoiceTotalInclVAT Float // Grand total including VAT (renamed from invoiceTotal)
+  invoiceTotalExclVAT Float? // Calculated total excluding VAT
+  shippingCost        Float // Total shipping cost
+  notes               String? // Optional invoice notes
+
   // VAT fields
-  vatRate             Float         @default(0) // VAT rate used (e.g., 0.25 for 25%)
-  pricesIncludeVAT    Boolean       @default(true) // Entry mode: true = prices entered include VAT
-  
-  createdAt           DateTime      @default(now())
-  
-  supplier      Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  purchaseLots  PurchaseLot[]
-  
+  vatRate          Float   @default(0) // VAT rate used (e.g., 0.25 for 25%)
+  pricesIncludeVAT Boolean @default(true) // Entry mode: true = prices entered include VAT
+
+  createdAt DateTime @default(now())
+
+  supplier     Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseLots PurchaseLot[]
+
   @@map("purchase_batches")
 }
 
 // PurchaseLot entity - FIFO tracking
 model PurchaseLot {
-  id                Int            @id @default(autoincrement())
-  
+  id Int @id @default(autoincrement())
+
   // Foreign keys are nullable to preserve purchase history when products/suppliers
   // are deleted. Historical data is maintained in productSnapshot and supplierSnapshot
   // JSON fields, ensuring complete audit trail even after entity deletion.
-  productId         Int?           // Foreign key for reference/filtering - nullable to allow deletion
-  supplierId        Int?           // Foreign key for reference/filtering - nullable to allow deletion
-  batchId           Int?           // Foreign key to PurchaseBatch (null for single-item purchases)
-  
+  productId  Int? // Foreign key for reference/filtering - nullable to allow deletion
+  supplierId Int? // Foreign key for reference/filtering - nullable to allow deletion
+  batchId    Int? // Foreign key to PurchaseBatch (null for single-item purchases)
+
   purchaseDate       DateTime
-  quantity           Int            // Original purchase quantity (never changes)
-  unitCost           Float          // DEPRECATED: Use unitCostExclVAT for new code (kept for backward compat)
-  remainingQuantity  Int            // Current remaining quantity (decrements via FIFO)
-  year               Int            // Extracted from purchaseDate
-  verificationNumber String?        // Optional invoice/verification reference number
-  
+  quantity           Int // Original purchase quantity (never changes)
+  unitCost           Float // DEPRECATED: Use unitCostExclVAT for new code (kept for backward compat)
+  remainingQuantity  Int // Current remaining quantity (decrements via FIFO)
+  year               Int // Extracted from purchaseDate
+  verificationNumber String? // Optional invoice/verification reference number
+
   // VAT fields
-  vatRate            Float          @default(0) // VAT rate used (e.g., 0.25 for 25%)
-  unitCostExclVAT    Float?         // Cost per unit excluding VAT (primary for FIFO)
-  unitCostInclVAT    Float?         // Cost per unit including VAT (for audit trail)
-  
+  vatRate         Float  @default(0) // VAT rate used (e.g., 0.25 for 25%)
+  unitCostExclVAT Float? // Cost per unit excluding VAT (primary for FIFO)
+  unitCostInclVAT Float? // Cost per unit including VAT (for audit trail)
+
   // JSON snapshots - immutable transaction data (preserves data even if supplier/product deleted)
-  productSnapshot    String         // JSON: {id, name, description, unit: {id, name}, supplierIdRef}
-  supplierSnapshot   String         // JSON: {id, name, contactPerson, email, phone, address, city, country, taxId}
-  
-  createdAt          DateTime       @default(now())
-  
-  product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-  supplier    Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  batch       PurchaseBatch?  @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  
+  productSnapshot  String // JSON: {id, name, description, unit: {id, name}, supplierIdRef}
+  supplierSnapshot String // JSON: {id, name, contactPerson, email, phone, address, city, country, taxId}
+
+  createdAt DateTime @default(now())
+
+  product  Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  supplier Supplier?      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  batch    PurchaseBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
   // CRITICAL: Index for FIFO ordering - MANDATORY for data integrity
   @@index([productId, purchaseDate, remainingQuantity], name: "fifo_index")
   @@index([batchId])
@@ -128,14 +146,14 @@ model PurchaseLot {
 model YearEndCount {
   id          Int       @id @default(autoincrement())
   year        Int
-  revision    Int       @default(1)  // Tracks unlock/recount cycles
-  status      String    @default("draft")  // draft | confirmed
+  revision    Int       @default(1) // Tracks unlock/recount cycles
+  status      String    @default("draft") // draft | confirmed
   confirmedAt DateTime?
   backupPath  String?
   createdAt   DateTime  @default(now())
-  
-  items       YearEndCountItem[]
-  
+
+  items YearEndCountItem[]
+
   @@unique([year, revision])
   // Performance indexes for frequently queried fields
   @@index([year])
@@ -145,51 +163,53 @@ model YearEndCount {
 
 // YearEndCountItem entity
 model YearEndCountItem {
-  id                Int      @id @default(autoincrement())
-  yearEndCountId    Int
-  productId         Int
-  expectedQuantity  Int
-  countedQuantity   Int?
-  variance          Int?
-  value             Float?
-  createdAt         DateTime @default(now())
-  
+  id               Int      @id @default(autoincrement())
+  yearEndCountId   Int
+  productId        Int
+  expectedQuantity Int
+  countedQuantity  Int?
+  variance         Int?
+  value            Float?
+  createdAt        DateTime @default(now())
+
   // CASCADE DELETE WARNING: When a YearEndCount is deleted, all associated items
   // are automatically deleted. This is intentional for draft counts but should
   // be prevented at application level for confirmed counts to preserve audit trail.
   yearEndCount YearEndCount @relation(fields: [yearEndCountId], references: [id], onDelete: Cascade)
   product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
-  
+
   @@unique([yearEndCountId, productId])
   @@map("year_end_count_items")
 }
 
 // LockedYear entity - tracks which years are locked
 model LockedYear {
-  id        Int      @id @default(autoincrement())
-  year      Int      @unique
-  lockedAt  DateTime @default(now())
-  
+  id       Int      @id @default(autoincrement())
+  year     Int      @unique
+  lockedAt DateTime @default(now())
+
   @@map("locked_years")
 }
 
 // YearUnlockAudit entity - immutable audit trail of year unlocks
 model YearUnlockAudit {
-  id              Int      @id @default(autoincrement())
-  year            Int
-  unlockedAt      DateTime @default(now())
-  reasonCategory  String   // data_error | recount_required | audit_adjustment | other
-  description     String   // Free-form explanation
-  
+  id             Int      @id @default(autoincrement())
+  year           Int
+  unlockedAt     DateTime @default(now())
+  reasonCategory String // data_error | recount_required | audit_adjustment | other
+  description    String // Free-form explanation
+
   @@map("year_unlock_audits")
 }
 
 // User entity for authentication
 model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  
+  id                Int      @id @default(autoincrement())
+  username          String   @unique
+  passwordHash      String
+  preferredLanguage String   @default("en") // 'en' | 'sv'
+  preferredCurrency String   @default("USD") // 'USD' | 'SEK'
+  createdAt         DateTime @default(now())
+
   @@map("users")
 }

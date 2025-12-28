@@ -11,6 +11,7 @@ import unitRoutes from './routes/units';
 import purchaseRoutes from './routes/purchases';
 import inventoryRoutes from './routes/inventory';
 import yearEndCountRoutes from './routes/yearEndCount';
+import backupRoutes from './routes/backup';
 import { exportService } from './services/exportService';
 
 const app = express();
@@ -76,6 +77,7 @@ app.use('/api/units', authMiddleware, unitRoutes);
 app.use('/api/purchases', authMiddleware, purchaseRoutes);
 app.use('/api/inventory', authMiddleware, inventoryRoutes);
 app.use('/api/year-end-count', authMiddleware, yearEndCountRoutes);
+app.use('/api/backup', backupRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

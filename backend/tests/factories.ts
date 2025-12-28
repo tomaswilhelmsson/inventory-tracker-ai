@@ -85,14 +85,27 @@ export const TestFactory = {
     unitId: number,
     description?: string
   ) {
-    return testPrisma.product.create({
+    const product = await testPrisma.product.create({
       data: {
         name,
-        supplierId,
         unitId,
         description: description || `Test product: ${name}`,
+        suppliers: {
+          create: {
+            supplierId,
+          },
+        },
+      },
+      include: {
+        suppliers: true,
       },
     });
+    
+    // Add supplierId as a computed property for backward compatibility with tests
+    return {
+      ...product,
+      supplierId: product.suppliers[0]?.supplierId || supplierId,
+    };
   },
 
   /**
@@ -110,7 +123,7 @@ export const TestFactory = {
     // Fetch product and supplier details for snapshots
     const product = await testPrisma.product.findUnique({
       where: { id: data.productId },
-      include: { supplier: true, unit: true },
+      include: { suppliers: true, unit: true },
     });
 
     if (!product) {
@@ -134,7 +147,7 @@ export const TestFactory = {
         id: product.unit.id,
         name: product.unit.name,
       },
-      supplierIdRef: product.supplierId,
+      supplierIdRef: data.supplierId, // Use the supplierId from the purchase lot
     });
 
     const supplierSnapshot = JSON.stringify({

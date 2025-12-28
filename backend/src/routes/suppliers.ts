@@ -18,12 +18,18 @@ const validateRequest = (req: AuthRequest, res: Response, next: NextFunction) =>
 // GET /api/suppliers - Get all suppliers
 router.get(
   '/',
-  [query('search').optional().isString()],
+  [
+    query('search').optional().isString(),
+    query('includeInactive').optional().isBoolean().toBoolean(),
+  ],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { search } = req.query;
-      const suppliers = await supplierService.getAll(search as string | undefined);
+      const { search, includeInactive } = req.query;
+      const suppliers = await supplierService.getAll(
+        search as string | undefined,
+        includeInactive === 'true'
+      );
       res.json(suppliers);
     } catch (error) {
       next(error);
@@ -109,6 +115,22 @@ router.delete(
       const id = parseInt(req.params.id);
       const result = await supplierService.delete(id);
       res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PATCH /api/suppliers/:id/toggle-active - Toggle supplier active status
+router.patch(
+  '/:id/toggle-active',
+  [param('id').isInt().withMessage('Invalid supplier ID')],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const supplier = await supplierService.toggleActive(id);
+      res.json(supplier);
     } catch (error) {
       next(error);
     }

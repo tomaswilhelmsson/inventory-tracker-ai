@@ -2,7 +2,15 @@
   <div class="products-view">
     <div class="header">
       <h1>{{ t('products.title') }}</h1>
-      <Button :label="t('products.addProduct')" icon="pi pi-plus" @click="openCreateDialog" />
+      <div class="header-actions">
+        <Button
+          :label="showDisabled ? t('common.hideDisabled') : t('common.showDisabled')"
+          :icon="showDisabled ? 'pi pi-eye-slash' : 'pi pi-eye'"
+          text
+          @click="showDisabled = !showDisabled"
+        />
+        <Button :label="t('products.addProduct')" icon="pi pi-plus" @click="openCreateDialog" />
+      </div>
     </div>
 
     <Card>
@@ -29,7 +37,18 @@
             </div>
           </template>
 
-          <Column field="name" :header="t('products.table.name')" sortable />
+          <Column field="name" :header="t('products.table.name')" sortable>
+            <template #body="{ data }">
+              <span 
+                :class="{ 'disabled-item': !data.isActive, 'product-name-link': true }"
+                @click="openHistoryDialog(data)"
+                style="cursor: pointer;"
+              >
+                {{ data.name }}
+              </span>
+              <Tag v-if="!data.isActive" :value="t('common.disabled')" severity="secondary" class="ml-2" />
+            </template>
+          </Column>
 
           <Column field="unit.name" :header="t('products.table.unit')" sortable style="width: 120px">
             <template #body="{ data }">
@@ -43,9 +62,17 @@
             </template>
           </Column>
 
-          <Column field="supplier.name" :header="t('products.table.supplier')" sortable>
+          <Column field="suppliers" :header="t('products.table.supplier')" sortable>
             <template #body="{ data }">
-              <Tag :value="data.supplier?.name || t('common.noData')" severity="info" />
+              <div v-if="data.suppliers && data.suppliers.length > 0" style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                <Tag 
+                  v-for="ps in data.suppliers" 
+                  :key="ps.supplier.id"
+                  :value="ps.supplier.name" 
+                  severity="info" 
+                />
+              </div>
+              <Tag v-else :value="t('common.noData')" severity="secondary" />
             </template>
           </Column>
 
@@ -61,7 +88,7 @@
             </template>
           </Column>
 
-          <Column :header="t('common.actions')" style="width: 150px">
+          <Column :header="t('common.actions')" style="width: 200px">
             <template #body="{ data }">
               <div class="action-buttons">
                 <Button
@@ -71,6 +98,15 @@
                   rounded
                   @click="openEditDialog(data)"
                   v-tooltip.top="t('common.edit')"
+                />
+                <Button
+                  :icon="data.isActive ? 'pi pi-ban' : 'pi pi-check'"
+                  size="small"
+                  text
+                  rounded
+                  :severity="data.isActive ? 'warning' : 'success'"
+                  @click="confirmToggleActive(data)"
+                  v-tooltip.top="data.isActive ? t('common.disable') : t('common.enable')"
                 />
                 <Button
                   icon="pi pi-trash"
@@ -142,17 +178,27 @@
         </div>
 
         <div class="field">
-          <label for="supplier">{{ t('products.form.supplier') }} *</label>
-          <Dropdown
+          <div class="field-header">
+            <label for="supplier">{{ t('products.form.supplier') }} *</label>
+            <Button
+              :label="t('products.quickAddSupplier')"
+              icon="pi pi-plus"
+              size="small"
+              text
+              @click="showQuickAddSupplier"
+            />
+          </div>
+          <MultiSelect
             id="supplier"
-            v-model="formData.supplierId"
+            v-model="formData.supplierIds"
             :options="suppliers"
             optionLabel="name"
             optionValue="id"
             :placeholder="t('products.form.supplierPlaceholder')"
-            :class="{ 'p-invalid': formErrors.supplierId }"
+            :class="{ 'p-invalid': formErrors.supplierIds }"
             :loading="loadingSuppliers"
             filter
+            display="chip"
           >
             <template #option="slotProps">
               <div class="supplier-option">
@@ -162,8 +208,8 @@
                 </small>
               </div>
             </template>
-          </Dropdown>
-          <small v-if="formErrors.supplierId" class="p-error">{{ formErrors.supplierId }}</small>
+          </MultiSelect>
+          <small v-if="formErrors.supplierIds" class="p-error">{{ formErrors.supplierIds }}</small>
         </div>
       </div>
 
@@ -176,11 +222,118 @@
         />
       </template>
     </Dialog>
+
+    <!-- Quick Add Supplier Dialog -->
+    <Dialog
+      v-model:visible="quickAddSupplierVisible"
+      :header="t('products.quickAddSupplierTitle')"
+      modal
+      :style="{ width: '400px' }"
+    >
+      <div class="form-container">
+        <div class="field">
+          <label for="supplierName">{{ t('suppliers.form.name') }} *</label>
+          <InputText
+            id="supplierName"
+            v-model="quickSupplierData.name"
+            :class="{ 'p-invalid': quickSupplierErrors.name }"
+            :placeholder="t('suppliers.form.namePlaceholder')"
+            autofocus
+          />
+          <small v-if="quickSupplierErrors.name" class="p-error">{{ quickSupplierErrors.name }}</small>
+        </div>
+
+        <div class="field">
+          <label for="supplierContact">{{ t('suppliers.form.phone') }}</label>
+          <InputText
+            id="supplierContact"
+            v-model="quickSupplierData.phone"
+            :placeholder="t('suppliers.form.phonePlaceholder')"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button :label="t('common.cancel')" text @click="quickAddSupplierVisible = false" />
+        <Button
+          :label="t('common.add')"
+          :loading="savingQuickSupplier"
+          @click="saveQuickSupplier"
+        />
+      </template>
+    </Dialog>
+
+    <!-- Purchase History Dialog -->
+    <Dialog
+      v-model:visible="historyDialogVisible"
+      :header="t('products.history.title', { name: selectedProduct?.name || '' })"
+      modal
+      :style="{ width: '900px' }"
+    >
+      <div v-if="loadingHistory" class="loading-container">
+        <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+      </div>
+      <div v-else-if="productHistory" class="history-container">
+        <!-- Current Inventory Summary -->
+        <div class="inventory-summary">
+          <h3>{{ t('products.history.currentInventory') }} - {{ t('products.history.asOfToday') }}</h3>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <label>{{ t('products.history.expectedQuantity') }}:</label>
+              <span class="value">{{ productHistory.currentQuantity || 0 }} {{ selectedProduct?.unit?.name }}</span>
+            </div>
+            <div v-if="productHistory.lastYearEndCount" class="summary-item">
+              <label>{{ t('products.history.actualQuantity') }}:</label>
+              <span class="value">{{ productHistory.lastYearEndCount.countedQuantity || 0 }} {{ selectedProduct?.unit?.name }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Purchase History Table -->
+        <div class="purchase-history">
+          <h3>{{ t('products.history.purchaseHistory') }}</h3>
+          <DataTable
+            v-if="productHistory.purchases && productHistory.purchases.length > 0"
+            :value="productHistory.purchases"
+            stripedRows
+            :rows="10"
+            paginator
+          >
+            <Column :header="t('products.history.purchaseDate')" style="width: 120px">
+              <template #body="{ data }">
+                {{ formatDate(data.purchaseDate) }}
+              </template>
+            </Column>
+            <Column field="year" :header="t('products.history.year')" style="width: 80px" />
+            <Column :header="t('products.history.supplier')">
+              <template #body="{ data }">
+                {{ JSON.parse(data.supplierSnapshot).name }}
+              </template>
+            </Column>
+            <Column field="quantity" :header="t('products.history.quantity')" style="width: 100px" />
+            <Column field="remainingQuantity" :header="t('products.history.remaining')" style="width: 100px" />
+            <Column :header="t('products.history.unitCost')" style="width: 120px">
+              <template #body="{ data }">
+                {{ formatCurrency(data.unitCostExclVAT || data.unitCost) }}
+              </template>
+            </Column>
+            <Column :header="t('products.history.totalCost')" style="width: 120px">
+              <template #body="{ data }">
+                {{ formatCurrency((data.unitCostExclVAT || data.unitCost) * data.quantity) }}
+              </template>
+            </Column>
+          </DataTable>
+          <div v-else class="no-data">
+            {{ t('products.history.noPurchases') }}
+          </div>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
@@ -196,6 +349,7 @@ import InputIcon from 'primevue/inputicon';
 import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
 import Dropdown from 'primevue/dropdown';
+import MultiSelect from 'primevue/multiselect';
 import Tag from 'primevue/tag';
 
 interface Supplier {
@@ -209,15 +363,21 @@ interface Unit {
   name: string;
 }
 
+interface ProductSupplier {
+  id: number;
+  supplierId: number;
+  preferredUnitCost?: number;
+  supplier: Supplier;
+}
+
 interface Product {
   id: number;
   name: string;
   description?: string;
   unitId: number;
   unit?: Unit;
-  supplierId: number;
+  suppliers: ProductSupplier[];
   createdAt: string;
-  supplier?: Supplier;
   _count?: {
     purchases: number;
   };
@@ -227,13 +387,13 @@ interface FormData {
   name: string;
   description: string;
   unitId: number | null;
-  supplierId: number | null;
+  supplierIds: number[];
 }
 
 interface FormErrors {
   name?: string;
   unitId?: string;
-  supplierId?: string;
+  supplierIds?: string;
 }
 
 const toast = useToast();
@@ -255,11 +415,27 @@ const formData = ref<FormData>({
   name: '',
   description: '',
   unitId: null,
-  supplierId: null,
+  supplierIds: [],
 });
 
 const formErrors = ref<FormErrors>({});
 const searchQuery = ref('');
+const showDisabled = ref(false);
+
+// Quick Add Supplier state
+const quickAddSupplierVisible = ref(false);
+const savingQuickSupplier = ref(false);
+const quickSupplierData = ref({
+  name: '',
+  phone: '',
+});
+const quickSupplierErrors = ref<{ name?: string }>({});
+
+// Purchase History Dialog state
+const historyDialogVisible = ref(false);
+const loadingHistory = ref(false);
+const selectedProduct = ref<Product | null>(null);
+const productHistory = ref<any>(null);
 
 // Computed: filtered products
 const filteredProducts = computed(() => {
@@ -270,7 +446,7 @@ const filteredProducts = computed(() => {
   return products.value.filter(p => 
     p.name.toLowerCase().includes(query) ||
     (p.description && p.description.toLowerCase().includes(query)) ||
-    (p.supplier?.name && p.supplier.name.toLowerCase().includes(query))
+    (p.suppliers && p.suppliers.some(ps => ps.supplier.name.toLowerCase().includes(query)))
   );
 });
 
@@ -278,7 +454,11 @@ const filteredProducts = computed(() => {
 const fetchProducts = async () => {
   loading.value = true;
   try {
-    const response = await api.get('/products');
+    const params = new URLSearchParams();
+    if (showDisabled.value) {
+      params.append('includeInactive', 'true');
+    }
+    const response = await api.get(`/products?${params.toString()}`);
     products.value = response.data;
   } catch (error: any) {
     toast.add({
@@ -379,7 +559,7 @@ const openEditDialog = async (product: Product) => {
     name: product.name,
     description: product.description || '',
     unitId: product.unitId,
-    supplierId: product.supplierId,
+    supplierIds: product.suppliers.map(ps => ps.supplierId),
   };
   dialogVisible.value = true;
 };
@@ -396,8 +576,8 @@ const validateForm = (): boolean => {
     formErrors.value.unitId = t('validation.required');
   }
 
-  if (!formData.value.supplierId) {
-    formErrors.value.supplierId = t('validation.required');
+  if (!formData.value.supplierIds || formData.value.supplierIds.length === 0) {
+    formErrors.value.supplierIds = t('validation.required');
   }
 
   return Object.keys(formErrors.value).length === 0;
@@ -415,7 +595,7 @@ const saveProduct = async () => {
       name: formData.value.name.trim(),
       description: formData.value.description.trim() || undefined,
       unitId: formData.value.unitId,
-      supplierId: formData.value.supplierId,
+      supplierIds: formData.value.supplierIds,
     };
 
     if (editMode.value && currentProductId.value) {
@@ -496,13 +676,47 @@ const deleteProduct = async (id: number) => {
   }
 };
 
+// Toggle active status
+const confirmToggleActive = (product: Product) => {
+  const action = product.isActive ? 'disable' : 'enable';
+  const messageKey = product.isActive ? 'products.messages.disableConfirm' : 'products.messages.enableConfirm';
+  
+  confirm.require({
+    message: t(messageKey, { name: product.name }),
+    header: t('common.confirm'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: product.isActive ? 'p-button-warning' : 'p-button-success',
+    accept: () => toggleProductActive(product.id, action),
+  });
+};
+
+const toggleProductActive = async (id: number, action: string) => {
+  try {
+    await api.patch(`/products/${id}/toggle-active`);
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t(`products.messages.${action}Success`),
+      life: 3000,
+    });
+    await fetchProducts();
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('products.messages.toggleFailed'),
+      life: 3000,
+    });
+  }
+};
+
 // Reset form
 const resetForm = () => {
   formData.value = {
     name: '',
     description: '',
     unitId: null,
-    supplierId: null,
+    supplierIds: [],
   };
   formErrors.value = {};
 };
@@ -515,6 +729,108 @@ const formatDate = (dateString: string) => {
     day: 'numeric',
   });
 };
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+  }).format(value);
+};
+
+// Quick Add Supplier functions
+const showQuickAddSupplier = () => {
+  quickSupplierData.value = {
+    name: '',
+    phone: '',
+  };
+  quickSupplierErrors.value = {};
+  quickAddSupplierVisible.value = true;
+};
+
+const saveQuickSupplier = async () => {
+  // Validate
+  quickSupplierErrors.value = {};
+  if (!quickSupplierData.value.name.trim()) {
+    quickSupplierErrors.value.name = t('suppliers.errors.nameRequired');
+    return;
+  }
+
+  savingQuickSupplier.value = true;
+  try {
+    const payload: any = {
+      name: quickSupplierData.value.name.trim(),
+    };
+    
+    // Only include phone if it's not empty
+    if (quickSupplierData.value.phone.trim()) {
+      payload.phone = quickSupplierData.value.phone.trim();
+    }
+    
+    const response = await api.post('/suppliers', payload);
+
+    // Add new supplier to the list
+    suppliers.value.push(response.data);
+
+    // Auto-select the new supplier
+    if (!formData.value.supplierIds.includes(response.data.id)) {
+      formData.value.supplierIds.push(response.data.id);
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('suppliers.messages.createSuccess'),
+      life: 3000,
+    });
+
+    quickAddSupplierVisible.value = false;
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('suppliers.messages.saveFailed'),
+      life: 3000,
+    });
+  } finally {
+    savingQuickSupplier.value = false;
+  }
+};
+
+// Open purchase history dialog
+const openHistoryDialog = async (product: Product) => {
+  selectedProduct.value = product;
+  historyDialogVisible.value = true;
+  await fetchProductHistory(product.id);
+};
+
+// Fetch product purchase history
+const fetchProductHistory = async (productId: number) => {
+  loadingHistory.value = true;
+  try {
+    const response = await api.get(`/products/${productId}`);
+    productHistory.value = {
+      currentQuantity: response.data.purchaseLots?.reduce((sum: number, lot: any) => sum + lot.remainingQuantity, 0) || 0,
+      purchases: response.data.purchaseLots || [],
+      lastYearEndCount: null, // Will be populated if we have year-end count data
+    };
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('products.history.loadFailed'),
+      life: 3000,
+    });
+    productHistory.value = null;
+  } finally {
+    loadingHistory.value = false;
+  }
+};
+
+// Watch showDisabled to refetch when toggled
+watch(showDisabled, () => {
+  fetchProducts();
+});
 
 // Load data on mount
 onMounted(() => {
@@ -534,6 +850,12 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .header h1 {
@@ -586,6 +908,18 @@ onMounted(() => {
   font-size: 0.875rem;
 }
 
+.field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.field-header label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
 .supplier-option {
   display: flex;
   flex-direction: column;
@@ -605,5 +939,81 @@ onMounted(() => {
   color: var(--red-500);
   font-size: 0.75rem;
   margin-top: 0.25rem;
+}
+
+.disabled-item {
+  color: var(--text-color-secondary);
+  text-decoration: line-through;
+}
+
+.product-name-link {
+  color: var(--primary-color);
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.product-name-link:hover {
+  color: var(--primary-color-text);
+}
+
+.history-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.inventory-summary {
+  background: var(--surface-100);
+  padding: 1.5rem;
+  border-radius: 6px;
+}
+
+.inventory-summary h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-item label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.summary-item .value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.purchase-history h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem;
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+  font-style: italic;
 }
 </style>

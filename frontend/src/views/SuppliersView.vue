@@ -2,7 +2,15 @@
   <div class="suppliers-view">
     <div class="header">
       <h1>{{ t('suppliers.title') }}</h1>
-      <Button :label="t('suppliers.addSupplier')" icon="pi pi-plus" @click="openCreateDialog" />
+      <div class="header-actions">
+        <Button
+          :label="showDisabled ? t('common.hideDisabled') : t('common.showDisabled')"
+          :icon="showDisabled ? 'pi pi-eye-slash' : 'pi pi-eye'"
+          text
+          @click="showDisabled = !showDisabled"
+        />
+        <Button :label="t('suppliers.addSupplier')" icon="pi pi-plus" @click="openCreateDialog" />
+      </div>
     </div>
 
     <Card>
@@ -29,7 +37,14 @@
             </div>
           </template>
 
-          <Column field="name" :header="t('suppliers.table.name')" sortable />
+          <Column field="name" :header="t('suppliers.table.name')" sortable>
+            <template #body="{ data }">
+              <span :class="{ 'disabled-item': !data.isActive }">
+                {{ data.name }}
+              </span>
+              <Tag v-if="!data.isActive" :value="t('common.disabled')" severity="secondary" class="ml-2" />
+            </template>
+          </Column>
 
           <Column :header="t('suppliers.table.contactPerson')" sortable>
             <template #body="{ data }">
@@ -67,7 +82,7 @@
             </template>
           </Column>
 
-          <Column :header="t('common.actions')" style="width: 150px">
+          <Column :header="t('common.actions')" style="width: 200px">
             <template #body="{ data }">
               <div class="action-buttons">
                 <Button
@@ -77,6 +92,15 @@
                   rounded
                   @click="openEditDialog(data)"
                   v-tooltip.top="t('common.edit')"
+                />
+                <Button
+                  :icon="data.isActive ? 'pi pi-ban' : 'pi pi-check'"
+                  size="small"
+                  text
+                  rounded
+                  :severity="data.isActive ? 'warning' : 'success'"
+                  @click="confirmToggleActive(data)"
+                  v-tooltip.top="data.isActive ? t('common.disable') : t('common.enable')"
                 />
                 <Button
                   icon="pi pi-trash"
@@ -216,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { useI18n } from 'vue-i18n';
@@ -294,6 +318,7 @@ const formData = ref<FormData>({
 
 const formErrors = ref<FormErrors>({});
 const searchQuery = ref('');
+const showDisabled = ref(false);
 
 // Computed: filtered suppliers
 const filteredSuppliers = computed(() => {
@@ -315,7 +340,11 @@ const filteredSuppliers = computed(() => {
 const fetchSuppliers = async () => {
   loading.value = true;
   try {
-    const response = await api.get('/suppliers');
+    const params = new URLSearchParams();
+    if (showDisabled.value) {
+      params.append('includeInactive', 'true');
+    }
+    const response = await api.get(`/suppliers?${params.toString()}`);
     suppliers.value = response.data;
   } catch (error: any) {
     toast.add({
@@ -472,6 +501,40 @@ const deleteSupplier = async (id: number) => {
   }
 };
 
+// Toggle active status
+const confirmToggleActive = (supplier: Supplier) => {
+  const action = supplier.isActive ? 'disable' : 'enable';
+  const messageKey = supplier.isActive ? 'suppliers.messages.disableConfirm' : 'suppliers.messages.enableConfirm';
+  
+  confirm.require({
+    message: t(messageKey, { name: supplier.name }),
+    header: t('common.confirm'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: supplier.isActive ? 'p-button-warning' : 'p-button-success',
+    accept: () => toggleSupplierActive(supplier.id, action),
+  });
+};
+
+const toggleSupplierActive = async (id: number, action: string) => {
+  try {
+    await api.patch(`/suppliers/${id}/toggle-active`);
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t(`suppliers.messages.${action}Success`),
+      life: 3000,
+    });
+    await fetchSuppliers();
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('suppliers.messages.toggleFailed'),
+      life: 3000,
+    });
+  }
+};
+
 // Reset form
 const resetForm = () => {
   formData.value = {
@@ -498,6 +561,11 @@ const formatDate = (dateString: string) => {
 };
 
 // Load data on mount
+// Watch showDisabled to refetch when toggled
+watch(showDisabled, () => {
+  fetchSuppliers();
+});
+
 onMounted(() => {
   fetchSuppliers();
 });
@@ -513,6 +581,12 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .header h1 {
@@ -574,5 +648,10 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+.disabled-item {
+  color: var(--text-color-secondary);
+  text-decoration: line-through;
 }
 </style>

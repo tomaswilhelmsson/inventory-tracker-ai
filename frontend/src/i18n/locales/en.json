@@ -30,7 +30,12 @@
     "noData": "No data available",
     "noRecordsFound": "No records found",
     "selectYear": "Select Year",
-    "allYears": "All Years"
+    "allYears": "All Years",
+    "showDisabled": "Show Disabled",
+    "hideDisabled": "Hide Disabled",
+    "disabled": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -41,6 +46,7 @@
     "inventory": "Inventory",
     "yearEndCount": "Year End Count",
     "reports": "Reports",
+    "backupRestore": "Backup & Restore",
     "logout": "Logout"
   },
   "login": {
@@ -107,7 +113,12 @@
       "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
       "deleteWarning": "This supplier has {products} product(s) and {purchases} purchase(s). Delete those first.",
       "cannotDelete": "Cannot Delete",
-      "loadFailed": "Failed to load suppliers"
+      "loadFailed": "Failed to load suppliers",
+      "disableSuccess": "Supplier disabled successfully",
+      "enableSuccess": "Supplier enabled successfully",
+      "disableConfirm": "Are you sure you want to disable \"{name}\"? It will be hidden from dropdowns but historical data will remain.",
+      "enableConfirm": "Are you sure you want to enable \"{name}\"?",
+      "toggleFailed": "Failed to toggle supplier status"
     }
   },
   "products": {
@@ -117,6 +128,8 @@
     "deleteProduct": "Delete Product",
     "productDetails": "Product Details",
     "searchProducts": "Search products...",
+    "quickAddSupplier": "Quick Add",
+    "quickAddSupplierTitle": "Quick Add Supplier",
     "form": {
       "name": "Product Name",
       "namePlaceholder": "Enter product name",
@@ -140,11 +153,33 @@
       "deleteSuccess": "Product deleted successfully",
       "deleteFailed": "Failed to delete product",
       "deleteConfirm": "Are you sure you want to delete \"{name}\"?",
-      "cannotDelete": "Cannot delete product with purchase history",
+      "cannotDelete": "Cannot delete product with purchase history. Consider disabling instead.",
       "loadFailed": "Failed to load products",
       "saveFailed": "Failed to save product",
       "noSuppliers": "No suppliers available. Please create a supplier first.",
-      "noUnits": "No units available. Please create a unit first."
+      "noUnits": "No units available. Please create a unit first.",
+      "disableSuccess": "Product disabled successfully",
+      "enableSuccess": "Product enabled successfully",
+      "disableConfirm": "Are you sure you want to disable \"{name}\"? It will be hidden from dropdowns but historical data will remain.",
+      "enableConfirm": "Are you sure you want to enable \"{name}\"?",
+      "toggleFailed": "Failed to toggle product status"
+    },
+    "history": {
+      "title": "Purchase History - {name}",
+      "currentInventory": "Current Inventory",
+      "expectedQuantity": "Expected Quantity",
+      "actualQuantity": "Actual Quantity (from last count)",
+      "purchaseHistory": "Purchase History",
+      "purchaseDate": "Purchase Date",
+      "supplier": "Supplier",
+      "quantity": "Quantity",
+      "remaining": "Remaining",
+      "unitCost": "Unit Cost",
+      "totalCost": "Total Cost",
+      "year": "Year",
+      "noPurchases": "No purchase history available",
+      "loadFailed": "Failed to load purchase history",
+      "asOfToday": "As of today"
     }
   },
   "units": {
@@ -254,6 +289,7 @@
       "totalCost": "Total Cost",
       "totalCostPlaceholder": "Or enter total cost",
       "shipping": "Shipping",
+      "shippingIncludesVAT": "Shipping includes VAT",
       "finalUnitCost": "Final Unit Cost",
       "subtotal": "Subtotal",
       "subtotalExclVAT": "Subtotal (excl. VAT)",
@@ -360,10 +396,21 @@
       "unit": "Unit"
     },
     "summary": {
+      "title": "Count Summary",
       "totalExpected": "Total Expected",
       "totalCounted": "Total Counted",
       "totalVariance": "Total Variance",
       "totalValue": "Total Value"
+    },
+    "tooltips": {
+      "expectedQuantity": "The calculated quantity based on FIFO (First-In-First-Out) from all purchases and previous counts. This is what the system expects you to have in stock.",
+      "actualCount": "Enter the physical count from your warehouse. This is what you actually have in stock after counting.",
+      "variance": "The difference between what you counted and what was expected. Positive means you have more than expected, negative means less.",
+      "valueFIFO": "The monetary value of this product based on FIFO cost accounting (using the cost of the oldest purchases first).",
+      "totalExpected": "Sum of all expected quantities across all products based on purchase history and FIFO calculations.",
+      "totalCounted": "Sum of all physically counted quantities across all products.",
+      "totalVariance": "The total difference between counted and expected. Shows overall inventory accuracy.",
+      "totalValue": "Total inventory value calculated using FIFO method across all products."
     },
     "confirmDialog": {
       "header": "Confirm Year-End Count",
@@ -525,5 +572,53 @@
     "selectLanguage": "Select Language",
     "english": "English",
     "swedish": "Svenska"
+  },
+  "backup": {
+    "title": "Backup & Restore",
+    "exportSection": {
+      "title": "Export Database",
+      "description": "Download a complete backup of your database as a JSON file",
+      "hint": "Use this before testing changes or major operations",
+      "downloadButton": "Download Backup",
+      "downloading": "Exporting...",
+      "lastExport": "Last export:",
+      "never": "Never"
+    },
+    "importSection": {
+      "title": "Import Database",
+      "description": "⚠️ Warning: This will replace all current data",
+      "hint": "Only import backup files created by this system",
+      "chooseFile": "Choose File",
+      "importButton": "Import",
+      "importing": "Importing...",
+      "fileSelected": "File selected:"
+    },
+    "confirmDialog": {
+      "title": "Confirm Database Restore",
+      "warning": "This will permanently delete all current data and replace it with the backup file contents.",
+      "backupFile": "Backup file:",
+      "exportedAt": "Exported:",
+      "checkbox": "I understand this cannot be undone",
+      "cancelButton": "Cancel",
+      "confirmButton": "Restore Database"
+    },
+    "messages": {
+      "exportSuccess": "Database backup downloaded successfully",
+      "exportError": "Failed to export database",
+      "importSuccess": "Database restored successfully",
+      "importError": "Failed to import database",
+      "fileTooLarge": "File too large (max 100MB)",
+      "invalidFile": "Please select a JSON file",
+      "confirmRequired": "Please confirm by checking the box",
+      "noFileSelected": "Please select a file first"
+    },
+    "summary": {
+      "title": "Import Summary",
+      "unitsImported": "Units imported:",
+      "suppliersImported": "Suppliers imported:",
+      "productsImported": "Products imported:",
+      "purchaseLotsImported": "Purchase lots imported:",
+      "yearEndCountsImported": "Year-end counts imported:"
+    }
   }
 }

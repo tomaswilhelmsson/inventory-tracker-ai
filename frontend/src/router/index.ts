@@ -57,6 +57,12 @@ const router = createRouter({
       component: () => import('../views/ReportsView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/backup-restore',
+      name: 'backup-restore',
+      component: () => import('../views/BackupRestoreView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 });
 

@@ -9,9 +9,11 @@ import Tooltip from 'primevue/tooltip';
 import App from './App.vue';
 import router from './router';
 import { i18n } from './i18n';
+import { normalizeDecimal } from './directives/normalizeDecimal';
 
 import 'primeicons/primeicons.css';
 import './style.css';
+import './styles/visual-feedback.css';
 
 const app = createApp(App);
 
@@ -29,5 +31,6 @@ app.use(PrimeVue, {
 app.use(ToastService);
 app.use(ConfirmationService);
 app.directive('tooltip', Tooltip);
+app.directive('normalize-decimal', normalizeDecimal);
 
 app.mount('#app');

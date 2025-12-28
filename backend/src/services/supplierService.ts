@@ -2,19 +2,24 @@ import prisma from '../utils/prisma';
 import { AppError } from '../middleware/errorHandler';
 
 export const supplierService = {
-  // Get all suppliers with optional search
-  async getAll(search?: string) {
+  // Get all suppliers with optional search and includeInactive
+  async getAll(search?: string, includeInactive?: boolean) {
     // Sanitize search input: trim whitespace and limit length to prevent DoS
     const sanitizedSearch = search?.trim().substring(0, 100);
     
-    const where = sanitizedSearch && sanitizedSearch.length > 0
-      ? {
-          name: {
-            contains: sanitizedSearch,
-            mode: 'insensitive' as const,
-          },
-        }
-      : {};
+    const where: any = {};
+
+    // Filter by active status (default: active only)
+    if (includeInactive !== true) {
+      where.isActive = true;
+    }
+
+    if (sanitizedSearch && sanitizedSearch.length > 0) {
+      where.name = {
+        contains: sanitizedSearch,
+        mode: 'insensitive' as const,
+      };
+    }
 
     return await prisma.supplier.findMany({
       where,
@@ -22,7 +27,7 @@ export const supplierService = {
       include: {
         _count: {
           select: {
-            products: true,
+            productSuppliers: true,
             purchaseLots: true,
           },
         },
@@ -35,7 +40,16 @@ export const supplierService = {
     const supplier = await prisma.supplier.findUnique({
       where: { id },
       include: {
-        products: true,
+        productSuppliers: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
         purchaseLots: {
           select: {
             id: true,
@@ -46,7 +60,7 @@ export const supplierService = {
         },
         _count: {
           select: {
-            products: true,
+            productSuppliers: true,
             purchaseLots: true,
           },
         },
@@ -137,7 +151,7 @@ export const supplierService = {
       include: {
         _count: {
           select: {
-            products: true,
+            productSuppliers: true,
             purchaseLots: true,
           },
         },
@@ -149,8 +163,8 @@ export const supplierService = {
     }
 
     // Prevent deletion if has associated products (products still need suppliers)
-    if (supplier._count.products > 0) {
-      throw new AppError(400, 'Cannot delete supplier with associated products. Reassign products first.');
+    if (supplier._count.productSuppliers > 0) {
+      throw new AppError(400, 'Cannot delete supplier with associated products. Remove product associations first.');
     }
 
     // Allow deletion even with purchase history - data is preserved in JSON snapshots
@@ -163,5 +177,29 @@ export const supplierService = {
       message: 'Supplier deleted successfully',
       purchasesAffected: supplier._count.purchaseLots,
     };
+  },
+
+  // Toggle active status of a supplier
+  async toggleActive(id: number) {
+    const supplier = await prisma.supplier.findUnique({
+      where: { id },
+    });
+
+    if (!supplier) {
+      throw new AppError(404, 'Supplier not found');
+    }
+
+    return await prisma.supplier.update({
+      where: { id },
+      data: { isActive: !supplier.isActive },
+      include: {
+        _count: {
+          select: {
+            productSuppliers: true,
+            purchaseLots: true,
+          },
+        },
+      },
+    });
   },
 };
