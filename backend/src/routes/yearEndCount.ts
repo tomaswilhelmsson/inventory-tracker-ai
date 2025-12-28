@@ -391,4 +391,20 @@ router.post(
   }
 );
 
+// DELETE /api/year-end-count/:id - Delete a draft year-end count
+router.delete(
+  '/:id',
+  [param('id').isInt().withMessage('Valid count ID is required')],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await yearEndCountService.deleteYearEndCount(id);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export default router;

@@ -771,6 +771,47 @@ export const createYearEndCountService = (
       latestCountYear,
     };
   },
+
+  /**
+   * Delete a draft year-end count
+   * Only draft counts can be deleted - confirmed counts are immutable
+   */
+  async deleteYearEndCount(countId: number) {
+    // Find count with item count
+    const count = await dbClient.yearEndCount.findUnique({
+      where: { id: countId },
+      include: {
+        _count: {
+          select: { items: true },
+        },
+      },
+    });
+
+    if (!count) {
+      throw new AppError(404, 'Year-end count not found');
+    }
+
+    // Validate status - only drafts can be deleted
+    if (count.status === 'confirmed') {
+      throw new AppError(
+        400,
+        'Cannot delete confirmed year-end count. Confirmed counts are immutable for audit trail.'
+      );
+    }
+
+    // Store item count before deletion
+    const deletedItems = count._count.items;
+
+    // Delete count (cascade will handle items)
+    await dbClient.yearEndCount.delete({
+      where: { id: countId },
+    });
+
+    return {
+      message: 'Draft year-end count deleted successfully',
+      deletedItems,
+    };
+  },
 });
 
 // Default export for production use

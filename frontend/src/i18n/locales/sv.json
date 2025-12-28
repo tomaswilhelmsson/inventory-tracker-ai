@@ -364,6 +364,7 @@
     "progress": "{counted} av {total} produkter räknade",
     "productsNeedCounting": "{count} produkter behöver fortfarande räknas",
     "countSheet": "Räknelista",
+    "discardCount": "Kassera",
     "exportCSV": "Exportera CSV",
     "exportPDF": "Exportera PDF",
     "importCSV": "Importera CSV",
@@ -490,7 +491,10 @@
       "exportCSVFailed": "Misslyckades med att exportera CSV",
       "exportPDFSuccess": "PDF exporterades framgångsrikt",
       "exportPDFFailed": "Misslyckades med att exportera PDF",
-      "reportFailed": "Misslyckades med att generera rapport"
+      "reportFailed": "Misslyckades med att generera rapport",
+      "discardConfirm": "Är du säker på att du vill kassera årsbokslutet för {year}? Detta kommer att radera räkningen med {count} produkter. Denna åtgärd kan inte ångras.",
+      "discardSuccess": "Årsbokslut kasserades framgångsrikt",
+      "discardFailed": "Misslyckades med att kassera årsbokslut"
     }
   },
   "reports": {

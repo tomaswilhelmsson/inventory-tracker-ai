@@ -364,6 +364,7 @@
     "progress": "{counted} of {total} products counted",
     "productsNeedCounting": "{count} products still need counting",
     "countSheet": "Count Sheet",
+    "discardCount": "Discard",
     "exportCSV": "Export CSV",
     "exportPDF": "Export PDF",
     "importCSV": "Import CSV",
@@ -490,7 +491,10 @@
       "exportCSVFailed": "Failed to export CSV",
       "exportPDFSuccess": "PDF exported successfully",
       "exportPDFFailed": "Failed to export PDF",
-      "reportFailed": "Failed to generate report"
+      "reportFailed": "Failed to generate report",
+      "discardConfirm": "Are you sure you want to discard the year-end count for {year}? This will delete the count with {count} products. This action cannot be undone.",
+      "discardSuccess": "Year-end count discarded successfully",
+      "discardFailed": "Failed to discard year-end count"
     }
   },
   "reports": {

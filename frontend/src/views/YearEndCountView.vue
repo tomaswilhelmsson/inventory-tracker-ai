@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import { useCurrency } from '@/composables/useCurrency';
@@ -16,7 +18,9 @@ import Message from 'primevue/message';
 import Dropdown from 'primevue/dropdown';
 import Tag from 'primevue/tag';
 
+const router = useRouter();
 const toast = useToast();
+const confirm = useConfirm();
 const { t, n } = useI18n();
 const { formatCurrency } = useCurrency();
 
@@ -352,6 +356,45 @@ async function finalizeCount() {
       severity: 'error',
       summary: t('common.error'),
       detail: error.response?.data?.error || t('yearEndCount.messages.confirmFailed'),
+      life: 5000,
+    });
+  } finally {
+    loading.value = false;
+  }
+}
+
+function confirmDiscard() {
+  confirm.require({
+    message: t('yearEndCount.messages.discardConfirm', {
+      year: countSheet.value.year,
+      count: countSheet.value.items?.length || 0,
+    }),
+    header: t('common.confirm'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: () => discardCount(),
+  });
+}
+
+async function discardCount() {
+  loading.value = true;
+  try {
+    await api.delete(`/year-end-count/${countSheet.value.id}`);
+
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('yearEndCount.messages.discardSuccess'),
+      life: 3000,
+    });
+
+    // Redirect to year selection
+    router.push('/year-end-count');
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('yearEndCount.messages.discardFailed'),
       life: 5000,
     });
   } finally {
@@ -726,6 +769,14 @@ onMounted(async () => {
               :auto="true"
               :chooseLabel="t('yearEndCount.importCSV')"
               customUpload
+            />
+            <Button
+              v-if="countSheet.status === 'draft'"
+              :label="t('yearEndCount.discardCount')"
+              icon="pi pi-trash"
+              @click="confirmDiscard"
+              severity="danger"
+              outlined
             />
             <Button
               :label="t('yearEndCount.previewReport')"
