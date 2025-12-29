@@ -388,8 +388,11 @@ async function discardCount() {
       life: 3000,
     });
 
-    // Redirect to year selection
-    router.push('/year-end-count');
+    // Reset state and reload
+    countSheet.value = null;
+    selectedRevision.value = null;
+    await loadAvailableRevisions();
+    await loadExistingCount();
   } catch (error: any) {
     toast.add({
       severity: 'error',
