@@ -186,7 +186,7 @@
         <DataTable :value="selectedProduct.lots" size="small" stripedRows>
           <Column field="purchaseDate" :header="t('inventory.lotsDialog.purchaseDate')" sortable>
             <template #body="{ data }">
-              {{ d(new Date(data.purchaseDate), 'short') }}
+              {{ formatDate(data.purchaseDate) }}
             </template>
           </Column>
 
@@ -528,14 +528,8 @@ const fetchProductHistory = async (productId: number) => {
   }
 };
 
-// Format date helper
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-};
+// Format date - import utility
+import { formatDate } from '@/utils/dateFormatter';
 
 // Visual feedback helpers for quantity status
 const getQuantitySeverity = (quantity: number): string => {

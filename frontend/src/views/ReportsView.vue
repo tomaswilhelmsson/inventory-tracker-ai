@@ -141,7 +141,7 @@
         <div class="report-summary">
           <div class="summary-item">
             <strong>{{ t('reports.reportDate') }}:</strong>
-            <span>{{ d(new Date(), 'short') }}</span>
+            <span>{{ formatDate(new Date()) }}</span>
           </div>
           <div class="summary-item">
             <strong>{{ t('reports.totalInventoryValue') }}:</strong>
@@ -249,7 +249,7 @@
           </div>
           <div class="summary-item">
             <strong>{{ t('reports.confirmedDate') }}:</strong>
-            <span>{{ d(new Date(yearEndReportData.confirmedAt), 'short') }}</span>
+            <span>{{ formatDate(yearEndReportData.confirmedAt) }}</span>
           </div>
           <div class="summary-item">
             <strong>{{ t('reports.totalProducts') }}:</strong>
@@ -314,6 +314,7 @@ import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { useCurrency } from '@/composables/useCurrency';
+import { formatDate } from '@/utils/dateFormatter';
 
 import Button from 'primevue/button';
 import Card from 'primevue/card';

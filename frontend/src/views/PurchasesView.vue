@@ -55,7 +55,7 @@
           <Column field="purchaseDate" :header="t('purchases.table.purchaseDate')" sortable :sortOrder="-1">
             <template #body="{ data }">
               <div class="date-cell">
-                {{ d(new Date(data.purchaseDate), 'short') }}
+                {{ formatDate(data.purchaseDate) }}
                 <Tag
                   v-if="isYearLocked(data.year)"
                   :value="t('purchases.locked')"
@@ -482,6 +482,7 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
+import { formatDate } from '@/utils/dateFormatter';
 
 import Button from 'primevue/button';
 import Card from 'primevue/card';
