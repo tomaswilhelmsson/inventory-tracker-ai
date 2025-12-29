@@ -203,7 +203,9 @@
             <template #body="{ data, index }">
               <InputNumber
                 v-model="data.quantity"
-                :min="1"
+                :min="0.01"
+                :minFractionDigits="0"
+                :maxFractionDigits="2"
                 :useGrouping="true"
                 :placeholder="$t('purchases.form.quantityPlaceholder')"
                 @update:modelValue="onQuantityChange(index)"

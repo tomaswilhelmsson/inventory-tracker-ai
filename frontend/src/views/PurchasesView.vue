@@ -275,7 +275,9 @@
               id="quantity"
               v-model="formData.quantity"
               :class="{ 'p-invalid': formErrors.quantity }"
-              :min="1"
+              :min="0.01"
+              :minFractionDigits="0"
+              :maxFractionDigits="2"
               :useGrouping="true"
               :placeholder="t('purchases.form.quantityPlaceholder')"
             />

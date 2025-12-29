@@ -115,9 +115,9 @@ model PurchaseLot {
   batchId    Int? // Foreign key to PurchaseBatch (null for single-item purchases)
 
   purchaseDate       DateTime
-  quantity           Int // Original purchase quantity (never changes)
+  quantity           Float // Original purchase quantity (never changes, supports decimals for units like liters)
   unitCost           Float // DEPRECATED: Use unitCostExclVAT for new code (kept for backward compat)
-  remainingQuantity  Int // Current remaining quantity (decrements via FIFO)
+  remainingQuantity  Float // Current remaining quantity (decrements via FIFO, supports decimals)
   year               Int // Extracted from purchaseDate
   verificationNumber String? // Optional invoice/verification reference number
 
@@ -166,9 +166,9 @@ model YearEndCountItem {
   id               Int      @id @default(autoincrement())
   yearEndCountId   Int
   productId        Int
-  expectedQuantity Int
-  countedQuantity  Int?
-  variance         Int?
+  expectedQuantity Float
+  countedQuantity  Float?
+  variance         Float?
   value            Float?
   createdAt        DateTime @default(now())
 
