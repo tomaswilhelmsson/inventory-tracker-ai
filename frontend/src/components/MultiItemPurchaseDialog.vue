@@ -4,6 +4,7 @@
     :header="$t('purchases.multiItem.title')"
     modal
     :style="{ width: '90vw', maxWidth: '1200px' }"
+    :closeOnEscape="false"
     @hide="resetForm"
   >
     <div class="multi-item-purchase-form">
