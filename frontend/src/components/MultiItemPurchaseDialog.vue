@@ -24,6 +24,7 @@
                 :class="{ 'p-invalid': formErrors.supplierId }"
                 :loading="loadingSuppliers"
                 filter
+                autoFilterFocus
                 @change="onSupplierChange"
                 style="flex: 1"
               />
@@ -172,6 +173,7 @@
                   optionValue="id"
                   :placeholder="$t('purchases.form.productPlaceholder')"
                   filter
+                  autoFilterFocus
                   :loading="loadingProducts"
                   @change="onProductSelect(index)"
                   style="flex: 1;"
@@ -420,6 +422,7 @@
           optionValue="id"
           :placeholder="$t('products.form.supplierPlaceholder')"
           filter
+          autoFilterFocus
         />
       </div>
 
@@ -433,6 +436,7 @@
           optionValue="id"
           :placeholder="$t('products.form.unitPlaceholder')"
           filter
+          autoFilterFocus
         />
       </div>
     </div>
