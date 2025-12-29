@@ -177,7 +177,7 @@
                   <div class="product-option">
                     <div>{{ slotProps.option.name }}</div>
                     <small class="text-secondary">
-                      {{ $t('purchases.form.supplier') }}: {{ slotProps.option.supplier?.name || $t('common.unknown') }}
+                      {{ $t('purchases.form.supplier') }}: {{ getProductSupplierName(slotProps.option) }}
                     </small>
                   </div>
                 </template>
@@ -870,6 +870,30 @@ async function loadProducts() {
   } finally {
     loadingProducts.value = false;
   }
+}
+
+// Get supplier name for a product (prioritize selected supplier)
+function getProductSupplierName(product: any): string {
+  if (!product.suppliers || product.suppliers.length === 0) {
+    return t('common.unknown');
+  }
+  
+  // If a supplier is selected in the form, show that supplier if it's associated with this product
+  if (formData.value.supplierId) {
+    const matchingSupplier = product.suppliers.find(
+      (ps: any) => ps.supplierId === formData.value.supplierId
+    );
+    if (matchingSupplier?.supplier?.name) {
+      return matchingSupplier.supplier.name;
+    }
+  }
+  
+  // Otherwise, show the first supplier
+  if (product.suppliers[0]?.supplier?.name) {
+    return product.suppliers[0].supplier.name;
+  }
+  
+  return t('common.unknown');
 }
 
 // Quick add supplier
