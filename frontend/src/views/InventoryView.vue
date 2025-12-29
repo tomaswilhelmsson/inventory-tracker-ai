@@ -90,7 +90,17 @@
             </div>
           </template>
 
-          <Column field="productName" :header="t('inventory.table.product')" sortable />
+          <Column field="productName" :header="t('inventory.table.product')" sortable>
+            <template #body="{ data }">
+              <span 
+                class="product-name-link"
+                @click="openHistoryDialog(data)"
+                style="cursor: pointer; color: var(--primary-color); text-decoration: underline;"
+              >
+                {{ data.productName }}
+              </span>
+            </template>
+          </Column>
 
           <Column field="supplierName" :header="t('inventory.table.primarySupplier')" sortable>
             <template #body="{ data }">
@@ -229,6 +239,73 @@
         <Button :label="t('common.close')" @click="lotsDialogVisible = false" />
       </template>
     </Dialog>
+
+    <!-- Purchase History Dialog -->
+    <Dialog
+      v-model:visible="historyDialogVisible"
+      :header="t('products.history.title', { name: selectedProduct?.productName || '' })"
+      modal
+      :style="{ width: '900px' }"
+    >
+      <div v-if="loadingHistory" class="loading-container">
+        <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+      </div>
+      <div v-else-if="productHistory" class="history-container">
+        <!-- Current Inventory Summary -->
+        <div class="inventory-summary">
+          <h3>{{ t('products.history.currentInventory') }} - {{ t('products.history.asOfToday') }}</h3>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <label>{{ t('products.history.expectedQuantity') }}:</label>
+              <span class="value">{{ productHistory.currentQuantity || 0 }} {{ selectedProduct?.productUnit }}</span>
+            </div>
+            <div v-if="productHistory.lastYearEndCount" class="summary-item">
+              <label>{{ t('products.history.actualQuantity') }}:</label>
+              <span class="value">{{ productHistory.lastYearEndCount.countedQuantity || 0 }} {{ selectedProduct?.productUnit }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Purchase History Table -->
+        <div class="purchase-history">
+          <h3>{{ t('products.history.purchaseHistory') }}</h3>
+          <DataTable
+            v-if="productHistory.purchases && productHistory.purchases.length > 0"
+            :value="productHistory.purchases"
+            stripedRows
+            :rows="10"
+            paginator
+          >
+            <Column :header="t('products.history.purchaseDate')" style="width: 120px">
+              <template #body="{ data }">
+                {{ formatDate(data.purchaseDate) }}
+              </template>
+            </Column>
+            <Column field="year" :header="t('products.history.year')" style="width: 80px" />
+            <Column :header="t('products.history.supplier')">
+              <template #body="{ data }">
+                {{ JSON.parse(data.supplierSnapshot).name }}
+              </template>
+            </Column>
+            <Column field="quantity" :header="t('products.history.quantity')" style="width: 100px" />
+            <Column field="remainingQuantity" :header="t('products.history.remaining')" style="width: 100px" />
+            <Column :header="t('products.history.unitCost')" style="width: 120px">
+              <template #body="{ data }">
+                {{ formatCurrency(data.unitCostExclVAT || data.unitCost) }}
+              </template>
+            </Column>
+            <Column :header="t('products.history.totalCost')" style="width: 120px">
+              <template #body="{ data }">
+                {{ formatCurrency((data.unitCostExclVAT || data.unitCost) * data.quantity) }}
+              </template>
+            </Column>
+          </DataTable>
+          <div v-else class="no-data">
+            {{ t('products.history.noPurchases') }}
+          </div>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -289,6 +366,11 @@ const searchQuery = ref('');
 const showZeroQuantity = ref(false);
 const lotsDialogVisible = ref(false);
 const selectedProduct = ref<InventoryItem | null>(null);
+
+// Purchase History Dialog state
+const historyDialogVisible = ref(false);
+const loadingHistory = ref(false);
+const productHistory = ref<any>(null);
 
 // Computed: filtered inventory items
 const filteredInventoryItems = computed(() => {
@@ -414,6 +496,45 @@ const refreshInventory = () => {
 const viewLots = (item: InventoryItem) => {
   selectedProduct.value = item;
   lotsDialogVisible.value = true;
+};
+
+// Open purchase history dialog
+const openHistoryDialog = async (item: InventoryItem) => {
+  selectedProduct.value = item;
+  historyDialogVisible.value = true;
+  await fetchProductHistory(item.productId);
+};
+
+// Fetch product purchase history
+const fetchProductHistory = async (productId: number) => {
+  loadingHistory.value = true;
+  try {
+    const response = await api.get(`/products/${productId}`);
+    productHistory.value = {
+      currentQuantity: response.data.purchaseLots?.reduce((sum: number, lot: any) => sum + lot.remainingQuantity, 0) || 0,
+      purchases: response.data.purchaseLots || [],
+      lastYearEndCount: null, // Will be populated if we have year-end count data
+    };
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('products.history.loadFailed'),
+      life: 3000,
+    });
+    productHistory.value = null;
+  } finally {
+    loadingHistory.value = false;
+  }
+};
+
+// Format date helper
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 };
 
 // Visual feedback helpers for quantity status
@@ -590,5 +711,84 @@ onMounted(() => {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-color-secondary);
+}
+
+/* Purchase History Dialog Styles */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem;
+}
+
+.history-container {
+  padding: 0.5rem 0;
+}
+
+.inventory-summary {
+  background: var(--surface-50);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.inventory-summary h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.summary-grid .summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-grid .summary-item label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+  font-weight: 500;
+}
+
+.summary-grid .summary-item .value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.purchase-history {
+  margin-top: 1.5rem;
+}
+
+.purchase-history h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+}
+
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-color-secondary);
+  font-size: 0.95rem;
+}
+
+.product-name-link {
+  color: var(--primary-color);
+  cursor: pointer;
+  text-decoration: underline;
+  transition: opacity 0.2s;
+}
+
+.product-name-link:hover {
+  opacity: 0.8;
 }
 </style>
