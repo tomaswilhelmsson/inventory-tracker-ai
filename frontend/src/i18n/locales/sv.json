@@ -164,6 +164,11 @@
       "enableConfirm": "Är du säker på att du vill aktivera \"{name}\"?",
       "toggleFailed": "Misslyckades med att ändra produktstatus"
     },
+    "quickAdd": {
+      "createSuccess": "Produkt '{name}' skapades framgångsrikt",
+      "createFailed": "Misslyckades med att skapa produkt",
+      "requiredFields": "Vänligen fyll i alla obligatoriska fält"
+    },
     "history": {
       "title": "Inköpshistorik - {name}",
       "currentInventory": "Nuvarande lager",

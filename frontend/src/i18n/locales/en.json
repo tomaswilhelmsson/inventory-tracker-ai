@@ -164,6 +164,11 @@
       "enableConfirm": "Are you sure you want to enable \"{name}\"?",
       "toggleFailed": "Failed to toggle product status"
     },
+    "quickAdd": {
+      "createSuccess": "Product '{name}' created successfully",
+      "createFailed": "Failed to create product",
+      "requiredFields": "Please fill in all required fields"
+    },
     "history": {
       "title": "Purchase History - {name}",
       "currentInventory": "Current Inventory",

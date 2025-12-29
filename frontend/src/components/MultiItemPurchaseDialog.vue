@@ -163,25 +163,36 @@
         <DataTable :value="formData.items" class="line-items-table" scrollable scrollHeight="400px" :rowClass="getLineItemRowClass">
           <Column :header="$t('purchases.table.product')" style="min-width: 200px">
             <template #body="{ data, index }">
-              <Dropdown
-                v-model="data.productId"
-                :options="filteredProducts"
-                optionLabel="name"
-                optionValue="id"
-                :placeholder="$t('purchases.form.productPlaceholder')"
-                filter
-                :loading="loadingProducts"
-                @change="onProductSelect(index)"
-              >
-                <template #option="slotProps">
-                  <div class="product-option">
-                    <div>{{ slotProps.option.name }}</div>
-                    <small class="text-secondary">
-                      {{ $t('purchases.form.supplier') }}: {{ getProductSupplierName(slotProps.option) }}
-                    </small>
-                  </div>
-                </template>
-              </Dropdown>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <Dropdown
+                  v-model="data.productId"
+                  :options="filteredProducts"
+                  optionLabel="name"
+                  optionValue="id"
+                  :placeholder="$t('purchases.form.productPlaceholder')"
+                  filter
+                  :loading="loadingProducts"
+                  @change="onProductSelect(index)"
+                  style="flex: 1;"
+                >
+                  <template #option="slotProps">
+                    <div class="product-option">
+                      <div>{{ slotProps.option.name }}</div>
+                      <small class="text-secondary">
+                        {{ $t('purchases.form.supplier') }}: {{ getProductSupplierName(slotProps.option) }}
+                      </small>
+                    </div>
+                  </template>
+                </Dropdown>
+                <Button
+                  icon="pi pi-plus"
+                  size="small"
+                  text
+                  rounded
+                  @click="showQuickProductDialog(index)"
+                  v-tooltip.top="$t('products.addProduct')"
+                />
+              </div>
             </template>
           </Column>
 
@@ -379,6 +390,61 @@
       />
     </template>
   </Dialog>
+
+  <!-- Quick Add Product Dialog -->
+  <Dialog
+    v-model:visible="quickProductDialogVisible"
+    :header="$t('products.addProduct')"
+    modal
+    :style="{ width: '500px' }"
+  >
+    <div class="form-container">
+      <div class="field">
+        <label for="quickProductName">{{ $t('products.form.name') }} *</label>
+        <InputText
+          id="quickProductName"
+          v-model="quickProductForm.name"
+          :placeholder="$t('products.form.namePlaceholder')"
+          autofocus
+        />
+      </div>
+
+      <div class="field">
+        <label for="quickProductSupplier">{{ $t('products.form.supplier') }} *</label>
+        <Dropdown
+          id="quickProductSupplier"
+          v-model="quickProductForm.supplierId"
+          :options="suppliers"
+          optionLabel="name"
+          optionValue="id"
+          :placeholder="$t('products.form.supplierPlaceholder')"
+          filter
+        />
+      </div>
+
+      <div class="field">
+        <label for="quickProductUnit">{{ $t('products.form.unit') }} *</label>
+        <Dropdown
+          id="quickProductUnit"
+          v-model="quickProductForm.unitId"
+          :options="units"
+          optionLabel="name"
+          optionValue="id"
+          :placeholder="$t('products.form.unitPlaceholder')"
+          filter
+        />
+      </div>
+    </div>
+
+    <template #footer>
+      <Button :label="$t('common.cancel')" text @click="closeQuickProductDialog" />
+      <Button
+        :label="$t('common.create')"
+        :loading="savingQuickProduct"
+        @click="saveQuickProduct"
+      />
+    </template>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -417,6 +483,17 @@ const saving = ref(false);
 const quickSupplierDialogVisible = ref(false);
 const quickSupplierForm = ref({ name: '', contactPerson: '', email: '', phone: '' });
 const savingQuickAdd = ref(false);
+
+// Quick add product
+const quickProductDialogVisible = ref(false);
+const quickProductForm = ref({
+  name: '',
+  supplierId: null as number | null,
+  unitId: null as number | null,
+});
+const quickProductRowIndex = ref<number | null>(null);
+const savingQuickProduct = ref(false);
+const units = ref<any[]>([]);
 
 interface LineItem {
   productId: number | null;
@@ -872,6 +949,20 @@ async function loadProducts() {
   }
 }
 
+async function loadUnits() {
+  try {
+    const response = await api.get('/units');
+    units.value = response.data;
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: t('units.messages.loadFailed'),
+      life: 3000,
+    });
+  }
+}
+
 // Get supplier name for a product (prioritize selected supplier)
 function getProductSupplierName(product: any): string {
   if (!product.suppliers || product.suppliers.length === 0) {
@@ -939,10 +1030,79 @@ async function saveQuickSupplier() {
   }
 }
 
+// Quick add product functions
+function showQuickProductDialog(rowIndex: number) {
+  quickProductRowIndex.value = rowIndex;
+  quickProductForm.value = {
+    name: '',
+    supplierId: formData.value.supplierId, // Pre-fill supplier
+    unitId: null,
+  };
+  quickProductDialogVisible.value = true;
+}
+
+async function saveQuickProduct() {
+  // Validate required fields
+  if (!quickProductForm.value.name || !quickProductForm.value.supplierId || !quickProductForm.value.unitId) {
+    toast.add({
+      severity: 'warn',
+      summary: t('common.warning'),
+      detail: t('products.quickAdd.requiredFields'),
+      life: 3000,
+    });
+    return;
+  }
+
+  savingQuickProduct.value = true;
+  try {
+    const response = await api.post('/products', {
+      name: quickProductForm.value.name,
+      supplierId: quickProductForm.value.supplierId,
+      unitId: quickProductForm.value.unitId,
+    });
+    
+    await loadProducts();
+    
+    // Auto-select new product in the triggering row
+    if (quickProductRowIndex.value !== null) {
+      formData.value.items[quickProductRowIndex.value].productId = response.data.id;
+    }
+    
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('products.quickAdd.createSuccess', { name: response.data.name }),
+      life: 3000,
+    });
+    
+    closeQuickProductDialog();
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('products.quickAdd.createFailed'),
+      life: 3000,
+    });
+  } finally {
+    savingQuickProduct.value = false;
+  }
+}
+
+function closeQuickProductDialog() {
+  quickProductDialogVisible.value = false;
+  quickProductForm.value = {
+    name: '',
+    supplierId: null,
+    unitId: null,
+  };
+  quickProductRowIndex.value = null;
+}
+
 watch(visible, (newVal) => {
   if (newVal) {
     loadSuppliers();
     loadProducts();
+    loadUnits();
   }
 });
 
