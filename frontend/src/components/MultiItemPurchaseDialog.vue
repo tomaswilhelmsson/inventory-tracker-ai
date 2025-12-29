@@ -1057,7 +1057,7 @@ async function saveQuickProduct() {
   try {
     const response = await api.post('/products', {
       name: quickProductForm.value.name,
-      supplierId: quickProductForm.value.supplierId,
+      supplierIds: [quickProductForm.value.supplierId], // API expects array
       unitId: quickProductForm.value.unitId,
     });
     
