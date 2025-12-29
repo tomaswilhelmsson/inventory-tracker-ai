@@ -184,7 +184,7 @@ async function updateCountItem(item: any) {
 
   try {
     await api.put(`/year-end-count/${countSheet.value.id}/items/${item.productId}`, {
-      countedQuantity: Math.floor(quantity), // Ensure integer
+      countedQuantity: parseFloat(quantity.toFixed(2)), // Allow decimal quantities
     });
 
     // Refresh count sheet to get updated variance and value
@@ -693,7 +693,7 @@ onMounted(async () => {
                   v-tooltip.top="t('yearEndCount.tooltips.totalExpected')"
                 ></i>
               </label>
-              <span class="summary-value">{{ n(totalExpectedQuantity, 'integer') }}</span>
+              <span class="summary-value">{{ n(totalExpectedQuantity, 'quantity') }}</span>
             </div>
             <div class="summary-item">
               <label>
@@ -703,7 +703,7 @@ onMounted(async () => {
                   v-tooltip.top="t('yearEndCount.tooltips.totalCounted')"
                 ></i>
               </label>
-              <span class="summary-value">{{ n(totalCountedQuantity, 'integer') }}</span>
+              <span class="summary-value">{{ n(totalCountedQuantity, 'quantity') }}</span>
             </div>
             <div class="summary-item">
               <label>
@@ -717,7 +717,7 @@ onMounted(async () => {
                 class="summary-value" 
                 :class="totalVariance >= 0 ? 'text-success' : 'text-danger'"
               >
-                {{ totalVariance >= 0 ? '+' : '' }}{{ n(totalVariance, 'integer') }}
+                {{ totalVariance >= 0 ? '+' : '' }}{{ n(totalVariance, 'quantity') }}
               </span>
             </div>
             <div class="summary-item">
@@ -852,7 +852,7 @@ onMounted(async () => {
                 </div>
               </template>
               <template #body="{ data }">
-                <span class="expected-qty">{{ n(data.expectedQuantity, 'integer') }} {{ data.product?.unit?.name || t('units.names.pieces') }}</span>
+                <span class="expected-qty">{{ n(data.expectedQuantity, 'quantity') }} {{ data.product?.unit?.name || t('units.names.pieces') }}</span>
               </template>
             </Column>
 
@@ -871,6 +871,8 @@ onMounted(async () => {
                   v-model="data.countedQuantity"
                   @blur="updateCountItem(data)"
                   :min="0"
+                  :minFractionDigits="0"
+                  :maxFractionDigits="2"
                   :disabled="countSheet.status === 'confirmed'"
                   :class="{ 'uncounted': data.countedQuantity === null }"
                   :placeholder="t('yearEndCount.table.enterCount')"
@@ -891,7 +893,7 @@ onMounted(async () => {
               <template #body="{ data }">
                 <Tag 
                   v-if="data.variance !== null"
-                  :value="`${data.variance >= 0 ? '+' : ''}${n(data.variance, 'integer')} ${data.product?.unit?.name || t('units.names.pieces')}`"
+                  :value="`${data.variance >= 0 ? '+' : ''}${n(data.variance, 'quantity')} ${data.product?.unit?.name || t('units.names.pieces')}`"
                   :severity="getVarianceSeverity(data.variance)"
                   :icon="`pi ${getVarianceIcon(data.variance)}`"
                 />
@@ -941,8 +943,8 @@ onMounted(async () => {
 
         <div v-if="reportData" class="summary">
           <h3>{{ t('yearEndCount.confirmDialog.summary') }}:</h3>
-          <p><strong>{{ t('yearEndCount.confirmDialog.totalExpected') }}:</strong> {{ n(reportData.totalExpected, 'integer') }}</p>
-          <p><strong>{{ t('yearEndCount.confirmDialog.totalCounted') }}:</strong> {{ n(reportData.totalCounted, 'integer') }}</p>
+          <p><strong>{{ t('yearEndCount.confirmDialog.totalExpected') }}:</strong> {{ n(reportData.totalExpected, 'quantity') }}</p>
+          <p><strong>{{ t('yearEndCount.confirmDialog.totalCounted') }}:</strong> {{ n(reportData.totalCounted, 'quantity') }}</p>
           <p><strong>{{ t('yearEndCount.confirmDialog.totalVariance') }}:</strong> {{ reportData.totalVariance }}</p>
           <p><strong>{{ t('yearEndCount.confirmDialog.totalValue') }}:</strong> {{ formatCurrency(reportData.totalValue) }}</p>
         </div>
@@ -979,16 +981,16 @@ onMounted(async () => {
           <div class="summary-grid">
             <div class="summary-item">
               <label>{{ t('yearEndCount.reportDialog.totalExpected') }}:</label>
-              <span>{{ n(reportData.totalExpected, 'integer') }}</span>
+              <span>{{ n(reportData.totalExpected, 'quantity') }}</span>
             </div>
             <div class="summary-item">
               <label>{{ t('yearEndCount.reportDialog.totalCounted') }}:</label>
-              <span>{{ n(reportData.totalCounted, 'integer') }}</span>
+              <span>{{ n(reportData.totalCounted, 'quantity') }}</span>
             </div>
             <div class="summary-item">
               <label>{{ t('yearEndCount.reportDialog.totalVariance') }}:</label>
               <span :class="reportData.totalVariance >= 0 ? 'text-success' : 'text-danger'">
-                {{ reportData.totalVariance >= 0 ? '+' : '' }}{{ n(reportData.totalVariance, 'integer') }}
+                {{ reportData.totalVariance >= 0 ? '+' : '' }}{{ n(reportData.totalVariance, 'quantity') }}
               </span>
             </div>
             <div class="summary-item">
@@ -1005,7 +1007,7 @@ onMounted(async () => {
           <Column field="variance" :header="t('yearEndCount.reportDialog.variance')" sortable>
             <template #body="{ data }">
               <span v-if="data.variance !== null" :class="data.variance >= 0 ? 'text-success' : 'text-danger'">
-                {{ data.variance >= 0 ? '+' : '' }}{{ n(data.variance, 'integer') }}
+                {{ data.variance >= 0 ? '+' : '' }}{{ n(data.variance, 'quantity') }}
               </span>
               <span v-else class="text-muted">-</span>
             </template>

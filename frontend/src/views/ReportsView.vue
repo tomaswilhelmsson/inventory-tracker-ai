@@ -50,6 +50,9 @@
                 v-model="purchaseReportDates.from"
                 dateFormat="yy-mm-dd"
                 showIcon
+                :manualInput="true"
+                placeholder="YYYY-MM-DD"
+                @input="handleFromDateInput"
               />
             </div>
             <div class="date-field">
@@ -58,6 +61,9 @@
                 v-model="purchaseReportDates.to"
                 dateFormat="yy-mm-dd"
                 showIcon
+                :manualInput="true"
+                placeholder="YYYY-MM-DD"
+                @input="handleToDateInput"
               />
             </div>
           </div>
@@ -153,7 +159,7 @@
           </div>
           <div class="summary-item">
             <strong>{{ t('reports.totalUnits') }}:</strong>
-            <span>{{ n(inventoryReportData.totalUnits, 'integer') }}</span>
+            <span>{{ n(inventoryReportData.totalUnits, 'quantity') }}</span>
           </div>
         </div>
 
@@ -168,7 +174,7 @@
           <Column field="supplierName" :header="t('reports.supplier')" sortable />
           <Column field="quantity" :header="t('reports.quantity')" sortable>
             <template #body="{ data }">
-              {{ n(data.quantity, 'integer') }}
+              {{ n(data.quantity, 'quantity') }}
             </template>
           </Column>
           <Column field="averageUnitCost" :header="t('reports.avgUnitCost')" sortable>
@@ -215,7 +221,7 @@
           <Column field="currentInventory" :header="t('reports.currentInventory')" sortable>
             <template #body="{ data }">
               <Tag
-                :value="n(data.currentInventory, 'integer')"
+                :value="n(data.currentInventory, 'quantity')"
                 :severity="data.currentInventory > 0 ? 'success' : 'danger'"
               />
             </template>
@@ -258,7 +264,7 @@
           <div class="summary-item">
             <strong>{{ t('reports.totalVariance') }}:</strong>
             <span :class="getTotalVariance() >= 0 ? 'text-success' : 'text-danger'">
-              {{ getTotalVariance() >= 0 ? '+' : '' }}{{ n(getTotalVariance(), 'integer') }}
+              {{ getTotalVariance() >= 0 ? '+' : '' }}{{ n(getTotalVariance(), 'quantity') }}
             </span>
           </div>
         </div>
@@ -274,13 +280,13 @@
           
           <Column field="expectedQuantity" :header="t('reports.expected')" sortable>
             <template #body="{ data }">
-              {{ n(data.expectedQuantity, 'integer') }}
+              {{ n(data.expectedQuantity, 'quantity') }}
             </template>
           </Column>
 
           <Column field="countedQuantity" :header="t('reports.counted')" sortable>
             <template #body="{ data }">
-              {{ data.countedQuantity ? n(data.countedQuantity, 'integer') : '—' }}
+              {{ data.countedQuantity ? n(data.countedQuantity, 'quantity') : '—' }}
             </template>
           </Column>
 
@@ -359,6 +365,36 @@ const purchaseReportDates = ref({
   from: null as Date | null,
   to: null as Date | null,
 });
+
+// Handle manual date input for "from" date
+const handleFromDateInput = (event: any) => {
+  const value = event.target?.value;
+  if (value && typeof value === 'string') {
+    const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (!isNaN(date.getTime())) {
+        purchaseReportDates.value.from = date;
+      }
+    }
+  }
+};
+
+// Handle manual date input for "to" date
+const handleToDateInput = (event: any) => {
+  const value = event.target?.value;
+  if (value && typeof value === 'string') {
+    const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (!isNaN(date.getTime())) {
+        purchaseReportDates.value.to = date;
+      }
+    }
+  }
+};
 
 const selectedYearForReport = ref<number | null>(null);
 const availableYears = ref<number[]>([]);

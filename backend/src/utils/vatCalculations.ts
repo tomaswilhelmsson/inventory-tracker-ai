@@ -64,6 +64,7 @@ export function calculateVATAmount(exclVAT: number, vatRate: number): number {
  * @param vatRate - VAT rate as decimal
  * @param enteredTotal - Invoice total entered by user
  * @param pricesIncludeVAT - Whether line item prices include VAT
+ * @param shippingIncludesVAT - Whether shipping cost includes VAT (default true)
  * @param tolerance - Acceptable difference (default $0.01)
  * @returns Object with isValid flag and calculated total
  */
@@ -73,6 +74,7 @@ export function validateInvoiceTotal(
   vatRate: number,
   enteredTotal: number,
   pricesIncludeVAT: boolean,
+  shippingIncludesVAT: boolean = true,
   tolerance: number = 0.01
 ): { isValid: boolean; calculatedTotal: number; difference: number } {
   // Calculate subtotal based on entry mode
@@ -89,8 +91,12 @@ export function validateInvoiceTotal(
     }
   }
   
-  // Add shipping (assuming shipping is part of the taxable base)
-  const totalExclVAT = subtotalExclVAT + shippingCost;
+  // Add shipping (convert to excl VAT if needed)
+  let shippingExclVAT = shippingCost;
+  if (shippingIncludesVAT) {
+    shippingExclVAT = calculateExclVAT(shippingCost, vatRate);
+  }
+  const totalExclVAT = subtotalExclVAT + shippingExclVAT;
   
   // Calculate total incl VAT
   const calculatedTotal = calculateInclVAT(totalExclVAT, vatRate);

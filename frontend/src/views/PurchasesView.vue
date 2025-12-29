@@ -103,14 +103,14 @@
 
           <Column field="quantity" :header="t('purchases.table.quantity')" sortable style="width: 150px">
             <template #body="{ data }">
-              <span class="quantity-badge">{{ n(data.quantity, 'integer') }} {{ data.productSnapshot?.unit?.name || data.product?.unit?.name || t('units.names.pieces') }}</span>
+              <span class="quantity-badge">{{ n(data.quantity, 'quantity') }} {{ data.productSnapshot?.unit?.name || data.product?.unit?.name || t('units.names.pieces') }}</span>
             </template>
           </Column>
 
           <Column field="remainingQuantity" :header="t('purchases.table.remaining')" sortable style="width: 150px">
             <template #body="{ data }">
               <Tag
-                :value="`${n(data.remainingQuantity, 'integer')} ${data.productSnapshot?.unit?.name || data.product?.unit?.name || t('units.names.pieces')}`"
+                :value="`${n(data.remainingQuantity, 'quantity')} ${data.productSnapshot?.unit?.name || data.product?.unit?.name || t('units.names.pieces')}`"
                 :severity="data.remainingQuantity > 0 ? 'success' : 'secondary'"
               />
             </template>
@@ -128,7 +128,7 @@
             </template>
           </Column>
 
-          <Column :header="t('common.actions')" style="width: 150px">
+          <Column :header="t('common.actions')" style="width: 180px">
             <template #body="{ data }">
               <div class="action-buttons">
                 <Button
@@ -139,6 +139,15 @@
                   @click="openEditDialog(data)"
                   :disabled="isYearLocked(data.year)"
                   v-tooltip.top="isYearLocked(data.year) ? t('purchases.yearLocked') : t('common.edit')"
+                />
+                <Button
+                  icon="pi pi-refresh"
+                  size="small"
+                  text
+                  rounded
+                  @click="refreshSnapshot(data)"
+                  :disabled="isYearLocked(data.year)"
+                  v-tooltip.top="isYearLocked(data.year) ? t('purchases.yearLocked') : t('purchases.refreshSnapshot')"
                 />
                 <Button
                   icon="pi pi-trash"
@@ -248,7 +257,11 @@
               :class="{ 'p-invalid': formErrors.purchaseDate }"
               dateFormat="yy-mm-dd"
               showIcon
+              :manualInput="true"
+              placeholder="YYYY-MM-DD"
               @date-select="onDateChange"
+              @update:modelValue="onDateChange"
+              @input="handleDateInput"
             />
             <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
             <Message v-if="yearLockWarning" severity="warn" :closable="false" class="year-warning">
@@ -798,6 +811,23 @@ const onDateChange = () => {
   formErrors.value.purchaseDate = undefined;
 };
 
+// Handle manual date input
+const handleDateInput = (event: any) => {
+  const value = event.target?.value;
+  if (value && typeof value === 'string') {
+    // Check if it matches YYYY-MM-DD format
+    const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (!isNaN(date.getTime())) {
+        formData.value.purchaseDate = date;
+        onDateChange();
+      }
+    }
+  }
+};
+
 // Open create dialog
 const openCreateDialog = async () => {
   if (products.value.length === 0) {
@@ -898,7 +928,8 @@ const savePurchase = async () => {
     const payload = {
       productId: formData.value.productId,
       supplierId: formData.value.supplierId,
-      purchaseDate: formData.value.purchaseDate!.toISOString().split('T')[0],
+      // Format date preserving local date (not UTC) to avoid timezone shifts
+      purchaseDate: `${formData.value.purchaseDate!.getFullYear()}-${String(formData.value.purchaseDate!.getMonth() + 1).padStart(2, '0')}-${String(formData.value.purchaseDate!.getDate()).padStart(2, '0')}`,
       quantity: formData.value.quantity,
       unitCost: formData.value.unitCost,
       verificationNumber: formData.value.verificationNumber || undefined,
@@ -926,8 +957,8 @@ const savePurchase = async () => {
       });
     }
 
-    dialogVisible.value = false;
     await fetchPurchases();
+    dialogVisible.value = false;
   } catch (error: any) {
     toast.add({
       severity: 'error',
@@ -941,6 +972,37 @@ const savePurchase = async () => {
 };
 
 // Confirm delete
+// Refresh product/supplier snapshot from current data
+const refreshSnapshot = async (purchase: Purchase) => {
+  if (isYearLocked(purchase.year)) {
+    toast.add({
+      severity: 'warn',
+      summary: t('common.warning'),
+      detail: t('purchases.messages.cannotRefreshLockedYear', { year: purchase.year }),
+      life: 5000,
+    });
+    return;
+  }
+
+  try {
+    await api.patch(`/purchases/${purchase.id}/refresh-snapshot`);
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('purchases.messages.refreshSuccess'),
+      life: 3000,
+    });
+    await fetchPurchases();
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('purchases.messages.refreshFailed'),
+      life: 5000,
+    });
+  }
+};
+
 const confirmDelete = (purchase: Purchase) => {
   if (isYearLocked(purchase.year)) {
     toast.add({
@@ -1001,12 +1063,7 @@ const resetForm = () => {
 const onBatchCreated = async () => {
   await fetchPurchases();
   multiItemDialogVisible.value = false;
-  toast.add({
-    severity: 'success',
-    summary: t('common.success'),
-    detail: t('purchases.multiItem.createSuccess'),
-    life: 3000,
-  });
+  // Toast is already shown by MultiItemPurchaseDialog
 };
 
 // Filter purchases by batch ID

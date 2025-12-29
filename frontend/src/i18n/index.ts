@@ -62,6 +62,11 @@ const numberFormats = {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     },
+    quantity: {
+      style: 'decimal' as const,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    },
   },
   sv: {
     currency: {
@@ -78,6 +83,11 @@ const numberFormats = {
       style: 'decimal' as const,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
+    },
+    quantity: {
+      style: 'decimal' as const,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
     },
   },
 };

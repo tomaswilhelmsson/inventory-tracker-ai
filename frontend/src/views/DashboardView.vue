@@ -49,7 +49,7 @@ onMounted(() => {
       <Card>
         <template #title>{{ t('inventory.totalUnits') }}</template>
         <template #content>
-          <div class="stat-value">{{ n(inventoryData.totalQuantity, 'integer') }}</div>
+          <div class="stat-value">{{ n(inventoryData.totalQuantity, 'quantity') }}</div>
         </template>
       </Card>
 
@@ -73,7 +73,7 @@ onMounted(() => {
             >
               <div class="product-name">{{ product.productName }}</div>
               <div class="product-stats">
-                <span>{{ t('inventory.table.totalQuantity') }}: {{ n(product.quantity, 'integer') }} {{ product.unit?.name || t('units.names.pieces') }}</span>
+                <span>{{ t('inventory.table.totalQuantity') }}: {{ n(product.quantity, 'quantity') }} {{ product.unit?.name || t('units.names.pieces') }}</span>
                 <span>{{ t('inventory.table.totalValue') }}: {{ formatCurrency(product.value) }}</span>
               </div>
             </div>

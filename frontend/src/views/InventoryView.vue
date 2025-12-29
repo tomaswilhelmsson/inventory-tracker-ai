@@ -48,7 +48,7 @@
             </div>
             <div class="summary-details">
               <div class="summary-label">{{ t('inventory.totalUnits') }}</div>
-              <div class="summary-value">{{ n(totalUnits, 'integer') }}</div>
+              <div class="summary-value">{{ n(totalUnits, 'quantity') }}</div>
             </div>
           </div>
         </template>
@@ -111,7 +111,7 @@
           <Column field="totalQuantity" :header="t('inventory.table.totalQuantity')" sortable style="width: 180px">
             <template #body="{ data }">
               <Tag
-                :value="`${n(data.totalQuantity, 'integer')} ${data.productUnit}`"
+                :value="`${n(data.totalQuantity, 'quantity')} ${data.productUnit}`"
                 :severity="getQuantitySeverity(data.totalQuantity)"
                 :icon="getQuantityIcon(data.totalQuantity)"
               />
@@ -172,7 +172,7 @@
             <strong>{{ t('inventory.lotsDialog.supplier') }}:</strong> {{ selectedProduct.supplierName }}
           </div>
           <div class="summary-item">
-            <strong>{{ t('inventory.lotsDialog.totalQuantity') }}:</strong> {{ n(selectedProduct.totalQuantity, 'integer') }} {{ selectedProduct.productUnit }}
+            <strong>{{ t('inventory.lotsDialog.totalQuantity') }}:</strong> {{ n(selectedProduct.totalQuantity, 'quantity') }} {{ selectedProduct.productUnit }}
           </div>
           <div class="summary-item">
             <strong>{{ t('inventory.lotsDialog.avgUnitCost') }}:</strong> {{ formatCurrency(selectedProduct.averageUnitCost) }}
@@ -198,14 +198,14 @@
 
           <Column field="quantity" :header="t('inventory.lotsDialog.originalQty')">
             <template #body="{ data }">
-              {{ n(data.quantity, 'integer') }}
+              {{ n(data.quantity, 'quantity') }}
             </template>
           </Column>
 
           <Column field="remainingQuantity" :header="t('inventory.lotsDialog.remainingQty')">
             <template #body="{ data }">
               <Tag
-                :value="n(data.remainingQuantity, 'integer')"
+                :value="n(data.remainingQuantity, 'quantity')"
                 :severity="data.remainingQuantity > 0 ? 'success' : 'secondary'"
               />
             </template>
@@ -429,7 +429,8 @@ const fetchInventory = async () => {
           if (product.suppliers.length === 1) {
             supplierName = product.suppliers[0].supplier.name;
           } else {
-            supplierName = `${t('common.multiple')} (${product.suppliers.length})`;
+            // Show all supplier names, comma-separated
+            supplierName = product.suppliers.map(s => s.supplier.name).join(', ');
           }
         }
         
@@ -453,7 +454,8 @@ const fetchInventory = async () => {
           if (product.suppliers.length === 1) {
             supplierName = product.suppliers[0].supplier.name;
           } else {
-            supplierName = `${t('common.multiple')} (${product.suppliers.length})`;
+            // Show all supplier names, comma-separated
+            supplierName = product.suppliers.map(s => s.supplier.name).join(', ');
           }
         }
         

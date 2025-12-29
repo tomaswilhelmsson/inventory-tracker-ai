@@ -80,7 +80,7 @@ router.post(
     body('productId').isInt().withMessage('Valid product ID is required'),
     body('supplierId').isInt().withMessage('Valid supplier ID is required'),
     body('purchaseDate').isISO8601().withMessage('Valid purchase date is required'),
-    body('quantity').isInt({ gt: 0 }).withMessage('Quantity must be greater than 0'),
+    body('quantity').isFloat({ gt: 0 }).withMessage('Quantity must be greater than 0'),
     body('unitCost').isFloat({ gt: 0 }).withMessage('Unit cost must be greater than 0'),
   ],
   validateRequest,
@@ -103,7 +103,7 @@ router.put(
   [
     param('id').isInt().withMessage('Invalid purchase lot ID'),
     body('purchaseDate').optional().isISO8601().withMessage('Valid purchase date is required'),
-    body('quantity').optional().isInt({ gt: 0 }).withMessage('Quantity must be greater than 0'),
+    body('quantity').optional().isFloat({ gt: 0 }).withMessage('Quantity must be greater than 0'),
     body('unitCost').optional().isFloat({ gt: 0 }).withMessage('Unit cost must be greater than 0'),
   ],
   validateRequest,
@@ -124,6 +124,22 @@ router.put(
 
       const purchase = await purchaseService.update(id, updateData);
       res.json(purchase);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PATCH /api/purchases/:id/refresh-snapshot - Refresh product/supplier snapshot from current data
+router.patch(
+  '/:id/refresh-snapshot',
+  [param('id').isInt().withMessage('Invalid purchase lot ID')],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await purchaseService.refreshSnapshot(id);
+      res.json(result);
     } catch (error) {
       next(error);
     }
@@ -155,19 +171,20 @@ router.post(
     body('invoiceTotal').isFloat({ gt: 0 }).withMessage('Invoice total is required and must be > 0'),
     body('verificationNumber').optional().isString().trim().isLength({ max: 100 }),
     body('shippingCost').isFloat({ min: 0 }).withMessage('Shipping cost must be >= 0'),
+    body('shippingIncludesVAT').optional().isBoolean().withMessage('shippingIncludesVAT must be boolean'),
     body('vatRate').optional().isFloat({ min: 0, max: 1 }).withMessage('VAT rate must be between 0 and 1'),
     body('pricesIncludeVAT').optional().isBoolean().withMessage('pricesIncludeVAT must be boolean'),
     body('notes').optional().isString().trim().isLength({ max: 1000 }),
     body('items').isArray({ min: 1 }).withMessage('At least 1 item is required'),
     body('items.*.productId').isInt().withMessage('Valid product ID is required'),
-    body('items.*.quantity').isInt({ gt: 0 }).withMessage('Quantity must be > 0'),
+    body('items.*.quantity').isFloat({ gt: 0 }).withMessage('Quantity must be > 0'),
     body('items.*.unitCost').optional().isFloat({ gt: 0 }).withMessage('Unit cost must be > 0'),
     body('items.*.totalCost').optional().isFloat({ gt: 0 }).withMessage('Total cost must be > 0'),
   ],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const { supplierId, purchaseDate, invoiceTotal, verificationNumber, shippingCost, vatRate, pricesIncludeVAT, notes, items } = req.body;
+      const { supplierId, purchaseDate, invoiceTotal, verificationNumber, shippingCost, shippingIncludesVAT, vatRate, pricesIncludeVAT, notes, items } = req.body;
 
       const result = await purchaseService.createBatch({
         supplierId,
@@ -175,6 +192,7 @@ router.post(
         invoiceTotal,
         verificationNumber,
         shippingCost,
+        shippingIncludesVAT,
         vatRate,
         pricesIncludeVAT,
         notes,

@@ -318,9 +318,110 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
       updateData.year = newYear;
     }
 
+    // Since year is unlocked, refresh product and supplier snapshots to reflect current data
+    // This allows fixing typos and updating product/supplier information
+    const product = await dbClient.product.findUnique({
+      where: { id: lot.productId! },
+      include: { unit: true },
+    });
+    
+    const supplier = await dbClient.supplier.findUnique({
+      where: { id: lot.supplierId! },
+    });
+
+    if (product) {
+      updateData.productSnapshot = JSON.stringify({
+        id: product.id,
+        name: product.name,
+        unit: product.unit ? { id: product.unit.id, name: product.unit.name } : null,
+      });
+    }
+
+    if (supplier) {
+      updateData.supplierSnapshot = JSON.stringify({
+        id: supplier.id,
+        name: supplier.name,
+      });
+    }
+
     const updatedLot = await dbClient.purchaseLot.update({
       where: { id },
       data: updateData,
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Return with parsed snapshots
+    return {
+      ...updatedLot,
+      productSnapshot: JSON.parse(updatedLot.productSnapshot),
+      supplierSnapshot: JSON.parse(updatedLot.supplierSnapshot),
+    };
+  },
+
+  // Refresh product and supplier snapshot from current data (only if year is unlocked)
+  async refreshSnapshot(id: number) {
+    // Get existing lot
+    const lot = await dbClient.purchaseLot.findUnique({ where: { id } });
+    if (!lot) {
+      throw new AppError(404, 'Purchase lot not found');
+    }
+
+    // Check if year is locked - can't refresh locked years
+    const yearLocked = await this.isYearLocked(lot.year);
+    if (yearLocked) {
+      throw new AppError(400, `Cannot refresh snapshot for locked year ${lot.year}`);
+    }
+
+    // Fetch current product and supplier data
+    const product = await dbClient.product.findUnique({
+      where: { id: lot.productId! },
+      include: { unit: true },
+    });
+    
+    const supplier = await dbClient.supplier.findUnique({
+      where: { id: lot.supplierId! },
+    });
+
+    if (!product) {
+      throw new AppError(404, 'Product not found');
+    }
+
+    if (!supplier) {
+      throw new AppError(404, 'Supplier not found');
+    }
+
+    // Create new snapshots
+    const productSnapshot = JSON.stringify({
+      id: product.id,
+      name: product.name,
+      unit: product.unit ? { id: product.unit.id, name: product.unit.name } : null,
+    });
+
+    const supplierSnapshot = JSON.stringify({
+      id: supplier.id,
+      name: supplier.name,
+    });
+
+    // Update the lot with new snapshots
+    const updatedLot = await dbClient.purchaseLot.update({
+      where: { id },
+      data: {
+        productSnapshot,
+        supplierSnapshot,
+      },
       include: {
         product: {
           select: {
@@ -432,6 +533,7 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
     verificationNumber?: string;
     invoiceTotal: number; // Grand total from invoice (always incl VAT)
     shippingCost: number;
+    shippingIncludesVAT?: boolean; // Whether shipping cost includes VAT (default true)
     notes?: string;
     vatRate?: number; // VAT rate for batch (defaults to config)
     pricesIncludeVAT?: boolean; // Whether line item prices include VAT (default true)
@@ -561,13 +663,19 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
       0
     );
     
+    // Calculate shipping cost excl VAT
+    const shippingIncludesVAT = data.shippingIncludesVAT ?? true; // Default to true
+    const shippingExclVAT = shippingIncludesVAT 
+      ? calculateExclVAT(data.shippingCost, vatRate) 
+      : data.shippingCost;
+
     // Calculate shipping allocation per item (based on excl VAT amounts)
     const shippingAllocations = allocateShipping(
       processedItems.map(item => ({ 
         quantity: item.quantity, 
         unitCostExclVAT: item.unitCostExclVAT 
       })),
-      data.shippingCost
+      shippingExclVAT
     );
 
     // Validate invoice total matches calculated total
@@ -579,7 +687,8 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
       data.shippingCost,
       vatRate,
       data.invoiceTotal,
-      pricesIncludeVAT
+      pricesIncludeVAT,
+      shippingIncludesVAT
     );
     
     if (!validation.isValid) {
@@ -593,8 +702,8 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
     const result = await dbClient.$transaction(async (tx) => {
       // Create purchase batch
       // Invoice total from user (always incl VAT)
-      // Calculate excl VAT total from line items + shipping
-      const totalExclVAT = lineItemsTotalExclVAT + data.shippingCost;
+      // Calculate excl VAT total from line items + shipping (already calculated above)
+      const totalExclVAT = lineItemsTotalExclVAT + shippingExclVAT;
       const totalInclVAT = calculateInclVAT(totalExclVAT, vatRate);
       
       const batch = await tx.purchaseBatch.create({

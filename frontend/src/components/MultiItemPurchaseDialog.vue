@@ -47,6 +47,8 @@
               :class="{ 'p-invalid': formErrors.purchaseDate }"
               dateFormat="yy-mm-dd"
               showIcon
+              :manualInput="true"
+              @input="handleDateInput"
             />
             <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
           </div>
@@ -196,6 +198,14 @@
                   v-tooltip.top="$t('products.addProduct')"
                 />
               </div>
+            </template>
+          </Column>
+
+          <Column :header="$t('products.form.unit')" style="min-width: 100px">
+            <template #body="{ data }">
+              <span v-if="data.productId" class="unit-display">
+                {{ getProductUnit(data.productId) }}
+              </span>
             </template>
           </Column>
 
@@ -714,6 +724,21 @@ function onSupplierChange() {
   supplierMismatchError.value = '';
 }
 
+// Handle manual date input to fix parsing issues
+function handleDateInput(event: any) {
+  const value = event.target?.value;
+  if (value && typeof value === 'string') {
+    const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (!isNaN(date.getTime())) {
+        formData.value.purchaseDate = date;
+      }
+    }
+  }
+}
+
 function onProductSelect(index: number) {
   const item = formData.value.items[index];
   const product = products.value.find(p => p.id === item.productId);
@@ -748,10 +773,9 @@ function onQuantityChange(index: number) {
   if (item.unitCost) {
     // User entered unit cost, clear total cost
     item.totalCost = null;
-  } else if (item.totalCost) {
-    // User entered total cost, recalculate unit cost
-    item.unitCost = item.totalCost / item.quantity;
   }
+  // If totalCost is set, keep it as is (don't calculate unitCost)
+  // The backend will calculate unitCost from totalCost
   
   recalculateTotals();
 }
@@ -765,13 +789,9 @@ function onUnitCostChange(index: number) {
 function onTotalCostChange(index: number) {
   const item = formData.value.items[index];
   
-  // Calculate unit cost from total cost if quantity is available
-  if (item.totalCost && item.quantity && item.quantity > 0) {
-    item.unitCost = item.totalCost / item.quantity;
-  } else {
-    // Can't calculate unit cost yet, will be calculated when quantity is entered
-    item.unitCost = null;
-  }
+  // Clear unit cost when user enters total cost
+  // The backend will calculate unitCost from totalCost
+  item.unitCost = null;
   
   recalculateTotals();
 }
@@ -863,18 +883,24 @@ async function saveBatch() {
   try {
     const payload = {
       supplierId: formData.value.supplierId,
-      purchaseDate: formData.value.purchaseDate.toISOString(),
+      // Format date preserving local date (not UTC) to avoid timezone shifts
+      purchaseDate: `${formData.value.purchaseDate.getFullYear()}-${String(formData.value.purchaseDate.getMonth() + 1).padStart(2, '0')}-${String(formData.value.purchaseDate.getDate()).padStart(2, '0')}`,
       invoiceTotal: formData.value.invoiceTotal,
       verificationNumber: formData.value.verificationNumber || undefined,
       shippingCost: formData.value.shippingCost || 0,
+      shippingIncludesVAT: formData.value.shippingIncludesVAT,
       vatRate: formData.value.vatRate ? formData.value.vatRate / 100 : 0, // Convert percentage to decimal
       pricesIncludeVAT: formData.value.pricesIncludeVAT,
       notes: formData.value.notes || undefined,
       items: formData.value.items.map(item => ({
         productId: item.productId,
         quantity: item.quantity,
-        unitCost: item.unitCost !== null ? item.unitCost : undefined,
-        totalCost: item.totalCost !== null ? item.totalCost : undefined,
+        // Send only totalCost if it was entered by user, otherwise send unitCost
+        // (Backend expects one or the other, not both)
+        ...(item.totalCost !== null 
+          ? { totalCost: item.totalCost }
+          : { unitCost: item.unitCost }
+        ),
       })),
     };
 
@@ -992,6 +1018,15 @@ function getProductSupplierName(product: any): string {
   }
   
   return t('common.unknown');
+}
+
+// Get product unit name
+function getProductUnit(productId: number): string {
+  const product = products.value.find(p => p.id === productId);
+  if (!product?.unit?.name) {
+    return t('units.names.pieces'); // Default fallback
+  }
+  return product.unit.name;
 }
 
 // Quick add supplier
@@ -1197,6 +1232,16 @@ defineExpose({ resetForm });
 
 .final-cost {
   color: var(--primary-color);
+}
+
+.unit-display {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: var(--surface-100);
+  border-radius: 4px;
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .summary-section {

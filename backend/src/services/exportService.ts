@@ -75,9 +75,13 @@ export const exportService = {
         .text(`Year-End Inventory Count - ${countSheet.year}`, { align: 'center' })
         .moveDown();
 
+      // Format date as YYYY-MM-DD
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
       doc
         .fontSize(12)
-        .text(`Date: ${new Date().toLocaleDateString()}`, { align: 'center' })
+        .text(`Date: ${dateStr}`, { align: 'center' })
         .text(`Total Products: ${countSheet.items.length}`, { align: 'center' })
         .moveDown(2);
 
@@ -137,7 +141,11 @@ export const exportService = {
         x += colWidths.supplier;
         doc.text(item.expectedQuantity.toString(), x, y, { width: colWidths.expected });
         x += colWidths.expected;
-        doc.text('_________', x, y, { width: colWidths.actual }); // Line for manual entry
+        // Show counted quantity if available, otherwise blank line for manual entry
+        const actualText = item.countedQuantity !== null && item.countedQuantity !== undefined
+          ? item.countedQuantity.toString()
+          : '_________';
+        doc.text(actualText, x, y, { width: colWidths.actual });
 
         y += rowHeight;
       }
