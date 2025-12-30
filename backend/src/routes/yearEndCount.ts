@@ -91,7 +91,7 @@ router.get(
 // GET /api/year-end-count/:year - Get year-end count by year (with optional revision)
 router.get(
   '/:year',
-  [param('year').isInt().withMessage('Valid year is required')],
+  [param('year').isInt({ min: 2000, max: 2100 }).withMessage('Valid year is required')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -108,7 +108,7 @@ router.get(
 // GET /api/year-end-count/:year/revisions - Get all revisions for a year
 router.get(
   '/:year/revisions',
-  [param('year').isInt().withMessage('Valid year is required')],
+  [param('year').isInt({ min: 2000, max: 2100 }).withMessage('Valid year is required')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -125,7 +125,7 @@ router.get(
 router.get(
   '/:year/compare',
   [
-    param('year').isInt().withMessage('Valid year is required'),
+    param('year').isInt({ min: 2000, max: 2100 }).withMessage('Valid year is required'),
     query('revision1').isInt({ min: 1 }).withMessage('revision1 must be a positive integer'),
     query('revision2').isInt({ min: 1 }).withMessage('revision2 must be a positive integer'),
   ],
@@ -147,7 +147,7 @@ router.get(
 // GET /api/year-end-count/:year/unlock-history - Get unlock history for a year
 router.get(
   '/:year/unlock-history',
-  [param('year').isInt().withMessage('Valid year is required')],
+  [param('year').isInt({ min: 2000, max: 2100 }).withMessage('Valid year is required')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -164,7 +164,7 @@ router.get(
 router.post(
   '/:year/unlock',
   [
-    param('year').isInt().withMessage('Valid year is required'),
+    param('year').isInt({ min: 2000, max: 2100 }).withMessage('Valid year is required'),
     body('reasonCategory').isIn(['data_error', 'recount_required', 'audit_adjustment', 'other'])
       .withMessage('Valid reason category is required'),
     body('description').isString().trim().isLength({ min: 1 })
@@ -186,7 +186,7 @@ router.post(
 // GET /api/year-end-count/:id/sheet - Get count sheet
 router.get(
   '/:id/sheet',
-  [param('id').isInt().withMessage('Valid count ID is required')],
+  [param('id').isInt().withMessage('Invalid count ID')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -203,9 +203,9 @@ router.get(
 router.put(
   '/:id/items/:productId',
   [
-    param('id').isInt().withMessage('Valid count ID is required'),
-    param('productId').isInt().withMessage('Valid product ID is required'),
-    body('countedQuantity').isInt({ min: 0 }).withMessage('Counted quantity must be >= 0'),
+    param('id').isInt().withMessage('Invalid count ID'),
+    param('productId').isInt().withMessage('Invalid product ID'),
+    body('countedQuantity').isFloat({ min: 0 }).withMessage('Counted quantity must be >= 0'),
   ],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -229,7 +229,7 @@ router.put(
 // GET /api/year-end-count/:id/variances - Calculate variances
 router.get(
   '/:id/variances',
-  [param('id').isInt().withMessage('Valid count ID is required')],
+  [param('id').isInt().withMessage('Invalid count ID')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -245,7 +245,7 @@ router.get(
 // GET /api/year-end-count/:id/report - Generate year-end report
 router.get(
   '/:id/report',
-  [param('id').isInt().withMessage('Valid count ID is required')],
+  [param('id').isInt().withMessage('Invalid count ID')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -261,7 +261,7 @@ router.get(
 // GET /api/year-end-count/:id/export-csv - Export count sheet to CSV
 router.get(
   '/:id/export-csv',
-  [param('id').isInt().withMessage('Valid count ID is required')],
+  [param('id').isInt().withMessage('Invalid count ID')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -285,7 +285,7 @@ router.get(
 // GET /api/year-end-count/:id/export-pdf - Export count sheet to PDF
 router.get(
   '/:id/export-pdf',
-  [param('id').isInt().withMessage('Valid count ID is required')],
+  [param('id').isInt().withMessage('Invalid count ID')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -309,7 +309,7 @@ router.get(
 // POST /api/year-end-count/:id/import-csv - Import count data from CSV
 router.post(
   '/:id/import-csv',
-  [param('id').isInt().withMessage('Valid count ID is required')],
+  [param('id').isInt().withMessage('Invalid count ID')],
   upload.single('file'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -378,7 +378,7 @@ router.post(
 // POST /api/year-end-count/:id/confirm - Confirm year-end count
 router.post(
   '/:id/confirm',
-  [param('id').isInt().withMessage('Valid count ID is required')],
+  [param('id').isInt().withMessage('Invalid count ID')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -394,7 +394,7 @@ router.post(
 // DELETE /api/year-end-count/:id - Delete a draft year-end count
 router.delete(
   '/:id',
-  [param('id').isInt().withMessage('Valid count ID is required')],
+  [param('id').isInt().withMessage('Invalid count ID')],
   validateRequest,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
