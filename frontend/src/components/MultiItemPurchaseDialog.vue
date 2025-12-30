@@ -470,6 +470,7 @@ import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { useCurrency } from '@/composables/useCurrency';
+import { parseDateString } from '@/utils/dateFormatter';
 
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -728,13 +729,9 @@ function onSupplierChange() {
 function handleDateInput(event: any) {
   const value = event.target?.value;
   if (value && typeof value === 'string') {
-    const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dateMatch) {
-      const [, year, month, day] = dateMatch;
-      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      if (!isNaN(date.getTime())) {
-        formData.value.purchaseDate = date;
-      }
+    const date = parseDateString(value);
+    if (date) {
+      formData.value.purchaseDate = date;
     }
   }
 }

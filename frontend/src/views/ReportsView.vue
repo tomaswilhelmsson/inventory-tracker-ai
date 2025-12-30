@@ -320,7 +320,7 @@ import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { useCurrency } from '@/composables/useCurrency';
-import { formatDate } from '@/utils/dateFormatter';
+import { formatDate, parseDateString, formatDateISO } from '@/utils/dateFormatter';
 
 import Button from 'primevue/button';
 import Card from 'primevue/card';
@@ -370,13 +370,9 @@ const purchaseReportDates = ref({
 const handleFromDateInput = (event: any) => {
   const value = event.target?.value;
   if (value && typeof value === 'string') {
-    const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dateMatch) {
-      const [, year, month, day] = dateMatch;
-      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      if (!isNaN(date.getTime())) {
-        purchaseReportDates.value.from = date;
-      }
+    const date = parseDateString(value);
+    if (date) {
+      purchaseReportDates.value.from = date;
     }
   }
 };
@@ -385,13 +381,9 @@ const handleFromDateInput = (event: any) => {
 const handleToDateInput = (event: any) => {
   const value = event.target?.value;
   if (value && typeof value === 'string') {
-    const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dateMatch) {
-      const [, year, month, day] = dateMatch;
-      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      if (!isNaN(date.getTime())) {
-        purchaseReportDates.value.to = date;
-      }
+    const date = parseDateString(value);
+    if (date) {
+      purchaseReportDates.value.to = date;
     }
   }
 };
@@ -496,7 +488,7 @@ const exportInventoryReportCSV = () => {
     `Total Units,,${inventoryReportData.value.totalUnits},,`,
   ].join('\n');
 
-  downloadCSV(csv, `inventory-valuation-${new Date().toISOString().split('T')[0]}.csv`);
+  downloadCSV(csv, `inventory-valuation-${formatDateISO(new Date())}.csv`);
 };
 
 // Export Purchase History
@@ -531,7 +523,7 @@ const exportPurchaseHistory = async () => {
 
     const csv = [headers.join(','), ...rows.map((row: any) => row.join(','))].join('\n');
 
-    downloadCSV(csv, `purchase-history-${fromDate.toISOString().split('T')[0]}-to-${toDate.toISOString().split('T')[0]}.csv`);
+    downloadCSV(csv, `purchase-history-${formatDateISO(fromDate)}-to-${formatDateISO(toDate)}.csv`);
 
     toast.add({
       severity: 'success',
@@ -683,7 +675,7 @@ const exportProductActivityCSV = () => {
 
   const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
 
-  downloadCSV(csv, `product-activity-${new Date().toISOString().split('T')[0]}.csv`);
+  downloadCSV(csv, `product-activity-${formatDateISO(new Date())}.csv`);
 };
 
 // Utility: Download CSV

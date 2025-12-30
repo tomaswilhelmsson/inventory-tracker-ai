@@ -497,7 +497,7 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
-import { formatDate } from '@/utils/dateFormatter';
+import { formatDate, parseDateString } from '@/utils/dateFormatter';
 
 import Button from 'primevue/button';
 import Card from 'primevue/card';
@@ -815,15 +815,10 @@ const onDateChange = () => {
 const handleDateInput = (event: any) => {
   const value = event.target?.value;
   if (value && typeof value === 'string') {
-    // Check if it matches YYYY-MM-DD format
-    const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dateMatch) {
-      const [, year, month, day] = dateMatch;
-      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      if (!isNaN(date.getTime())) {
-        formData.value.purchaseDate = date;
-        onDateChange();
-      }
+    const date = parseDateString(value);
+    if (date) {
+      formData.value.purchaseDate = date;
+      onDateChange();
     }
   }
 };
