@@ -52,7 +52,7 @@
                 showIcon
                 :manualInput="true"
                 placeholder="YYYY-MM-DD"
-                @input="handleFromDateInput"
+                @blur="handleFromDateInput"
               />
             </div>
             <div class="date-field">
@@ -63,7 +63,7 @@
                 showIcon
                 :manualInput="true"
                 placeholder="YYYY-MM-DD"
-                @input="handleToDateInput"
+                @blur="handleToDateInput"
               />
             </div>
           </div>

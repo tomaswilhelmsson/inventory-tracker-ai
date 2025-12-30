@@ -261,7 +261,7 @@
               placeholder="YYYY-MM-DD"
               @date-select="onDateChange"
               @update:modelValue="onDateChange"
-              @input="handleDateInput"
+              @blur="handleDateInput"
             />
             <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
             <Message v-if="yearLockWarning" severity="warn" :closable="false" class="year-warning">

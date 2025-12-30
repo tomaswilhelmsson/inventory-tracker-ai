@@ -48,7 +48,7 @@
               dateFormat="yy-mm-dd"
               showIcon
               :manualInput="true"
-              @input="handleDateInput"
+              @blur="handleDateInput"
             />
             <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
           </div>
