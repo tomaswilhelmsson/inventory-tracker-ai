@@ -251,17 +251,27 @@
         <div class="field-row">
           <div class="field">
             <label for="purchaseDate">{{ t('purchases.form.purchaseDate') }} *</label>
-            <DatePicker
-              id="purchaseDate"
-              v-model="formData.purchaseDate"
-              :class="{ 'p-invalid': formErrors.purchaseDate }"
-              dateFormat="yy-mm-dd"
-              showIcon
-              :manualInput="false"
-              placeholder="YYYY-MM-DD"
-              @date-select="onDateChange"
-              @update:modelValue="onDateChange"
-            />
+            <div class="date-input-wrapper">
+              <InputText
+                v-model="purchaseDateInput"
+                :class="{ 'p-invalid': formErrors.purchaseDate }"
+                placeholder="YYYY-MM-DD"
+                @blur="handleManualDateInput"
+                @keyup.enter="handleManualDateInput"
+                style="flex: 1"
+              />
+              <DatePicker
+                v-model="formData.purchaseDate"
+                :class="{ 'p-invalid': formErrors.purchaseDate }"
+                dateFormat="yy-mm-dd"
+                showIcon
+                :iconDisplay="'input'"
+                :manualInput="false"
+                @date-select="onDatePickerChange"
+                @update:modelValue="onDatePickerChange"
+                style="width: 3rem"
+              />
+            </div>
             <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
             <Message v-if="yearLockWarning" severity="warn" :closable="false" class="year-warning">
               <i class="pi pi-exclamation-triangle"></i>
@@ -634,6 +644,8 @@ const formData = ref<FormData>({
   pricesIncludeVAT: true,
 });
 
+const purchaseDateInput = ref<string>('');
+
 const formErrors = ref<FormErrors>({});
 const searchQuery = ref('');
 const selectedYearFilter = ref<number | null>(new Date().getFullYear());
@@ -811,15 +823,24 @@ const onDateChange = () => {
   formErrors.value.purchaseDate = undefined;
 };
 
-// Handle manual date input
-const handleDateInput = (event: any) => {
-  const value = event.target?.value;
-  if (value && typeof value === 'string') {
+// Handle manual text input for date
+const handleManualDateInput = () => {
+  const value = purchaseDateInput.value.trim();
+  if (value) {
     const date = parseDateString(value);
     if (date) {
       formData.value.purchaseDate = date;
+      purchaseDateInput.value = formatDate(date);
       onDateChange();
     }
+  }
+};
+
+// Handle date picker selection
+const onDatePickerChange = () => {
+  if (formData.value.purchaseDate) {
+    purchaseDateInput.value = formatDate(formData.value.purchaseDate);
+    onDateChange();
   }
 };
 
@@ -844,6 +865,7 @@ const openCreateDialog = async () => {
 
   editMode.value = false;
   currentPurchaseId.value = null;
+  purchaseDateInput.value = '';
   dialogVisible.value = true;
 };
 
@@ -878,6 +900,7 @@ const openEditDialog = async (purchase: Purchase) => {
     vatRate: 25, // Default for edit - can't retrieve old VAT data for now
     pricesIncludeVAT: true,
   };
+  purchaseDateInput.value = formatDate(formData.value.purchaseDate);
   dialogVisible.value = true;
 };
 
@@ -1226,6 +1249,12 @@ onMounted(() => {
 
 .year-filter {
   min-width: 150px;
+}
+
+.date-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .date-cell {
