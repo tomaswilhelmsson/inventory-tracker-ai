@@ -41,14 +41,28 @@
 
           <div class="field">
             <label for="purchaseDate">{{ $t('purchases.form.purchaseDate') }} *</label>
-            <DatePicker
-              id="purchaseDate"
-              v-model="formData.purchaseDate"
-              :class="{ 'p-invalid': formErrors.purchaseDate }"
-              dateFormat="yy-mm-dd"
-              showIcon
-              :manualInput="false"
-            />
+            <div class="date-input-wrapper">
+              <InputText
+                v-model="purchaseDateInput"
+                :class="{ 'p-invalid': formErrors.purchaseDate }"
+                placeholder="YYYY-MM-DD"
+                @blur="handleManualDateInput"
+                @keyup.enter="handleManualDateInput"
+                style="flex: 1"
+              />
+              <DatePicker
+                id="purchaseDate"
+                v-model="formData.purchaseDate"
+                :class="{ 'p-invalid': formErrors.purchaseDate }"
+                dateFormat="yy-mm-dd"
+                showIcon
+                :iconDisplay="'input'"
+                :manualInput="false"
+                @date-select="onDatePickerChange"
+                @update:modelValue="onDatePickerChange"
+                style="width: 3rem"
+              />
+            </div>
             <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
           </div>
 
@@ -469,7 +483,7 @@ import { useToast } from 'primevue/usetoast';
 import { useI18n } from 'vue-i18n';
 import api from '@/services/api';
 import { useCurrency } from '@/composables/useCurrency';
-import { parseDateString } from '@/utils/dateFormatter';
+import { parseDateString, formatDate } from '@/utils/dateFormatter';
 
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -533,6 +547,8 @@ const formData = ref({
   notes: '',
   items: [createEmptyLineItem()] as LineItem[],
 });
+
+const purchaseDateInput = ref<string>('');
 
 const formErrors = ref({
   supplierId: '',
@@ -724,14 +740,22 @@ function onSupplierChange() {
   supplierMismatchError.value = '';
 }
 
-// Handle manual date input to fix parsing issues
-function handleDateInput(event: any) {
-  const value = event.target?.value;
-  if (value && typeof value === 'string') {
+// Handle manual text input for date
+function handleManualDateInput() {
+  const value = purchaseDateInput.value.trim();
+  if (value) {
     const date = parseDateString(value);
     if (date) {
       formData.value.purchaseDate = date;
+      purchaseDateInput.value = formatDate(date);
     }
+  }
+}
+
+// Handle date picker selection
+function onDatePickerChange() {
+  if (formData.value.purchaseDate) {
+    purchaseDateInput.value = formatDate(formData.value.purchaseDate);
   }
 }
 
@@ -936,6 +960,7 @@ function resetForm() {
     notes: '',
     items: [createEmptyLineItem()],
   };
+  purchaseDateInput.value = formatDate(new Date());
   formErrors.value = {
     supplierId: '',
     purchaseDate: '',
@@ -1175,6 +1200,12 @@ defineExpose({ resetForm });
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.date-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .field label {

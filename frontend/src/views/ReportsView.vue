@@ -46,23 +46,47 @@
           <div class="date-range-selector">
             <div class="date-field">
               <label>{{ t('reports.purchaseHistory.fromDate') }}</label>
-              <DatePicker
-                v-model="purchaseReportDates.from"
-                dateFormat="yy-mm-dd"
-                showIcon
-                :manualInput="false"
-                placeholder="YYYY-MM-DD"
-              />
+              <div class="date-input-wrapper">
+                <InputText
+                  v-model="fromDateInput"
+                  placeholder="YYYY-MM-DD"
+                  @blur="handleFromDateInput"
+                  @keyup.enter="handleFromDateInput"
+                  style="flex: 1"
+                />
+                <DatePicker
+                  v-model="purchaseReportDates.from"
+                  dateFormat="yy-mm-dd"
+                  showIcon
+                  :iconDisplay="'input'"
+                  :manualInput="false"
+                  @date-select="onFromDatePickerChange"
+                  @update:modelValue="onFromDatePickerChange"
+                  style="width: 3rem"
+                />
+              </div>
             </div>
             <div class="date-field">
               <label>{{ t('reports.purchaseHistory.toDate') }}</label>
-              <DatePicker
-                v-model="purchaseReportDates.to"
-                dateFormat="yy-mm-dd"
-                showIcon
-                :manualInput="false"
-                placeholder="YYYY-MM-DD"
-              />
+              <div class="date-input-wrapper">
+                <InputText
+                  v-model="toDateInput"
+                  placeholder="YYYY-MM-DD"
+                  @blur="handleToDateInput"
+                  @keyup.enter="handleToDateInput"
+                  style="flex: 1"
+                />
+                <DatePicker
+                  v-model="purchaseReportDates.to"
+                  dateFormat="yy-mm-dd"
+                  showIcon
+                  :iconDisplay="'input'"
+                  :manualInput="false"
+                  @date-select="onToDatePickerChange"
+                  @update:modelValue="onToDatePickerChange"
+                  style="width: 3rem"
+                />
+              </div>
             </div>
           </div>
           <Button
@@ -328,6 +352,7 @@ import Column from 'primevue/column';
 import DatePicker from 'primevue/datepicker';
 import Dropdown from 'primevue/dropdown';
 import Tag from 'primevue/tag';
+import InputText from 'primevue/inputtext';
 
 interface InventoryReportItem {
   productName: string;
@@ -364,25 +389,44 @@ const purchaseReportDates = ref({
   to: null as Date | null,
 });
 
-// Handle manual date input for "from" date
-const handleFromDateInput = (event: any) => {
-  const value = event.target?.value;
-  if (value && typeof value === 'string') {
+const fromDateInput = ref<string>('');
+const toDateInput = ref<string>('');
+
+// Handle manual text input for "from" date
+const handleFromDateInput = () => {
+  const value = fromDateInput.value.trim();
+  if (value) {
     const date = parseDateString(value);
     if (date) {
       purchaseReportDates.value.from = date;
+      fromDateInput.value = formatDate(date);
     }
   }
 };
 
-// Handle manual date input for "to" date
-const handleToDateInput = (event: any) => {
-  const value = event.target?.value;
-  if (value && typeof value === 'string') {
+// Handle date picker change for "from" date
+const onFromDatePickerChange = () => {
+  if (purchaseReportDates.value.from) {
+    fromDateInput.value = formatDate(purchaseReportDates.value.from);
+  }
+};
+
+// Handle manual text input for "to" date
+const handleToDateInput = () => {
+  const value = toDateInput.value.trim();
+  if (value) {
     const date = parseDateString(value);
     if (date) {
       purchaseReportDates.value.to = date;
+      toDateInput.value = formatDate(date);
     }
+  }
+};
+
+// Handle date picker change for "to" date
+const onToDatePickerChange = () => {
+  if (purchaseReportDates.value.to) {
+    toDateInput.value = formatDate(purchaseReportDates.value.to);
   }
 };
 
@@ -759,6 +803,12 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.date-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .date-field label {
