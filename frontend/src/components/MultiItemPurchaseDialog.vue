@@ -47,8 +47,7 @@
               :class="{ 'p-invalid': formErrors.purchaseDate }"
               dateFormat="yy-mm-dd"
               showIcon
-              :manualInput="true"
-              @blur="handleDateInput"
+              :manualInput="false"
             />
             <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
           </div>

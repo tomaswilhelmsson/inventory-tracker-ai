@@ -257,11 +257,10 @@
               :class="{ 'p-invalid': formErrors.purchaseDate }"
               dateFormat="yy-mm-dd"
               showIcon
-              :manualInput="true"
+              :manualInput="false"
               placeholder="YYYY-MM-DD"
               @date-select="onDateChange"
               @update:modelValue="onDateChange"
-              @blur="handleDateInput"
             />
             <small v-if="formErrors.purchaseDate" class="p-error">{{ formErrors.purchaseDate }}</small>
             <Message v-if="yearLockWarning" severity="warn" :closable="false" class="year-warning">
@@ -639,6 +638,7 @@ const formErrors = ref<FormErrors>({});
 const searchQuery = ref('');
 const selectedYearFilter = ref<number | null>(new Date().getFullYear());
 const suggestedPrice = ref<number | null>(null);
+const purchaseDateString = ref<string>('');
 
 // Computed: available years from purchases
 const availableYears = computed(() => {

@@ -50,9 +50,8 @@
                 v-model="purchaseReportDates.from"
                 dateFormat="yy-mm-dd"
                 showIcon
-                :manualInput="true"
+                :manualInput="false"
                 placeholder="YYYY-MM-DD"
-                @blur="handleFromDateInput"
               />
             </div>
             <div class="date-field">
@@ -61,9 +60,8 @@
                 v-model="purchaseReportDates.to"
                 dateFormat="yy-mm-dd"
                 showIcon
-                :manualInput="true"
+                :manualInput="false"
                 placeholder="YYYY-MM-DD"
-                @blur="handleToDateInput"
               />
             </div>
           </div>
