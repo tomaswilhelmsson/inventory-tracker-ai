@@ -1,0 +1,19 @@
+# Simple single-container docker-compose
+# Like your WooCommerce app - just one container!
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.simple
+    container_name: inventory-tracker
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${FRONTEND_PORT:-8081}:8080"  # Frontend (backend is internal only)
+    volumes:
+      - app_data:/app/backend/data
+
+volumes:
+  app_data:

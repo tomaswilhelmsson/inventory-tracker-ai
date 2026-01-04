@@ -480,6 +480,11 @@
       "message": "Year {year} requires a year-end inventory count",
       "action": "Start Count"
     },
+    "activeDraftBanner": {
+      "single": "You have an active draft count for year {year}",
+      "multiple": "You have {count} active draft counts in other years",
+      "switchTo": "Go to {year}"
+    },
     "messages": {
       "initiateSuccess": "Year-end count initiated for {year}",
       "initiateFailed": "Failed to initiate year-end count",

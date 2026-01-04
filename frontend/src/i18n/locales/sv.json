@@ -480,6 +480,11 @@
       "message": "År {year} kräver ett årsbokslut",
       "action": "Starta räkning"
     },
+    "activeDraftBanner": {
+      "single": "Du har en aktiv utkastinventering för år {year}",
+      "multiple": "Du har {count} aktiva utkastinventeringar i andra år",
+      "switchTo": "Gå till {year}"
+    },
     "messages": {
       "initiateSuccess": "Årsbokslut initierat för {year}",
       "initiateFailed": "Misslyckades med att initiera årsbokslut",

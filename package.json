@@ -6,6 +6,7 @@
   "scripts": {
     "dev:backend": "TS_NODE_TRANSPILE_ONLY=true nodemon --exec ts-node backend/src/server.ts",
     "build:backend": "tsc -p backend/tsconfig.json",
+    "build:backend:docker": "tsc -p backend/tsconfig.json --skipLibCheck --noUnusedLocals false --noUnusedParameters false",
     "start:backend": "node backend/dist/server.js",
     "dev:frontend": "cd frontend && npm run dev",
     "build:frontend": "cd frontend && npm run build",

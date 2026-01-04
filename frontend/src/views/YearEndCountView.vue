@@ -40,6 +40,7 @@ const unlockHistory = ref<any[]>([]);
 const showUnlockHistoryDialog = ref(false);
 const mostRecentLockedYear = ref<number | null>(null);
 const isYearLocked = ref(false);
+const activeDraftCounts = ref<any[]>([]);
 
 const progress = computed(() => {
   if (!countSheet.value?.progress) return 0;
@@ -538,11 +539,21 @@ async function loadUnlockHistory() {
 
 async function loadAvailableYears() {
   try {
-    const response = await api.get('/purchases/locked-years');
-    const lockedYears = response.data.map((y: any) => y.year);
+    // Fetch locked years
+    const lockedResponse = await api.get('/purchases/locked-years');
+    const lockedYears = lockedResponse.data.map((y: any) => y.year);
     
-    // Include current year and all locked years
-    const years = new Set([currentYear, ...lockedYears]);
+    // Fetch all year-end counts to include years with draft/confirmed counts
+    const countsResponse = await api.get('/year-end-count/all');
+    const yearsWithCounts = countsResponse.data.map((c: any) => c.year);
+    
+    // Filter for active draft counts (excluding current selected year)
+    activeDraftCounts.value = countsResponse.data.filter(
+      (c: any) => c.status === 'draft' && c.year !== selectedYear.value
+    );
+    
+    // Include current year, locked years, and years with existing counts
+    const years = new Set([currentYear, ...lockedYears, ...yearsWithCounts]);
     availableYears.value = Array.from(years).sort((a, b) => b - a);
   } catch (error) {
     console.error('Failed to load available years:', error);
@@ -578,10 +589,16 @@ async function onYearChange() {
   await loadAvailableRevisions();
   await loadExistingCount();
   await checkLockStatus();
+  await loadAvailableYears(); // Refresh active draft counts
 }
 
 async function onRevisionChange() {
   await loadExistingCount();
+}
+
+async function switchToYear(year: number) {
+  selectedYear.value = year;
+  await onYearChange();
 }
 
 onMounted(async () => {
@@ -639,6 +656,34 @@ onMounted(async () => {
           severity="success"
         />
       </div>
+    </div>
+
+    <!-- Active Draft Count Banner -->
+    <div v-if="activeDraftCounts.length > 0" class="active-count-banner">
+      <Message severity="info" :closable="false">
+        <div class="banner-content">
+          <div class="banner-text">
+            <i class="pi pi-info-circle"></i>
+            <span v-if="activeDraftCounts.length === 1">
+              {{ t('yearEndCount.activeDraftBanner.single', { year: activeDraftCounts[0].year }) }}
+            </span>
+            <span v-else>
+              {{ t('yearEndCount.activeDraftBanner.multiple', { count: activeDraftCounts.length }) }}
+            </span>
+          </div>
+          <div class="banner-actions">
+            <Button
+              v-for="count in activeDraftCounts"
+              :key="count.id"
+              :label="t('yearEndCount.activeDraftBanner.switchTo', { year: count.year })"
+              icon="pi pi-arrow-right"
+              size="small"
+              @click="switchToYear(count.year)"
+              text
+            />
+          </div>
+        </div>
+      </Message>
     </div>
 
     <div v-if="!countSheet && !loading" class="empty-state">
@@ -1455,5 +1500,34 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.active-count-banner {
+  margin-bottom: 1.5rem;
+}
+
+.banner-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.banner-text {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.banner-text i {
+  font-size: 1.25rem;
+}
+
+.banner-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 </style>
