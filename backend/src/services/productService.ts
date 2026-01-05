@@ -92,8 +92,12 @@ export const productService = {
       0
     );
 
+    // Use unitCostExclVAT (primary) or fall back to unitCost for backward compatibility
     const totalValue = product.purchaseLots.reduce(
-      (sum, lot) => sum + lot.remainingQuantity * lot.unitCost,
+      (sum, lot) => {
+        const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+        return sum + lot.remainingQuantity * costPerUnit;
+      },
       0
     );
 

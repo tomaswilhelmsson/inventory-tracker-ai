@@ -55,6 +55,7 @@ export const supplierService = {
             id: true,
             quantity: true,
             unitCost: true,
+            unitCostExclVAT: true,
             purchaseDate: true,
           },
         },
@@ -72,8 +73,12 @@ export const supplierService = {
     }
 
     // Calculate total purchase value
+    // Use unitCostExclVAT (primary) or fall back to unitCost for backward compatibility
     const totalPurchaseValue = supplier.purchaseLots.reduce(
-      (sum, lot) => sum + lot.quantity * lot.unitCost,
+      (sum, lot) => {
+        const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+        return sum + lot.quantity * costPerUnit;
+      },
       0
     );
 

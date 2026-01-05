@@ -142,6 +142,127 @@ export const createYearEndCountService = (
   },
 
   /**
+   * Refresh expected quantities from current inventory
+   * Preserves all counted quantities that have been entered
+   * Adds new products with inventory, removes products without inventory
+   */
+  async refreshExpectedQuantities(countId: number) {
+    // Verify count exists and is in draft status
+    const count = await dbClient.yearEndCount.findUnique({
+      where: { id: countId },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!count) {
+      throw new AppError(404, 'Year-end count not found');
+    }
+
+    if (count.status !== 'draft') {
+      throw new AppError(400, 'Cannot refresh confirmed year-end count');
+    }
+
+    // Get all products with current remaining inventory
+    const products = await dbClient.product.findMany({
+      include: {
+        purchaseLots: {
+          where: {
+            remainingQuantity: { gt: 0 },
+          },
+          orderBy: { purchaseDate: 'asc' }, // CRITICAL: FIFO ordering
+        },
+      },
+    });
+
+    // Create a map of existing count items by productId
+    const existingItemsMap = new Map(
+      count.items.map((item) => [item.productId, item])
+    );
+
+    // Track which products should be in the count
+    const currentProductIds = new Set<number>();
+
+    // Process each product with inventory
+    for (const product of products) {
+      const expectedQuantity = product.purchaseLots.reduce(
+        (sum, lot) => sum + lot.remainingQuantity,
+        0
+      );
+
+      // Only process products with inventory
+      if (expectedQuantity > 0) {
+        currentProductIds.add(product.id);
+        const existingItem = existingItemsMap.get(product.id);
+
+        if (existingItem) {
+          // Update existing item's expected quantity
+          await dbClient.yearEndCountItem.update({
+            where: { id: existingItem.id },
+            data: {
+              expectedQuantity,
+              // Recalculate variance if item has been counted
+              variance: existingItem.countedQuantity !== null 
+                ? existingItem.countedQuantity - expectedQuantity 
+                : null,
+            },
+          });
+
+          // Recalculate FIFO value if item has been counted
+          if (existingItem.countedQuantity !== null) {
+            const lots = product.purchaseLots;
+            let remainingToValue = existingItem.countedQuantity;
+            let value = 0;
+
+            for (const lot of lots) {
+              if (remainingToValue <= 0) break;
+              const quantityFromLot = Math.min(remainingToValue, lot.remainingQuantity);
+              const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+              value += quantityFromLot * costPerUnit;
+              remainingToValue -= quantityFromLot;
+            }
+
+            await dbClient.yearEndCountItem.update({
+              where: { id: existingItem.id },
+              data: { value },
+            });
+          }
+        } else {
+          // Create new item for product not previously in count
+          await dbClient.yearEndCountItem.create({
+            data: {
+              yearEndCountId: countId,
+              productId: product.id,
+              expectedQuantity,
+              countedQuantity: null,
+              variance: null,
+              value: null,
+            },
+          });
+        }
+      }
+    }
+
+    // Remove items for products that no longer have inventory
+    const itemsToRemove = count.items.filter(
+      (item) => !currentProductIds.has(item.productId)
+    );
+
+    for (const item of itemsToRemove) {
+      await dbClient.yearEndCountItem.delete({
+        where: { id: item.id },
+      });
+    }
+
+    return {
+      message: 'Expected quantities refreshed successfully',
+      itemsUpdated: currentProductIds.size,
+      itemsAdded: currentProductIds.size - existingItemsMap.size + itemsToRemove.length,
+      itemsRemoved: itemsToRemove.length,
+    };
+  },
+
+  /**
    * Update count item with actual counted quantity (auto-save)
    */
   async updateCountItem(countId: number, productId: number, countedQuantity: number) {
@@ -189,7 +310,9 @@ export const createYearEndCountService = (
       if (remainingToValue <= 0) break;
 
       const quantityFromLot = Math.min(remainingToValue, lot.remainingQuantity);
-      value += quantityFromLot * lot.unitCost;
+      // Use unitCostExclVAT (primary) or fall back to unitCost for backward compatibility
+      const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+      value += quantityFromLot * costPerUnit;
       remainingToValue -= quantityFromLot;
     }
 
@@ -355,13 +478,16 @@ export const createYearEndCountService = (
             supplierName = snapshot.name || 'Unknown';
           }
           
+          // Use unitCostExclVAT (primary) or fall back to unitCost for backward compatibility
+          const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+          
           return {
             purchaseDate: lot.purchaseDate,
             year: lot.year,
             quantity: lot.quantity,
             remainingQuantity: lot.remainingQuantity,
-            unitCost: lot.unitCost,
-            lotValue: lot.remainingQuantity * lot.unitCost,
+            unitCost: costPerUnit,
+            lotValue: lot.remainingQuantity * costPerUnit,
             supplier: supplierName,
           };
         }),

@@ -21,7 +21,7 @@ import Tag from 'primevue/tag';
 const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();
-const { t, n } = useI18n();
+const { t, n, locale } = useI18n();
 const { formatCurrency } = useCurrency();
 
 const loading = ref(false);
@@ -165,6 +165,44 @@ async function loadExistingCount() {
   }
 }
 
+async function refreshExpectedQuantities() {
+  confirm.require({
+    message: t('yearEndCount.messages.refreshConfirm'),
+    header: t('common.confirm'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-warning',
+    accept: async () => {
+      loading.value = true;
+      try {
+        const response = await api.post(`/year-end-count/${countSheet.value.id}/refresh`);
+        
+        // Reload the count sheet to show updated data
+        await loadCountSheet(countSheet.value.id);
+        
+        toast.add({
+          severity: 'success',
+          summary: t('common.success'),
+          detail: t('yearEndCount.messages.refreshSuccess', {
+            updated: response.data.itemsUpdated,
+            added: response.data.itemsAdded,
+            removed: response.data.itemsRemoved,
+          }),
+          life: 5000,
+        });
+      } catch (error: any) {
+        toast.add({
+          severity: 'error',
+          summary: t('common.error'),
+          detail: error.response?.data?.error || t('yearEndCount.messages.refreshFailed'),
+          life: 5000,
+        });
+      } finally {
+        loading.value = false;
+      }
+    },
+  });
+}
+
 async function updateCountItem(item: any) {
   // Only update if a valid count has been entered
   if (item.countedQuantity === null || item.countedQuantity === undefined || item.countedQuantity === '') {
@@ -262,6 +300,40 @@ async function exportPDF() {
       severity: 'error',
       summary: t('common.error'),
       detail: t('yearEndCount.messages.exportPDFFailed'),
+      life: 5000,
+    });
+  }
+}
+
+async function exportReportPDF() {
+  try {
+    // Get current language from i18n (useI18n returns { locale, t, n })
+    const currentLocale = (locale?.value || 'en') as string;
+    
+    const response = await api.get(`/year-end-count/${countSheet.value.id}/export-report-pdf`, {
+      params: { lang: currentLocale },
+      responseType: 'blob',
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `year-end-report-${selectedYear.value}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('yearEndCount.messages.exportReportPDFSuccess'),
+      life: 3000,
+    });
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('yearEndCount.messages.exportReportPDFFailed'),
       life: 5000,
     });
   }
@@ -552,8 +624,12 @@ async function loadAvailableYears() {
       (c: any) => c.status === 'draft' && c.year !== selectedYear.value
     );
     
-    // Include current year, locked years, and years with existing counts
-    const years = new Set([currentYear, ...lockedYears, ...yearsWithCounts]);
+    // Fetch all purchases to get years with purchase data
+    const purchasesResponse = await api.get('/purchases');
+    const purchaseYears = [...new Set(purchasesResponse.data.map((p: any) => p.year))];
+    
+    // Include current year, locked years, years with counts, and years with purchases
+    const years = new Set([currentYear, ...lockedYears, ...yearsWithCounts, ...purchaseYears]);
     availableYears.value = Array.from(years).sort((a, b) => b - a);
   } catch (error) {
     console.error('Failed to load available years:', error);
@@ -602,6 +678,15 @@ async function switchToYear(year: number) {
 }
 
 onMounted(async () => {
+  // Check if a year was passed as a query parameter (from the dashboard reminder banner)
+  const yearParam = router.currentRoute.value.query.year;
+  if (yearParam) {
+    const year = parseInt(yearParam as string);
+    if (!isNaN(year)) {
+      selectedYear.value = year;
+    }
+  }
+  
   await loadAvailableYears();
   await loadAvailableRevisions();
   await loadExistingCount();
@@ -647,7 +732,7 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-      <div class="actions" v-if="!countSheet && selectedYear === currentYear">
+      <div class="actions" v-if="!countSheet">
         <Button
           :label="t('yearEndCount.initiateCount')"
           icon="pi pi-plus"
@@ -784,6 +869,15 @@ onMounted(async () => {
         <template #content>
           <div class="action-buttons">
             <Button
+              v-if="countSheet.status === 'draft'"
+              :label="t('yearEndCount.refreshExpected')"
+              icon="pi pi-refresh"
+              @click="refreshExpectedQuantities"
+              severity="info"
+              outlined
+              :loading="loading"
+            />
+            <Button
               v-if="countSheet.status === 'confirmed' && isYearLocked && selectedYear === mostRecentLockedYear"
               :label="t('yearEndCount.unlock.unlockYear')"
               icon="pi pi-unlock"
@@ -808,6 +902,12 @@ onMounted(async () => {
               icon="pi pi-file-pdf"
               @click="exportPDF"
               outlined
+            />
+            <Button
+              :label="t('yearEndCount.exportReportPDF')"
+              icon="pi pi-file-pdf"
+              @click="exportReportPDF"
+              severity="success"
             />
             <FileUpload
               mode="basic"

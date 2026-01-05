@@ -59,19 +59,26 @@ export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
     });
 
     const quantity = lots.reduce((sum, lot) => sum + lot.remainingQuantity, 0);
-    const value = lots.reduce((sum, lot) => sum + lot.remainingQuantity * lot.unitCost, 0);
+    // Use unitCostExclVAT (primary) or fall back to unitCost for backward compatibility
+    const value = lots.reduce((sum, lot) => {
+      const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+      return sum + lot.remainingQuantity * costPerUnit;
+    }, 0);
 
     return {
       quantity,
       value,
-      lots: lots.map((lot) => ({
-        id: lot.id,
-        purchaseDate: lot.purchaseDate,
-        remainingQuantity: lot.remainingQuantity,
-        unitCost: lot.unitCost,
-        lotValue: lot.remainingQuantity * lot.unitCost,
-        year: lot.year,
-      })),
+      lots: lots.map((lot) => {
+        const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+        return {
+          id: lot.id,
+          purchaseDate: lot.purchaseDate,
+          remainingQuantity: lot.remainingQuantity,
+          unitCost: costPerUnit,
+          lotValue: lot.remainingQuantity * costPerUnit,
+          year: lot.year,
+        };
+      }),
     };
   },
 
@@ -142,8 +149,11 @@ export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
         };
       }
 
+      // Use unitCostExclVAT (primary) or fall back to unitCost for backward compatibility
+      const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+      
       productInventory[productId].quantity += lot.remainingQuantity;
-      productInventory[productId].value += lot.remainingQuantity * lot.unitCost;
+      productInventory[productId].value += lot.remainingQuantity * costPerUnit;
       
       // Get supplier name from relation or snapshot
       let supplierName = 'Unknown';
@@ -160,7 +170,7 @@ export const createInventoryService = (dbClient: PrismaClient = prisma) => ({
         id: lot.id,
         purchaseDate: lot.purchaseDate,
         remainingQuantity: lot.remainingQuantity,
-        unitCost: lot.unitCost,
+        unitCost: costPerUnit,
         year: lot.year,
         supplier: supplierName,
       });

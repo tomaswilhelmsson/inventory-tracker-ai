@@ -199,6 +199,22 @@ router.get(
   }
 );
 
+// POST /api/year-end-count/:id/refresh - Refresh expected quantities from current inventory
+router.post(
+  '/:id/refresh',
+  [param('id').isInt().withMessage('Invalid count ID')],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const countId = parseInt(req.params.id);
+      const result = await yearEndCountService.refreshExpectedQuantities(countId);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // PUT /api/year-end-count/:id/items/:productId - Update count item
 router.put(
   '/:id/items/:productId',
@@ -294,6 +310,34 @@ router.get(
       const pdfPath = await exportService.exportCountSheetPDF(countSheet);
 
       res.download(pdfPath, `count-sheet-${countSheet.year}.pdf`, (err) => {
+        // Clean up file after download
+        exportService.cleanupTempFile(pdfPath);
+        if (err) {
+          next(err);
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/year-end-count/:id/export-report-pdf - Export comprehensive bookkeeping report to PDF
+router.get(
+  '/:id/export-report-pdf',
+  [
+    param('id').isInt().withMessage('Invalid count ID'),
+    query('lang').optional().isIn(['en', 'sv']).withMessage('Language must be en or sv'),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const language = (req.query.lang as string) || 'en';
+      const reportData = await yearEndCountService.generateYearEndReport(id);
+      const pdfPath = await exportService.exportYearEndReportPDF(reportData, language);
+
+      res.download(pdfPath, `year-end-report-${reportData.year}.pdf`, (err) => {
         // Clean up file after download
         exportService.cleanupTempFile(pdfPath);
         if (err) {

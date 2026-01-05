@@ -114,7 +114,9 @@ export const createPurchaseService = (dbClient: PrismaClient = prisma) => ({
       throw new AppError(404, 'Purchase lot not found');
     }
 
-    const lotValue = lot.remainingQuantity * lot.unitCost;
+    // Use unitCostExclVAT (primary) or fall back to unitCost for backward compatibility
+    const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+    const lotValue = lot.remainingQuantity * costPerUnit;
 
     return {
       ...lot,
