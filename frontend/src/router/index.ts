@@ -46,6 +46,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/finished-goods',
+      name: 'finished-goods',
+      component: () => import('../views/FinishedGoodsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/year-end-count',
       name: 'year-end-count',
       component: () => import('../views/YearEndCountView.vue'),

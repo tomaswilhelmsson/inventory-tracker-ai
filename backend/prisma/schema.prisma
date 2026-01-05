@@ -16,7 +16,8 @@ model Unit {
   name      String   @unique
   createdAt DateTime @default(now())
 
-  products Product[]
+  products      Product[]
+  finishedGoods FinishedGood[]
 
   @@map("units")
 }
@@ -152,7 +153,8 @@ model YearEndCount {
   backupPath  String?
   createdAt   DateTime  @default(now())
 
-  items YearEndCountItem[]
+  items                YearEndCountItem[]
+  finishedGoodsItems   FinishedGoodsCountItem[]
 
   @@unique([year, revision])
   // Performance indexes for frequently queried fields
@@ -200,6 +202,44 @@ model YearUnlockAudit {
   description    String // Free-form explanation
 
   @@map("year_unlock_audits")
+}
+
+// FinishedGood entity - catalog of finished good types
+model FinishedGood {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  description  String?
+  unitId       Int
+  materialCost Float // Manually entered material cost per unit
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  unit              Unit                       @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  finishedGoodsCountItems FinishedGoodsCountItem[]
+
+  @@index([isActive])
+  @@index([unitId])
+  @@map("finished_goods")
+}
+
+// FinishedGoodsCountItem entity - finished goods in year-end counts
+model FinishedGoodsCountItem {
+  id                  Int      @id @default(autoincrement())
+  yearEndCountId      Int
+  finishedGoodId      Int
+  expectedQuantity    Float // From previous year's counted quantity or 0
+  countedQuantity     Float? // Actual counted quantity
+  variance            Float? // countedQuantity - expectedQuantity
+  materialCostPerUnit Float // Snapshot of FinishedGood.materialCost at count initiation
+  totalValue          Float? // countedQuantity × materialCostPerUnit
+  createdAt           DateTime @default(now())
+
+  yearEndCount YearEndCount @relation(fields: [yearEndCountId], references: [id], onDelete: Cascade)
+  finishedGood FinishedGood @relation(fields: [finishedGoodId], references: [id], onDelete: Restrict)
+
+  @@unique([yearEndCountId, finishedGoodId])
+  @@index([yearEndCountId])
+  @@map("finished_goods_count_items")
 }
 
 // User entity for authentication

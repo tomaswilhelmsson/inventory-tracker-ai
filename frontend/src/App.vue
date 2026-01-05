@@ -26,6 +26,7 @@ const { t } = useI18n();
           <RouterLink to="/" class="nav-link">{{ t('nav.dashboard') }}</RouterLink>
           <RouterLink to="/suppliers" class="nav-link">{{ t('nav.suppliers') }}</RouterLink>
           <RouterLink to="/products" class="nav-link">{{ t('nav.products') }}</RouterLink>
+          <RouterLink to="/finished-goods" class="nav-link">{{ t('nav.finishedGoods') }}</RouterLink>
           <RouterLink to="/units" class="nav-link">{{ t('nav.units') }}</RouterLink>
           <RouterLink to="/purchases" class="nav-link">{{ t('nav.purchases') }}</RouterLink>
           <RouterLink to="/inventory" class="nav-link">{{ t('nav.inventory') }}</RouterLink>

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import { config } from './utils/config';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
@@ -11,6 +12,7 @@ import unitRoutes from './routes/units';
 import purchaseRoutes from './routes/purchases';
 import inventoryRoutes from './routes/inventory';
 import yearEndCountRoutes from './routes/yearEndCount';
+import finishedGoodsRoutes from './routes/finishedGoods';
 import backupRoutes from './routes/backup';
 import { exportService } from './services/exportService';
 
@@ -80,7 +82,23 @@ app.use('/api/units', authMiddleware, unitRoutes);
 app.use('/api/purchases', authMiddleware, purchaseRoutes);
 app.use('/api/inventory', authMiddleware, inventoryRoutes);
 app.use('/api/year-end-count', authMiddleware, yearEndCountRoutes);
+app.use('/api/finished-goods', authMiddleware, finishedGoodsRoutes);
 app.use('/api/backup', backupRoutes);
+
+// Serve static frontend files in production
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+// SPA fallback - serve index.html for all non-API routes
+// This must come after API routes but before error handler
+app.use((req, res, next) => {
+  // Skip if it's an API route or a static file
+  if (req.path.startsWith('/api/') || req.path.includes('.')) {
+    return next();
+  }
+  // Serve index.html for client-side routing
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

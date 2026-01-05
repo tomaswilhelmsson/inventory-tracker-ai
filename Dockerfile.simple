@@ -3,9 +3,8 @@
 
 FROM node:20-alpine
 
-# Install OpenSSL for Prisma and a simple web server
+# Install OpenSSL for Prisma
 RUN apk add --no-cache openssl dumb-init
-RUN npm install -g http-server
 
 WORKDIR /app
 
@@ -28,11 +27,11 @@ RUN cd frontend && npm ci && VITE_API_URL=/api npm run build:docker
 # Set up database directory
 RUN mkdir -p backend/data
 
-# Expose port 3000 (backend) and 8080 (frontend)
-EXPOSE 3000 8080
+# Expose port 8080 (backend serves both API and frontend)
+EXPOSE 8080
 
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start both backend and frontend
-CMD sh -c "cd backend && mkdir -p data && npx prisma generate && npx prisma migrate deploy && node dist/server.js & http-server frontend/dist -p 8080 --proxy http://localhost:3000 && wait"
+# Start backend (which now serves the frontend static files)
+CMD sh -c "cd backend && mkdir -p data && npx prisma generate && npx prisma migrate deploy && PORT=8080 node dist/server.js"

@@ -25,9 +25,14 @@ export const createYearEndCountService = (
     const existingCounts = await dbClient.yearEndCount.findMany({
       where: { year },
       orderBy: { revision: 'desc' },
+      include: {
+        items: true,
+        finishedGoodsItems: true,
+      },
     });
 
     let revision = 1;
+    let previousCount = null;
 
     if (existingCounts.length > 0) {
       if (isLocked) {
@@ -36,6 +41,7 @@ export const createYearEndCountService = (
       }
       // Year is unlocked and counts exist - create next revision
       revision = existingCounts[0].revision + 1;
+      previousCount = existingCounts[0]; // Store previous count to copy counted values
     }
 
     // Get all products with remaining inventory
@@ -59,6 +65,14 @@ export const createYearEndCountService = (
       },
     });
 
+    // Create a map of previous counted quantities for products
+    const previousProductCounts = new Map();
+    if (previousCount) {
+      previousCount.items.forEach((item: any) => {
+        previousProductCounts.set(item.productId, item.countedQuantity);
+      });
+    }
+
     // Create count items for each product with remaining inventory
     const countItems = [];
     for (const product of products) {
@@ -69,23 +83,78 @@ export const createYearEndCountService = (
 
       // Only create item if product has inventory
       if (expectedQuantity > 0) {
+        // Copy counted quantity from previous revision if it exists
+        const previousCountedQty = previousProductCounts.get(product.id) || null;
+        
+        // Calculate FIFO value if we have a counted quantity
+        let fifoValue = null;
+        if (previousCountedQty !== null && previousCountedQty > 0) {
+          const lots = product.purchaseLots;
+          let remainingToValue = previousCountedQty;
+          let value = 0;
+
+          for (const lot of lots) {
+            if (remainingToValue <= 0) break;
+            const quantityFromLot = Math.min(remainingToValue, lot.remainingQuantity);
+            const costPerUnit = lot.unitCostExclVAT ?? lot.unitCost;
+            value += quantityFromLot * costPerUnit;
+            remainingToValue -= quantityFromLot;
+          }
+          fifoValue = value;
+        }
+        
         const item = await dbClient.yearEndCountItem.create({
           data: {
             yearEndCountId: yearEndCount.id,
             productId: product.id,
             expectedQuantity,
-            countedQuantity: null,
-            variance: null,
-            value: null,
+            countedQuantity: previousCountedQty,
+            variance: previousCountedQty !== null ? previousCountedQty - expectedQuantity : null,
+            value: fifoValue,
           },
         });
         countItems.push(item);
       }
     }
 
+    // Get all active finished goods
+    const finishedGoods = await dbClient.finishedGood.findMany({
+      where: { isActive: true },
+    });
+
+    // Create a map of previous counted quantities for finished goods
+    const previousFGCounts = new Map();
+    if (previousCount) {
+      previousCount.finishedGoodsItems.forEach((item: any) => {
+        previousFGCounts.set(item.finishedGoodId, item.countedQuantity);
+      });
+    }
+
+    // Create count items for each active finished good with expectedQuantity = 0
+    // Users will enter the counted quantity manually
+    const finishedGoodsItems = [];
+    for (const finishedGood of finishedGoods) {
+      // Copy counted quantity from previous revision if it exists
+      const previousCountedQty = previousFGCounts.get(finishedGood.id) || null;
+      
+      const item = await dbClient.finishedGoodsCountItem.create({
+        data: {
+          yearEndCountId: yearEndCount.id,
+          finishedGoodId: finishedGood.id,
+          expectedQuantity: 0, // No expected quantity for finished goods
+          countedQuantity: previousCountedQty,
+          variance: previousCountedQty !== null ? previousCountedQty - 0 : null,
+          materialCostPerUnit: finishedGood.materialCost,
+          totalValue: previousCountedQty !== null ? previousCountedQty * finishedGood.materialCost : null,
+        },
+      });
+      finishedGoodsItems.push(item);
+    }
+
     return {
       ...yearEndCount,
       itemsCount: countItems.length,
+      finishedGoodsItemsCount: finishedGoodsItems.length,
     };
   },
 
@@ -120,6 +189,20 @@ export const createYearEndCountService = (
             },
           },
         },
+        finishedGoodsItems: {
+          include: {
+            finishedGood: {
+              include: {
+                unit: true,
+              },
+            },
+          },
+          orderBy: {
+            finishedGood: {
+              name: 'asc', // Alphabetical sorting for easy lookup
+            },
+          },
+        },
       },
     });
 
@@ -127,9 +210,13 @@ export const createYearEndCountService = (
       throw new AppError(404, 'Year-end count not found');
     }
 
-    // Calculate progress
+    // Calculate progress for raw materials
     const totalProducts = count.items.length;
     const countedProducts = count.items.filter((item) => item.countedQuantity !== null).length;
+
+    // Calculate progress for finished goods
+    const totalFinishedGoods = count.finishedGoodsItems.length;
+    const countedFinishedGoods = count.finishedGoodsItems.filter((item) => item.countedQuantity !== null).length;
 
     return {
       ...count,
@@ -137,6 +224,11 @@ export const createYearEndCountService = (
         total: totalProducts,
         counted: countedProducts,
         percentage: totalProducts > 0 ? Math.round((countedProducts / totalProducts) * 100) : 0,
+      },
+      finishedGoodsProgress: {
+        total: totalFinishedGoods,
+        counted: countedFinishedGoods,
+        percentage: totalFinishedGoods > 0 ? Math.round((countedFinishedGoods / totalFinishedGoods) * 100) : 0,
       },
     };
   },
@@ -152,6 +244,7 @@ export const createYearEndCountService = (
       where: { id: countId },
       include: {
         items: true,
+        finishedGoodsItems: true,
       },
     });
 
@@ -254,11 +347,74 @@ export const createYearEndCountService = (
       });
     }
 
+    // Handle finished goods - update material costs from current finished good records
+    const finishedGoods = await dbClient.finishedGood.findMany({
+      where: { isActive: true },
+    });
+
+    // Create a map of existing finished goods items
+    const existingFGItemsMap = new Map(
+      count.finishedGoodsItems?.map((item) => [item.finishedGoodId, item]) || []
+    );
+
+    // Track which finished goods should be in the count
+    const currentFinishedGoodIds = new Set<number>();
+    let fgItemsAdded = 0;
+
+    // Process each active finished good
+    for (const fg of finishedGoods) {
+      currentFinishedGoodIds.add(fg.id);
+      const existingFGItem = existingFGItemsMap.get(fg.id);
+
+      if (existingFGItem) {
+        // Update material cost if it has changed
+        if (existingFGItem.materialCostPerUnit !== fg.materialCost) {
+          await dbClient.finishedGoodsCountItem.update({
+            where: { id: existingFGItem.id },
+            data: {
+              materialCostPerUnit: fg.materialCost,
+              // Recalculate total value if item has been counted
+              totalValue: existingFGItem.countedQuantity !== null
+                ? existingFGItem.countedQuantity * fg.materialCost
+                : null,
+            },
+          });
+        }
+      } else {
+        // Add new finished good item
+        await dbClient.finishedGoodsCountItem.create({
+          data: {
+            yearEndCountId: countId,
+            finishedGoodId: fg.id,
+            expectedQuantity: 0,
+            countedQuantity: null,
+            variance: null,
+            materialCostPerUnit: fg.materialCost,
+            totalValue: null,
+          },
+        });
+        fgItemsAdded++;
+      }
+    }
+
+    // Remove finished goods items for inactive finished goods
+    const fgItemsToRemove = Array.from(existingFGItemsMap.values()).filter(
+      (item) => !currentFinishedGoodIds.has(item.finishedGoodId)
+    );
+
+    for (const item of fgItemsToRemove) {
+      await dbClient.finishedGoodsCountItem.delete({
+        where: { id: item.id },
+      });
+    }
+
     return {
-      message: 'Expected quantities refreshed successfully',
+      message: 'Expected quantities and finished goods refreshed successfully',
       itemsUpdated: currentProductIds.size,
       itemsAdded: currentProductIds.size - existingItemsMap.size + itemsToRemove.length,
       itemsRemoved: itemsToRemove.length,
+      finishedGoodsItemsAdded: fgItemsAdded,
+      finishedGoodsItemsRemoved: fgItemsToRemove.length,
     };
   },
 
@@ -336,6 +492,60 @@ export const createYearEndCountService = (
   },
 
   /**
+   * Update finished good count item with actual counted quantity
+   */
+  async updateFinishedGoodCountItem(countId: number, finishedGoodId: number, countedQuantity: number) {
+    // Verify count exists and is in draft status
+    const count = await dbClient.yearEndCount.findUnique({
+      where: { id: countId },
+    });
+
+    if (!count) {
+      throw new AppError(404, 'Year-end count not found');
+    }
+
+    if (count.status !== 'draft') {
+      throw new AppError(400, 'Cannot update confirmed year-end count');
+    }
+
+    // Find the count item
+    const item = await dbClient.finishedGoodsCountItem.findFirst({
+      where: {
+        yearEndCountId: countId,
+        finishedGoodId,
+      },
+    });
+
+    if (!item) {
+      throw new AppError(404, 'Finished good count item not found');
+    }
+
+    // Calculate variance (counted - expected, where expected is always 0)
+    const variance = countedQuantity - item.expectedQuantity;
+
+    // Calculate total value using material cost
+    const totalValue = countedQuantity * item.materialCostPerUnit;
+
+    // Update the count item
+    return await dbClient.finishedGoodsCountItem.update({
+      where: { id: item.id },
+      data: {
+        countedQuantity,
+        variance,
+        totalValue,
+      },
+      include: {
+        finishedGood: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+  },
+
+  /**
    * Calculate variances for all items
    */
   async calculateVariances(countId: number) {
@@ -383,6 +593,59 @@ export const createYearEndCountService = (
   },
 
   /**
+   * Calculate variances for finished goods items
+   */
+  async calculateFinishedGoodsVariances(countId: number) {
+    const count = await dbClient.yearEndCount.findUnique({
+      where: { id: countId },
+      include: {
+        finishedGoodsItems: {
+          include: {
+            finishedGood: {
+              include: {
+                unit: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!count) {
+      throw new AppError(404, 'Year-end count not found');
+    }
+
+    const summary = {
+      totalFinishedGoods: count.finishedGoodsItems.length,
+      countedFinishedGoods: count.finishedGoodsItems.filter((item) => item.countedQuantity !== null).length,
+      totalExpected: count.finishedGoodsItems.reduce((sum, item) => sum + item.expectedQuantity, 0),
+      totalCounted: count.finishedGoodsItems.reduce((sum, item) => sum + (item.countedQuantity || 0), 0),
+      totalVariance: count.finishedGoodsItems.reduce((sum, item) => sum + (item.variance || 0), 0),
+      totalValue: count.finishedGoodsItems.reduce((sum, item) => sum + (item.totalValue || 0), 0),
+      items: count.finishedGoodsItems.map((item) => ({
+        finishedGoodId: item.finishedGoodId,
+        finishedGoodName: item.finishedGood.name,
+        unitName: item.finishedGood.unit?.name || '',
+        expectedQuantity: item.expectedQuantity,
+        countedQuantity: item.countedQuantity,
+        variance: item.variance,
+        materialCostPerUnit: item.materialCostPerUnit,
+        totalValue: item.totalValue,
+        status:
+          item.countedQuantity === null
+            ? 'pending'
+            : item.variance === 0
+            ? 'exact'
+            : (item.variance || 0) > 0
+            ? 'surplus'
+            : 'shortage',
+      })),
+    };
+
+    return summary;
+  },
+
+  /**
    * Generate year-end report with lot breakdown
    */
   async generateYearEndReport(countId: number) {
@@ -408,12 +671,48 @@ export const createYearEndCountService = (
             },
           },
         },
+        finishedGoodsItems: {
+          include: {
+            finishedGood: {
+              include: {
+                unit: true,
+              },
+            },
+          },
+          orderBy: {
+            finishedGood: {
+              name: 'asc',
+            },
+          },
+        },
       },
     });
 
     if (!count) {
       throw new AppError(404, 'Year-end count not found');
     }
+
+    // Fetch ALL revisions for this year to enable comparison
+    const allYearRevisions = await dbClient.yearEndCount.findMany({
+      where: { 
+        year: count.year,
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        revision: 'asc',
+      },
+    });
 
     // PERFORMANCE FIX: Batch fetch all lots in a single query instead of N queries
     // This eliminates the N+1 query problem
@@ -498,8 +797,91 @@ export const createYearEndCountService = (
     const totalCounted = count.items.reduce((sum, item) => sum + (item.countedQuantity || 0), 0);
     const totalValue = count.items.reduce((sum, item) => sum + (item.value || 0), 0);
 
+    // Build finished goods report items
+    const finishedGoodsReportItems = count.finishedGoodsItems.map((item) => ({
+      finishedGoodId: item.finishedGoodId,
+      finishedGoodName: item.finishedGood.name,
+      unitName: item.finishedGood.unit?.name || '',
+      expectedQuantity: item.expectedQuantity,
+      countedQuantity: item.countedQuantity,
+      variance: item.variance,
+      materialCostPerUnit: item.materialCostPerUnit,
+      totalValue: item.totalValue,
+    }));
+
+    const totalFinishedGoodsExpected = count.finishedGoodsItems.reduce((sum, item) => sum + item.expectedQuantity, 0);
+    const totalFinishedGoodsCounted = count.finishedGoodsItems.reduce((sum, item) => sum + (item.countedQuantity || 0), 0);
+    const totalFinishedGoodsValue = count.finishedGoodsItems.reduce((sum, item) => sum + (item.totalValue || 0), 0);
+
+    // Get all revisions for this year (for audit trail)
+    const allRevisions = await dbClient.yearEndCount.findMany({
+      where: { year: count.year },
+      orderBy: { revision: 'asc' },
+      select: {
+        id: true,
+        revision: true,
+        status: true,
+        createdAt: true,
+        confirmedAt: true,
+      },
+    });
+
+    // Build revision comparison data: organize by product across all revisions
+    const revisionComparison = new Map<number, any>();
+    
+    for (const rev of allYearRevisions) {
+      for (const item of rev.items) {
+        if (!revisionComparison.has(item.productId)) {
+          revisionComparison.set(item.productId, {
+            productId: item.productId,
+            productName: item.product.name,
+            revisions: {},
+          });
+        }
+        
+        const productData = revisionComparison.get(item.productId)!;
+        productData.revisions[rev.revision] = {
+          expectedQuantity: item.expectedQuantity,
+          countedQuantity: item.countedQuantity,
+          variance: item.variance,
+          value: item.value,
+        };
+      }
+    }
+
+    // Convert to array and calculate changes between consecutive revisions
+    const comparisonItems = Array.from(revisionComparison.values()).map(item => {
+      const revisionNumbers = Object.keys(item.revisions).map(Number).sort((a, b) => a - b);
+      const changes: Record<string, number> = {};
+      
+      for (let i = 1; i < revisionNumbers.length; i++) {
+        const prevRev = revisionNumbers[i - 1];
+        const currRev = revisionNumbers[i];
+        const prevCounted = item.revisions[prevRev]?.countedQuantity || 0;
+        const currCounted = item.revisions[currRev]?.countedQuantity || 0;
+        changes[`${prevRev}_to_${currRev}`] = currCounted - prevCounted;
+      }
+      
+      return {
+        ...item,
+        changes,
+      };
+    });
+
+    // Get unlock history for this year
+    const unlockHistory = await dbClient.yearUnlockAudit.findMany({
+      where: { year: count.year },
+      orderBy: { unlockedAt: 'desc' },
+      select: {
+        reasonCategory: true,
+        description: true,
+        unlockedAt: true,
+      },
+    });
+
     return {
       year: count.year,
+      revision: count.revision,
       status: count.status,
       confirmedAt: count.confirmedAt,
       totalExpected,
@@ -507,6 +889,17 @@ export const createYearEndCountService = (
       totalVariance: totalCounted - totalExpected,
       totalValue,
       items: reportItems,
+      finishedGoods: {
+        totalExpected: totalFinishedGoodsExpected,
+        totalCounted: totalFinishedGoodsCounted,
+        totalVariance: totalFinishedGoodsCounted - totalFinishedGoodsExpected,
+        totalValue: totalFinishedGoodsValue,
+        items: finishedGoodsReportItems,
+      },
+      revisionHistory: allRevisions,
+      unlockHistory,
+      revisionComparison: comparisonItems,
+      hasMultipleRevisions: allYearRevisions.length > 1,
     };
   },
 
@@ -519,6 +912,7 @@ export const createYearEndCountService = (
       where: { id: countId },
       include: {
         items: true,
+        finishedGoodsItems: true,
       },
     });
 
@@ -547,6 +941,26 @@ export const createYearEndCountService = (
       throw new AppError(
         400,
         `Cannot confirm count. ${uncountedItems.length} products not counted: ${uncountedProducts.map((p) => p.name).join(', ')}`
+      );
+    }
+
+    // Validate all finished goods have been counted
+    const uncountedFinishedGoods = count.finishedGoodsItems.filter((item) => item.countedQuantity === null);
+    if (uncountedFinishedGoods.length > 0) {
+      const uncountedFG = await dbClient.finishedGood.findMany({
+        where: {
+          id: {
+            in: uncountedFinishedGoods.map((item) => item.finishedGoodId),
+          },
+        },
+        select: {
+          name: true,
+        },
+      });
+
+      throw new AppError(
+        400,
+        `Cannot confirm count. ${uncountedFinishedGoods.length} finished goods not counted: ${uncountedFG.map((fg) => fg.name).join(', ')}`
       );
     }
 

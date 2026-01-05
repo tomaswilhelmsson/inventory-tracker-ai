@@ -23,7 +23,11 @@ async function checkPendingCount() {
 }
 
 function goToYearEndCount() {
-  router.push('/year-end-count');
+  // Navigate to year-end-count with the pending year as a query parameter
+  router.push({ 
+    path: '/year-end-count', 
+    query: { year: pendingYear.value?.toString() } 
+  });
 }
 
 onMounted(() => {

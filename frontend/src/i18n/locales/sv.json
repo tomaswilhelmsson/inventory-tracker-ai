@@ -41,6 +41,7 @@
     "dashboard": "Instrumentpanel",
     "suppliers": "Leverantörer",
     "products": "Produkter",
+    "finishedGoods": "Färdigvaror",
     "units": "Enheter",
     "purchases": "Inköp",
     "inventory": "Lager",
@@ -185,6 +186,42 @@
       "noPurchases": "Ingen inköpshistorik tillgänglig",
       "loadFailed": "Misslyckades med att ladda inköpshistorik",
       "asOfToday": "Per idag"
+    }
+  },
+  "finishedGoods": {
+    "title": "Färdigvaror hantering",
+    "addFinishedGood": "Lägg till färdigvara",
+    "editFinishedGood": "Redigera färdigvara",
+    "searchFinishedGoods": "Sök färdigvaror...",
+    "createdSuccessfully": "Färdigvara skapad",
+    "updatedSuccessfully": "Färdigvara uppdaterad",
+    "disabledSuccessfully": "Färdigvara inaktiverad",
+    "enabledSuccessfully": "Färdigvara aktiverad",
+    "form": {
+      "name": "Färdigvarunamn",
+      "namePlaceholder": "Ange färdigvarunamn",
+      "description": "Beskrivning",
+      "descriptionPlaceholder": "Ange beskrivning",
+      "unit": "Enhet",
+      "selectUnit": "Välj enhet",
+      "materialCost": "Materialkostnad (exkl. moms)",
+      "materialCostPlaceholder": "Ange materialkostnad per enhet exklusive moms"
+    },
+    "table": {
+      "name": "Namn",
+      "description": "Beskrivning",
+      "unit": "Enhet",
+      "materialCost": "Materialkostnad (exkl. moms)",
+      "created": "Skapad"
+    },
+    "validation": {
+      "nameRequired": "Namn krävs",
+      "unitRequired": "Enhet krävs",
+      "materialCostRequired": "Materialkostnad måste vara ett positivt tal"
+    },
+    "confirmations": {
+      "disable": "Är du säker på att du vill inaktivera {name}? Den kommer att döljas från menyer men historisk data förblir.",
+      "enable": "Är du säker på att du vill aktivera {name}?"
     }
   },
   "units": {
@@ -364,14 +401,22 @@
     "clickToInitiate": "Klicka 'Starta räkning' för att påbörja räkning för år {year}",
     "noCountForYear": "Inget årsbokslut finns för {year}",
     "initiateCount": "Starta räkning",
+    "initiateNewRevision": "Skapa ny revision",
     "confirmCount": "Bekräfta räkning",
     "confirmLockYear": "Bekräfta & lås år",
     "draft": "Utkast",
     "confirmedLocked": "Bekräftad & låst",
     "noCountInProgress": "Ingen räkning pågår",
     "allProductsCounted": "Alla produkter räknade",
+    "allItemsCounted": "Alla poster räknade (produkter och färdigvaror)",
+    "overallProgress": "Total framsteg",
+    "rawMaterials": "Råmaterial",
+    "finishedGoodsLabel": "Färdigvaror",
+    "finishedGoodsSection": "Färdigvaror",
+    "finishedGoods": "färdigvaror",
     "progress": "{counted} av {total} produkter räknade",
     "productsNeedCounting": "{count} produkter behöver fortfarande räknas",
+    "finishedGoodsNeedCounting": "{count} färdigvaror behöver fortfarande räknas",
     "countSheet": "Räknelista",
     "discardCount": "Kassera",
     "refreshExpected": "Uppdatera förväntade antal",
@@ -397,6 +442,7 @@
     "table": {
       "product": "Produkt",
       "productName": "Produktnamn",
+      "finishedGoodName": "Färdigvarunamn",
       "expected": "Förväntat antal",
       "expectedQuantity": "Förväntat antal",
       "counted": "Räknat antal",
@@ -405,6 +451,8 @@
       "variance": "Avvikelse",
       "value": "Värde",
       "valueFIFO": "Värde (FIFO)",
+      "totalValue": "Totalt värde",
+      "materialCost": "Materialkostnad (exkl. moms)",
       "unit": "Enhet"
     },
     "summary": {
@@ -412,17 +460,23 @@
       "totalExpected": "Totalt förväntat",
       "totalCounted": "Totalt räknat",
       "totalVariance": "Total avvikelse",
-      "totalValue": "Totalt värde"
+      "totalValue": "Totalt värde (Råmaterial)",
+      "finishedGoodsValue": "Färdigvaruvärde",
+      "combinedValue": "Kombinerat totalt värde"
     },
     "tooltips": {
       "expectedQuantity": "Det beräknade antalet baserat på FIFO (First-In-First-Out) från alla inköp och tidigare räkningar. Detta är vad systemet förväntar sig att du har i lager.",
+      "expectedQuantityFG": "För färdigvaror är förväntat antal alltid 0 eftersom de tillverkas, inte köps. Ange det faktiska räknade antalet.",
       "actualCount": "Ange den fysiska räkningen från ditt lager. Detta är vad du faktiskt har i lager efter räkning.",
       "variance": "Skillnaden mellan vad du räknade och vad som förväntades. Positivt betyder att du har mer än förväntat, negativt betyder mindre.",
       "valueFIFO": "Det monetära värdet av denna produkt baserat på FIFO-kostnadsredovisning (använder kostnaden för de äldsta inköpen först).",
+      "totalValueFG": "Det totala värdet av denna färdigvara baserat på materialkostnad (exkl. moms) per enhet × räknat antal. Materialkostnader exkluderar moms för noggrann kostnadsredovisning.",
       "totalExpected": "Summan av alla förväntade kvantiteter över alla produkter baserat på inköpshistorik och FIFO-beräkningar.",
       "totalCounted": "Summan av alla fysiskt räknade kvantiteter över alla produkter.",
       "totalVariance": "Den totala skillnaden mellan räknat och förväntat. Visar övergripande lagernoggrannhet.",
-      "totalValue": "Totalt lagervärde beräknat med FIFO-metoden över alla produkter."
+      "totalValue": "Totalt lagervärde beräknat med FIFO-metoden över alla produkter.",
+      "finishedGoodsValue": "Totalt värde av färdigvarulager baserat på materialkostnader (exkl. moms).",
+      "combinedValue": "Kombinerat totalt värde av råmaterial (FIFO exkl. moms) och färdigvaror (materialkostnad exkl. moms). Alla värden exkluderar moms."
     },
     "confirmDialog": {
       "header": "Bekräfta årsbokslut",
@@ -489,6 +543,7 @@
     },
     "messages": {
       "initiateSuccess": "Årsbokslut initierat för {year}",
+      "newRevisionSuccess": "Ny revision skapad för {year}. Tidigare räkningar har kopierats - granska och justera vid behov.",
       "initiateFailed": "Misslyckades med att initiera årsbokslut",
       "confirmSuccess": "Årsbokslut bekräftat för {year}",
       "confirmFailed": "Misslyckades med att bekräfta årsbokslut",
@@ -496,6 +551,7 @@
       "alreadyExists": "Årsbokslut finns redan för {year}",
       "enterAllCounts": "Ange räknade antal för alla produkter",
       "countUpdated": "Räkning uppdaterad för {productName}",
+      "finishedGoodCountUpdated": "Räkning uppdaterad för {name}",
       "incompleteCount": "{count} produkter behöver fortfarande räknas. Vänligen räkna alla produkter innan bekräftelse.",
       "loadFailed": "Misslyckades med att ladda årsbokslut",
       "loadSheetFailed": "Misslyckades med att ladda räknelista",

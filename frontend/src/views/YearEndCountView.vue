@@ -62,10 +62,6 @@ const uncountedItems = computed(() => {
   return countSheet.value.items.filter((item: any) => item.countedQuantity === null);
 });
 
-const isCountComplete = computed(() => {
-  return uncountedItems.value.length === 0;
-});
-
 const totalExpectedQuantity = computed(() => {
   if (!countSheet.value?.items) return 0;
   return countSheet.value.items.reduce((sum: number, item: any) => sum + item.expectedQuantity, 0);
@@ -94,17 +90,61 @@ const totalValue = computed(() => {
   }, 0);
 });
 
+// Finished goods computed properties
+const finishedGoodsProgress = computed(() => {
+  if (!countSheet.value?.finishedGoodsProgress) return 0;
+  return countSheet.value.finishedGoodsProgress.percentage;
+});
+
+const countedFinishedGoods = computed(() => {
+  if (!countSheet.value?.finishedGoodsProgress) return 0;
+  return countSheet.value.finishedGoodsProgress.counted;
+});
+
+const totalFinishedGoods = computed(() => {
+  if (!countSheet.value?.finishedGoodsProgress) return 0;
+  return countSheet.value.finishedGoodsProgress.total;
+});
+
+const uncountedFinishedGoods = computed(() => {
+  if (!countSheet.value?.finishedGoodsItems) return [];
+  return countSheet.value.finishedGoodsItems.filter((item: any) => item.countedQuantity === null);
+});
+
+const totalFinishedGoodsValue = computed(() => {
+  if (!countSheet.value?.finishedGoodsItems) return 0;
+  return countSheet.value.finishedGoodsItems.reduce((sum: number, item: any) => {
+    if (item.totalValue === null) return sum;
+    return sum + item.totalValue;
+  }, 0);
+});
+
+// Combined progress
+const overallProgress = computed(() => {
+  const totalAll = totalItems.value + totalFinishedGoods.value;
+  if (totalAll === 0) return 0;
+  const countedAll = countedItems.value + countedFinishedGoods.value;
+  return Math.round((countedAll / totalAll) * 100);
+});
+
+const isCountComplete = computed(() => {
+  return uncountedItems.value.length === 0 && uncountedFinishedGoods.value.length === 0;
+});
+
 async function initiateCount() {
   loading.value = true;
   try {
     const response = await api.post('/year-end-count', { year: selectedYear.value });
+    const isNewRevision = response.data.revision > 1;
     await loadCountSheet(response.data.id);
     await loadAvailableRevisions();
     toast.add({
       severity: 'success',
       summary: t('common.success'),
-      detail: t('yearEndCount.messages.initiateSuccess', { year: selectedYear.value }),
-      life: 3000,
+      detail: isNewRevision 
+        ? t('yearEndCount.messages.newRevisionSuccess', { year: selectedYear.value })
+        : t('yearEndCount.messages.initiateSuccess', { year: selectedYear.value }),
+      life: 5000,
     });
   } catch (error: any) {
     toast.add({
@@ -233,6 +273,48 @@ async function updateCountItem(item: any) {
       severity: 'success',
       summary: t('common.saved'),
       detail: t('yearEndCount.messages.countUpdated', { productName: item.product.name }),
+      life: 2000,
+    });
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: error.response?.data?.error || t('yearEndCount.messages.updateFailed'),
+      life: 5000,
+    });
+  }
+}
+
+async function updateFinishedGoodCountItem(item: any) {
+  // Only update if a valid count has been entered
+  if (item.countedQuantity === null || item.countedQuantity === undefined || item.countedQuantity === '') {
+    return; // Don't send request for empty/null values
+  }
+
+  // Ensure it's a valid non-negative number
+  const quantity = Number(item.countedQuantity);
+  if (isNaN(quantity) || quantity < 0) {
+    toast.add({
+      severity: 'warn',
+      summary: t('common.warning'),
+      detail: 'Please enter a valid quantity (0 or greater)',
+      life: 3000,
+    });
+    return;
+  }
+
+  try {
+    await api.put(`/year-end-count/${countSheet.value.id}/finished-goods/${item.finishedGoodId}`, {
+      countedQuantity: parseFloat(quantity.toFixed(2)), // Allow decimal quantities
+    });
+
+    // Refresh count sheet to get updated variance and value
+    await loadCountSheet(countSheet.value.id);
+
+    toast.add({
+      severity: 'success',
+      summary: t('common.saved'),
+      detail: t('yearEndCount.messages.finishedGoodCountUpdated', { name: item.finishedGood.name }),
       life: 2000,
     });
   } catch (error: any) {
@@ -790,18 +872,42 @@ onMounted(async () => {
         <template #content>
           <div class="progress-section">
             <div class="progress-info">
-              <h3>{{ t('yearEndCount.progress', { counted: countedItems, total: totalItems }) }}</h3>
-              <span class="percentage">{{ progress }}%</span>
+              <h3>{{ t('yearEndCount.overallProgress') }}</h3>
+              <span class="percentage">{{ overallProgress }}%</span>
             </div>
-            <ProgressBar :value="progress" :showValue="false" :class="getProgressClass(progress)" />
-            <div v-if="uncountedItems.length > 0" class="uncounted-warning">
+            <ProgressBar :value="overallProgress" :showValue="false" :class="getProgressClass(overallProgress)" />
+            
+            <!-- Raw Materials Progress -->
+            <div class="sub-progress">
+              <div class="sub-progress-header">
+                <span class="sub-progress-label">{{ t('yearEndCount.rawMaterials') }}</span>
+                <span class="sub-progress-count">{{ countedItems }} / {{ totalItems }}</span>
+              </div>
+              <ProgressBar :value="progress" :showValue="false" style="height: 0.5rem;" />
+            </div>
+
+            <!-- Finished Goods Progress -->
+            <div v-if="totalFinishedGoods > 0" class="sub-progress">
+              <div class="sub-progress-header">
+                <span class="sub-progress-label">{{ t('yearEndCount.finishedGoodsLabel') }}</span>
+                <span class="sub-progress-count">{{ countedFinishedGoods }} / {{ totalFinishedGoods }}</span>
+              </div>
+              <ProgressBar :value="finishedGoodsProgress" :showValue="false" style="height: 0.5rem;" />
+            </div>
+
+            <div v-if="!isCountComplete" class="uncounted-warning">
               <Message severity="warn" :closable="false">
-                {{ t('yearEndCount.productsNeedCounting', { count: uncountedItems.length }) }}
+                <div v-if="uncountedItems.length > 0">
+                  {{ t('yearEndCount.productsNeedCounting', { count: uncountedItems.length }) }}
+                </div>
+                <div v-if="uncountedFinishedGoods.length > 0">
+                  {{ t('yearEndCount.finishedGoodsNeedCounting', { count: uncountedFinishedGoods.length }) }}
+                </div>
               </Message>
             </div>
             <div v-else>
               <Message severity="success" :closable="false">
-                {{ t('yearEndCount.allProductsCounted') }}
+                {{ t('yearEndCount.allItemsCounted') }}
               </Message>
             </div>
           </div>
@@ -860,6 +966,26 @@ onMounted(async () => {
               </label>
               <span class="summary-value value-large">{{ formatCurrency(totalValue) }}</span>
             </div>
+            <div v-if="totalFinishedGoods > 0" class="summary-item">
+              <label>
+                {{ t('yearEndCount.summary.finishedGoodsValue') }}
+                <i 
+                  class="pi pi-question-circle tooltip-icon" 
+                  v-tooltip.top="t('yearEndCount.tooltips.finishedGoodsValue')"
+                ></i>
+              </label>
+              <span class="summary-value value-large">{{ formatCurrency(totalFinishedGoodsValue) }}</span>
+            </div>
+            <div v-if="totalFinishedGoods > 0" class="summary-item">
+              <label>
+                {{ t('yearEndCount.summary.combinedValue') }}
+                <i 
+                  class="pi pi-question-circle tooltip-icon" 
+                  v-tooltip.top="t('yearEndCount.tooltips.combinedValue')"
+                ></i>
+              </label>
+              <span class="summary-value value-large" style="font-weight: 700; color: var(--primary-color);">{{ formatCurrency(totalValue + totalFinishedGoodsValue) }}</span>
+            </div>
           </div>
         </template>
       </Card>
@@ -875,6 +1001,14 @@ onMounted(async () => {
               @click="refreshExpectedQuantities"
               severity="info"
               outlined
+              :loading="loading"
+            />
+            <Button
+              v-if="countSheet.status === 'confirmed' && !isYearLocked"
+              :label="t('yearEndCount.initiateNewRevision')"
+              icon="pi pi-plus-circle"
+              @click="initiateCount"
+              severity="success"
               :loading="loading"
             />
             <Button
@@ -1059,6 +1193,125 @@ onMounted(async () => {
               <template #body="{ data }">
                 <span v-if="data.value !== null" class="value">
                   {{ formatCurrency(data.value) }}
+                </span>
+                <span v-else class="text-muted">-</span>
+              </template>
+            </Column>
+          </DataTable>
+        </template>
+      </Card>
+
+      <!-- Finished Goods Section -->
+      <Card v-if="countSheet.finishedGoodsItems && countSheet.finishedGoodsItems.length > 0" class="count-sheet-card">
+        <template #title>
+          <div class="card-header-flex">
+            <h3>{{ t('yearEndCount.finishedGoodsSection') }}</h3>
+            <span class="item-count">
+              {{ countSheet.finishedGoodsItems.length }} {{ t('yearEndCount.finishedGoods') }}
+            </span>
+          </div>
+        </template>
+        <template #content>
+          <DataTable
+            :value="countSheet.finishedGoodsItems"
+            :loading="loading"
+            stripedRows
+            :paginator="true"
+            :rows="20"
+            sortField="finishedGood.name"
+            :sortOrder="1"
+            :rowClass="getCountRowClass"
+          >
+            <Column field="finishedGood.name" :header="t('yearEndCount.table.finishedGoodName')" sortable>
+              <template #body="{ data }">
+                <div class="product-cell">
+                  <span class="product-name">{{ data.finishedGood.name }}</span>
+                  <span class="supplier-name" v-if="data.finishedGood.unit">
+                    {{ data.finishedGood.unit.name }}
+                  </span>
+                </div>
+              </template>
+            </Column>
+
+            <Column field="expectedQuantity" sortable>
+              <template #header>
+                <div class="header-with-tooltip">
+                  <span>{{ t('yearEndCount.table.expectedQuantity') }}</span>
+                  <i 
+                    class="pi pi-question-circle tooltip-icon" 
+                    v-tooltip.top="t('yearEndCount.tooltips.expectedQuantityFG')"
+                  ></i>
+                </div>
+              </template>
+              <template #body="{ data }">
+                <span class="expected-qty">{{ n(data.expectedQuantity, 'quantity') }} {{ data.finishedGood?.unit?.name || t('units.names.pieces') }}</span>
+              </template>
+            </Column>
+
+            <Column field="countedQuantity">
+              <template #header>
+                <div class="header-with-tooltip">
+                  <span>{{ t('yearEndCount.table.actualCount') }}</span>
+                  <i 
+                    class="pi pi-question-circle tooltip-icon" 
+                    v-tooltip.top="t('yearEndCount.tooltips.actualCount')"
+                  ></i>
+                </div>
+              </template>
+              <template #body="{ data }">
+                <InputNumber
+                  v-model="data.countedQuantity"
+                  @blur="updateFinishedGoodCountItem(data)"
+                  :min="0"
+                  :minFractionDigits="0"
+                  :maxFractionDigits="2"
+                  :disabled="countSheet.status === 'confirmed'"
+                  :class="{ 'uncounted': data.countedQuantity === null }"
+                  :placeholder="t('yearEndCount.table.enterCount')"
+                />
+              </template>
+            </Column>
+
+            <Column field="variance" sortable>
+              <template #header>
+                <div class="header-with-tooltip">
+                  <span>{{ t('yearEndCount.table.variance') }}</span>
+                  <i 
+                    class="pi pi-question-circle tooltip-icon" 
+                    v-tooltip.top="t('yearEndCount.tooltips.variance')"
+                  ></i>
+                </div>
+              </template>
+              <template #body="{ data }">
+                <Tag 
+                  v-if="data.variance !== null"
+                  :value="`${data.variance >= 0 ? '+' : ''}${n(data.variance, 'quantity')} ${data.finishedGood?.unit?.name || t('units.names.pieces')}`"
+                  :severity="getVarianceSeverity(data.variance)"
+                  :icon="`pi ${getVarianceIcon(data.variance)}`"
+                />
+                <span v-else class="text-muted">-</span>
+              </template>
+            </Column>
+
+            <Column field="materialCostPerUnit" :header="t('yearEndCount.table.materialCost')" sortable>
+              <template #body="{ data }">
+                <span class="material-cost">{{ formatCurrency(data.materialCostPerUnit) }}</span>
+              </template>
+            </Column>
+
+            <Column field="totalValue" sortable>
+              <template #header>
+                <div class="header-with-tooltip">
+                  <span>{{ t('yearEndCount.table.totalValue') }}</span>
+                  <i 
+                    class="pi pi-question-circle tooltip-icon" 
+                    v-tooltip.top="t('yearEndCount.tooltips.totalValueFG')"
+                  ></i>
+                </div>
+              </template>
+              <template #body="{ data }">
+                <span v-if="data.totalValue !== null" class="value">
+                  {{ formatCurrency(data.totalValue) }}
                 </span>
                 <span v-else class="text-muted">-</span>
               </template>
@@ -1362,6 +1615,33 @@ onMounted(async () => {
   font-size: 1.5rem;
   font-weight: 700;
   color: #1976d2;
+}
+
+.sub-progress {
+  margin-top: 0.75rem;
+}
+
+.sub-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.sub-progress-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.sub-progress-count {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.material-cost {
+  font-weight: 500;
+  color: var(--primary-color);
 }
 
 .action-buttons {

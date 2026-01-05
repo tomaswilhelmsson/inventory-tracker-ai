@@ -39,6 +39,35 @@ const pdfTranslations = {
     confirmedData: '✓ This report is based on confirmed and locked data.',
     draftWarning: '⚠ This is a draft report. Data may change until confirmed.',
     page: 'Page',
+    finishedGoodsSection: 'Finished Goods Inventory',
+    finishedGood: 'Finished Good',
+    totalFinishedGoods: 'Total Finished Goods',
+    materialCost: 'Material Cost',
+    totalFinishedGoodsValue: 'Total Finished Goods Value',
+    auditTrail: 'Audit Trail',
+    revisionHistory: 'Revision History',
+    unlockHistory: 'Unlock History',
+    revision: 'Revision',
+    created: 'Created',
+    unlocked: 'Unlocked',
+    reason: 'Reason',
+    unlockedBy: 'By',
+    unlockReasonDataError: 'Data Error',
+    unlockReasonInventoryAdjustment: 'Inventory Adjustment',
+    unlockReasonMissingItems: 'Missing Items',
+    unlockReasonOther: 'Other',
+    status: 'Status',
+    description: 'Description',
+    unit: 'Unit',
+    productName: 'Product Name',
+    supplier: 'Supplier',
+    actual: 'Actual',
+    finishedGoods: 'Finished Goods',
+    instructions: 'Instructions: Count each product and finished good physically and write the actual quantity above.',
+    countSheetTitle: 'Year-End Inventory Count',
+    date: 'Date',
+    totalItems: 'Total Items',
+    change: 'Change',
   },
   sv: {
     title: 'Årsbokslut Lagerrapport',
@@ -72,6 +101,35 @@ const pdfTranslations = {
     confirmedData: '✓ Denna rapport baseras på bekräftade och låsta data.',
     draftWarning: '⚠ Detta är en utkastrapport. Data kan ändras tills den bekräftas.',
     page: 'Sida',
+    finishedGoodsSection: 'Färdigvaror lager',
+    finishedGood: 'Färdigvara',
+    totalFinishedGoods: 'Totalt antal färdigvaror',
+    materialCost: 'Materialkostnad',
+    totalFinishedGoodsValue: 'Totalt värde färdigvaror',
+    auditTrail: 'Revisionsspår',
+    revisionHistory: 'Revisionshistorik',
+    unlockHistory: 'Upplåsningshistorik',
+    revision: 'Revision',
+    created: 'Skapad',
+    unlocked: 'Upplåst',
+    reason: 'Anledning',
+    unlockedBy: 'Av',
+    unlockReasonDataError: 'Datafel',
+    unlockReasonInventoryAdjustment: 'Lagerjustering',
+    unlockReasonMissingItems: 'Saknade artiklar',
+    unlockReasonOther: 'Annat',
+    status: 'Status',
+    description: 'Beskrivning',
+    unit: 'Enhet',
+    productName: 'Produktnamn',
+    supplier: 'Leverantör',
+    actual: 'Faktisk',
+    finishedGoods: 'Färdigvaror',
+    instructions: 'Instruktioner: Räkna varje produkt och färdigvara fysiskt och skriv det faktiska antalet ovan.',
+    countSheetTitle: 'Årsbokslut lagerinventering',
+    date: 'Datum',
+    totalItems: 'Totalt antal artiklar',
+    change: 'Ändring',
   },
 };
 
@@ -91,15 +149,17 @@ export const exportService = {
     const csvWriter = createObjectCsvWriter({
       path: csvPath,
       header: [
+        { id: 'type', title: 'Type' },
         { id: 'productName', title: 'Product Name' },
-        { id: 'supplier', title: 'Supplier' },
+        { id: 'supplier', title: 'Supplier/Unit' },
         { id: 'expectedQuantity', title: 'Expected Quantity' },
         { id: 'actualCount', title: 'Actual Count' },
         { id: 'notes', title: 'Notes' },
       ],
     });
 
-    const records = countSheet.items.map((item: any) => {
+    // Raw materials records
+    const rawMaterialRecords = countSheet.items.map((item: any) => {
       // Get supplier names - show all suppliers separated by comma
       let supplierName = 'Unknown';
       if (item.product.suppliers && item.product.suppliers.length > 0) {
@@ -109,6 +169,7 @@ export const exportService = {
       }
 
       return {
+        type: 'Raw Material',
         productName: item.product.name,
         supplier: supplierName,
         expectedQuantity: item.expectedQuantity,
@@ -117,14 +178,31 @@ export const exportService = {
       };
     });
 
-    await csvWriter.writeRecords(records);
+    // Finished goods records
+    const finishedGoodsRecords = countSheet.finishedGoodsItems?.map((item: any) => {
+      const unitName = item.finishedGood.unit?.name || '';
+      
+      return {
+        type: 'Finished Good',
+        productName: item.finishedGood.name,
+        supplier: unitName,
+        expectedQuantity: item.expectedQuantity,
+        actualCount: '', // Empty for user to fill
+        notes: '',
+      };
+    }) || [];
+
+    // Combine all records
+    const allRecords = [...rawMaterialRecords, ...finishedGoodsRecords];
+
+    await csvWriter.writeRecords(allRecords);
     return csvPath;
   },
 
   /**
    * Export count sheet to PDF for printing
    */
-  async exportCountSheetPDF(countSheet: any): Promise<string> {
+  async exportCountSheetPDF(countSheet: any, language: string = 'en'): Promise<string> {
     const pdfPath = path.join(process.cwd(), 'tmp', `count-sheet-${countSheet.year}-${Date.now()}.pdf`);
     
     // Ensure tmp directory exists
@@ -139,20 +217,27 @@ export const exportService = {
 
       doc.pipe(stream);
 
+      // Get translations for selected language
+      const lang = language === 'sv' ? 'sv' : 'en';
+      const t = pdfTranslations[lang];
+
       // Header
       doc
         .fontSize(20)
-        .text(`Year-End Inventory Count - ${countSheet.year}`, { align: 'center' })
+        .text(`${t.countSheetTitle} - ${countSheet.year}`, { align: 'center' })
         .moveDown();
 
       // Format date as YYYY-MM-DD
       const today = new Date();
       const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       
+      const totalFG = countSheet.finishedGoodsItems?.length || 0;
+      const totalItems = countSheet.items.length + totalFG;
+      
       doc
         .fontSize(12)
-        .text(`Date: ${dateStr}`, { align: 'center' })
-        .text(`Total Products: ${countSheet.items.length}`, { align: 'center' })
+        .text(`${t.date}: ${dateStr}`, { align: 'center' })
+        .text(`${t.totalItems}: ${totalItems} (${countSheet.items.length} ${t.products} + ${totalFG} ${t.finishedGoods.toLowerCase()})`, { align: 'center' })
         .moveDown(2);
 
       // Table header
@@ -166,13 +251,13 @@ export const exportService = {
 
       doc.fontSize(10).font('Helvetica-Bold');
       let x = 50;
-      doc.text('Product Name', x, tableTop, { width: colWidths.productName });
+      doc.text(t.productName, x, tableTop, { width: colWidths.productName });
       x += colWidths.productName;
-      doc.text('Supplier', x, tableTop, { width: colWidths.supplier });
+      doc.text(t.supplier, x, tableTop, { width: colWidths.supplier });
       x += colWidths.supplier;
-      doc.text('Expected', x, tableTop, { width: colWidths.expected });
+      doc.text(t.expected, x, tableTop, { width: colWidths.expected });
       x += colWidths.expected;
-      doc.text('Actual', x, tableTop, { width: colWidths.actual });
+      doc.text(t.actual, x, tableTop, { width: colWidths.actual });
 
       // Draw line under header
       doc
@@ -220,13 +305,85 @@ export const exportService = {
         y += rowHeight;
       }
 
+      // Finished Goods Section
+      if (countSheet.finishedGoodsItems && countSheet.finishedGoodsItems.length > 0) {
+        // Add some spacing
+        y += 30;
+        
+        // Check if we need a new page
+        if (y > 680) {
+          doc.addPage();
+          y = 50;
+        }
+
+        // Section header
+        doc
+          .fontSize(14)
+          .font('Helvetica-Bold')
+          .text(t.finishedGoods, 50, y)
+          .moveDown(0.5);
+
+        y = doc.y;
+
+        // Table header for finished goods
+        const fgTableTop = y;
+        doc.fontSize(10).font('Helvetica-Bold');
+        let fgX = 50;
+        doc.text(t.finishedGood, fgX, fgTableTop, { width: colWidths.productName });
+        fgX += colWidths.productName;
+        doc.text(t.unit, fgX, fgTableTop, { width: colWidths.supplier });
+        fgX += colWidths.supplier;
+        doc.text(t.expected, fgX, fgTableTop, { width: colWidths.expected });
+        fgX += colWidths.expected;
+        doc.text(t.actual, fgX, fgTableTop, { width: colWidths.actual });
+
+        // Draw line under header
+        doc
+          .moveTo(50, fgTableTop + 15)
+          .lineTo(530, fgTableTop + 15)
+          .stroke();
+
+        // Table rows for finished goods
+        doc.font('Helvetica').fontSize(8);
+        y = fgTableTop + 25;
+
+        for (const item of countSheet.finishedGoodsItems) {
+          const unitName = item.finishedGood.unit?.name || '';
+
+          // Calculate row height
+          const fgNameHeight = doc.heightOfString(item.finishedGood.name, { width: colWidths.productName });
+          const fgRowHeight = Math.max(fgNameHeight, 20) + 5;
+
+          // Check if we need a new page
+          if (y + fgRowHeight > 720) {
+            doc.addPage();
+            y = 50;
+          }
+
+          fgX = 50;
+          doc.text(item.finishedGood.name, fgX, y, { width: colWidths.productName, lineBreak: true });
+          fgX += colWidths.productName;
+          doc.text(unitName, fgX, y, { width: colWidths.supplier, lineBreak: true });
+          fgX += colWidths.supplier;
+          doc.text(item.expectedQuantity.toString(), fgX, y, { width: colWidths.expected });
+          fgX += colWidths.expected;
+          // Show counted quantity if available, otherwise blank line for manual entry
+          const fgActualText = item.countedQuantity !== null && item.countedQuantity !== undefined
+            ? item.countedQuantity.toString()
+            : '_________';
+          doc.text(fgActualText, fgX, y, { width: colWidths.actual });
+
+          y += fgRowHeight;
+        }
+      }
+
       // Footer
       doc
         .moveDown(3)
         .fontSize(10)
-        .text('Instructions: Count each product physically and write the actual quantity above.', 50)
+        .text(t.instructions, 50)
         .moveDown()
-        .text(`Counted by: ________________________  Date: ________________`, 50);
+        .text(`Counted by: ________________________  ${t.date}: ________________`, 50);
 
       doc.end();
 
@@ -308,7 +465,7 @@ export const exportService = {
     }
 
     return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({ margin: 50, size: 'A4', layout: 'landscape' });
       const stream = fs.createWriteStream(pdfPath);
 
       doc.pipe(stream);
@@ -335,12 +492,17 @@ export const exportService = {
       };
 
       // Helper function to format number with 2 decimals
-      const formatNumber = (value: number) => {
+      const formatNumber = (value: number | null | undefined) => {
+        // Convert to number in case it's a string
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (numValue === null || numValue === undefined || isNaN(numValue)) {
+          return '0.00';
+        }
         const locale = lang === 'sv' ? 'sv-SE' : 'en-US';
         const formatted = new Intl.NumberFormat(locale, {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
-        }).format(value);
+        }).format(numValue);
         // Replace non-breaking spaces and Unicode minus signs with regular characters for PDF compatibility
         return formatted
           .replace(/\u00A0/g, ' ')      // Non-breaking space -> regular space
@@ -362,7 +524,7 @@ export const exportService = {
       let pageNum = 1;
 
       // ============================================================
-      // PAGE 1: EXECUTIVE SUMMARY
+      // PAGE 1: TITLE PAGE & AUDIT TRAIL
       // ============================================================
       
       // Title
@@ -388,9 +550,9 @@ export const exportService = {
         .moveDown(0.3);
 
       // Date
+      const locale = lang === 'sv' ? 'sv-SE' : 'en-US';
       if (reportData.confirmedAt) {
         const confirmedDate = new Date(reportData.confirmedAt);
-        const locale = lang === 'sv' ? 'sv-SE' : 'en-US';
         doc
           .fontSize(10)
           .fillColor('#666')
@@ -399,7 +561,6 @@ export const exportService = {
       }
 
       const generatedDate = new Date();
-      const locale = lang === 'sv' ? 'sv-SE' : 'en-US';
       doc
         .fontSize(10)
         .fillColor('#666')
@@ -407,71 +568,170 @@ export const exportService = {
         .fillColor('#000')
         .moveDown(2);
 
-      // Summary Box
-      doc
-        .fontSize(14)
-        .font('Helvetica-Bold')
-        .text(t.executiveSummary, 50)
-        .moveDown(0.5);
+      // ============================================================
+      // AUDIT TRAIL: REVISION HISTORY & UNLOCK REASONS (ON FIRST PAGE)
+      // ============================================================
+      
+      if (reportData.revisionHistory && reportData.revisionHistory.length > 1) {
+        doc
+          .fontSize(14)
+          .font('Helvetica-Bold')
+          .text(t.revisionHistory || 'Revision History', 50)
+          .moveDown(0.5);
 
-      // Draw summary box
-      const summaryBoxY = doc.y;
-      doc
-        .rect(50, summaryBoxY, 495, 120)
-        .fillAndStroke('#f8f9fa', '#dee2e6');
+        // Draw table header
+        const tableTop = doc.y;
+        const colWidths = {
+          revision: 80,
+          status: 120,
+          created: 120,
+          confirmed: 120,
+        };
 
-      // Summary content
-      doc.fillColor('#000');
-      let summaryY = summaryBoxY + 15;
-      const leftCol = 70;
-      const rightCol = 320;
+        doc
+          .fontSize(9)
+          .font('Helvetica-Bold')
+          .fillColor('#000');
 
-      doc
-        .fontSize(11)
-        .font('Helvetica-Bold')
-        .text(`${t.totalProducts}:`, leftCol, summaryY)
-        .font('Helvetica')
-        .text(reportData.items.length.toString(), leftCol + 150, summaryY);
+        let x = 50;
+        doc.text(t.revision || 'Revision', x, tableTop, { width: colWidths.revision });
+        x += colWidths.revision;
+        doc.text(t.status || 'Status', x, tableTop, { width: colWidths.status });
+        x += colWidths.status;
+        doc.text(t.created || 'Created', x, tableTop, { width: colWidths.created });
+        x += colWidths.created;
+        doc.text(t.confirmed || 'Confirmed', x, tableTop, { width: colWidths.confirmed });
 
-      summaryY += 25;
-      doc
-        .font('Helvetica-Bold')
-        .text(`${t.expectedQuantity}:`, leftCol, summaryY)
-        .font('Helvetica')
-        .text(formatNumber(reportData.totalExpected), leftCol + 150, summaryY);
+        // Draw line under header
+        doc
+          .moveTo(50, tableTop + 12)
+          .lineTo(640, tableTop + 12)
+          .stroke();
 
-      doc
-        .font('Helvetica-Bold')
-        .text(`${t.countedQuantity}:`, rightCol, summaryY)
-        .font('Helvetica')
-        .text(formatNumber(reportData.totalCounted), rightCol + 150, summaryY);
+        let y = tableTop + 20;
+        doc.fontSize(9).font('Helvetica');
 
-      summaryY += 25;
-      const varianceColor = reportData.totalVariance >= 0 ? '#28a745' : '#dc3545';
-      doc
-        .font('Helvetica-Bold')
-        .text(`${t.totalVariance}:`, leftCol, summaryY)
-        .font('Helvetica')
-        .fillColor(varianceColor)
-        .text(
-          `${reportData.totalVariance >= 0 ? '+' : ''}${formatNumber(reportData.totalVariance)}`,
-          leftCol + 150,
-          summaryY
-        )
-        .fillColor('#000');
+        for (const rev of reportData.revisionHistory) {
+          if (y > 650) {
+            doc.addPage();
+            pageNum++;
+            addPageHeader(pageNum);
+            y = 70;
+          }
 
-      doc
-        .font('Helvetica-Bold')
-        .text(`${t.totalInventoryValue}:`, rightCol, summaryY)
-        .font('Helvetica')
-        .fillColor('#0066cc')
-        .fontSize(12)
-        .text(formatCurrency(reportData.totalValue), rightCol + 150, summaryY)
-        .fillColor('#000')
-        .fontSize(11);
+          const revisionText = `${rev.revision}`;
+          const statusLabel = rev.status === 'confirmed' ? (t.confirmedLocked || 'Confirmed') : (t.draft || 'Draft');
+          const createdDate = new Date(rev.createdAt);
+          const createdText = createdDate.toLocaleDateString(locale);
+          
+          let confirmedText = '—';
+          if (rev.confirmedAt) {
+            const confirmedDate = new Date(rev.confirmedAt);
+            confirmedText = confirmedDate.toLocaleDateString(locale);
+          }
+
+          x = 50;
+          doc.text(revisionText, x, y, { width: colWidths.revision });
+          x += colWidths.revision;
+          
+          const statusFillColor = rev.status === 'confirmed' ? '#28a745' : '#ffc107';
+          doc.fillColor(statusFillColor).text(statusLabel, x, y, { width: colWidths.status }).fillColor('#000');
+          x += colWidths.status;
+          
+          doc.text(createdText, x, y, { width: colWidths.created });
+          x += colWidths.created;
+          doc.text(confirmedText, x, y, { width: colWidths.confirmed });
+
+          y += 18;
+        }
+
+        // Unlock History Section
+        if (reportData.unlockHistory && reportData.unlockHistory.length > 0) {
+          y += 20;
+          
+          if (y > 600) {
+            doc.addPage();
+            pageNum++;
+            addPageHeader(pageNum);
+            y = 70;
+          }
+
+          doc
+            .fontSize(14)
+            .font('Helvetica-Bold')
+            .text(t.unlockHistory || 'Unlock History', 50, y)
+            .moveDown(0.5);
+
+          y = doc.y;
+
+          // Draw table header for unlock history
+          const unlockTableTop = y;
+          const unlockColWidths = {
+            date: 120,
+            reason: 150,
+            description: 220,
+          };
+
+          doc
+            .fontSize(9)
+            .font('Helvetica-Bold')
+            .fillColor('#000');
+
+          x = 50;
+          doc.text(t.unlocked || 'Unlocked', x, unlockTableTop, { width: unlockColWidths.date });
+          x += unlockColWidths.date;
+          doc.text(t.reason || 'Reason', x, unlockTableTop, { width: unlockColWidths.reason });
+          x += unlockColWidths.reason;
+          doc.text(t.description || 'Description', x, unlockTableTop, { width: unlockColWidths.description });
+
+          // Draw line under header
+          doc
+            .moveTo(50, unlockTableTop + 12)
+            .lineTo(490, unlockTableTop + 12)
+            .stroke();
+
+          y = unlockTableTop + 20;
+          doc.fontSize(9).font('Helvetica');
+
+          for (const unlock of reportData.unlockHistory) {
+            const unlockDate = new Date(unlock.unlockedAt);
+            const dateText = unlockDate.toLocaleDateString(locale);
+            const categoryMap: Record<string, string> = {
+              'data_error': t.unlockReasonDataError || 'Data Error',
+              'inventory_adjustment': t.unlockReasonInventoryAdjustment || 'Inventory Adjustment',
+              'missing_items': t.unlockReasonMissingItems || 'Missing Items',
+              'other': t.unlockReasonOther || 'Other',
+            };
+            const categoryText = categoryMap[unlock.reasonCategory] || unlock.reasonCategory;
+            const descText = unlock.description || '—';
+
+            // Calculate row height based on description text
+            const descHeight = doc.heightOfString(descText, { width: unlockColWidths.description });
+            const rowHeight = Math.max(descHeight, 15);
+
+            if (y + rowHeight > 720) {
+              doc.addPage();
+              pageNum++;
+              addPageHeader(pageNum);
+              y = 70;
+            }
+
+            x = 50;
+            doc.fillColor('#dc3545').text(dateText, x, y, { width: unlockColWidths.date }).fillColor('#000');
+            x += unlockColWidths.date;
+            doc.text(categoryText, x, y, { width: unlockColWidths.reason });
+            x += unlockColWidths.reason;
+            doc.fillColor('#666').text(descText, x, y, { width: unlockColWidths.description, height: rowHeight }).fillColor('#000');
+
+            y += rowHeight + 5;
+          }
+        }
+
+        doc.moveDown(1);
+      }
 
       // ============================================================
-      // PAGE 2+: DETAILED PRODUCT LIST
+      // PAGE 2: EXECUTIVE SUMMARY
       // ============================================================
       
       doc.addPage();
@@ -480,34 +740,397 @@ export const exportService = {
 
       doc.y = 50;
       doc
-        .fontSize(16)
+        .fontSize(14)
+        .font('Helvetica-Bold')
+        .text(t.executiveSummary, 50)
+        .moveDown(0.5);
+
+      // Calculate box height based on whether we have finished goods and multiple revisions
+      const hasFinishedGoods = reportData.finishedGoods && reportData.finishedGoods.items.length > 0;
+      const hasMultiRevisions = reportData.hasMultipleRevisions || false;
+      const summaryBoxHeight = hasMultiRevisions ? 260 : (hasFinishedGoods ? 195 : 120);
+
+      // Draw summary box
+      const summaryBoxY = doc.y;
+      doc
+        .rect(50, summaryBoxY, 700, summaryBoxHeight)
+        .fillAndStroke('#f8f9fa', '#dee2e6');
+
+      // Summary content
+      doc.fillColor('#000');
+      let summaryY = summaryBoxY + 15;
+      const leftCol = 70;
+      const midCol = 320;
+      const rightCol = 520;
+
+      if (hasMultiRevisions) {
+        // MULTI-REVISION SUMMARY
+        doc
+          .fontSize(11)
+          .font('Helvetica-Bold')
+          .text(`${t.totalProducts}:`, leftCol, summaryY, { lineBreak: false })
+          .font('Helvetica')
+          .text(reportData.items.length.toString(), leftCol + 150, summaryY, { lineBreak: false });
+
+        summaryY += 30;
+        
+        // Header row
+        doc
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text('Revision 1', leftCol + 150, summaryY, { lineBreak: false })
+          .text('Revision 2', midCol, summaryY, { lineBreak: false })
+          .text('Change', rightCol - 50, summaryY, { lineBreak: false });
+
+        summaryY += 20;
+        
+        // Calculate R1 and R2 totals from comparison data
+        let r1TotalExp = 0, r1TotalCount = 0, r1TotalVar = 0;
+        let r2TotalExp = 0, r2TotalCount = 0, r2TotalVar = 0;
+        
+        if (reportData.revisionComparison) {
+          reportData.revisionComparison.forEach((item: any) => {
+            const r1 = item.revisions[1] || {};
+            const r2 = item.revisions[2] || {};
+            r1TotalExp += r1.expectedQuantity || 0;
+            r1TotalCount += r1.countedQuantity || 0;
+            r1TotalVar += r1.variance || 0;
+            r2TotalExp += r2.expectedQuantity || 0;
+            r2TotalCount += r2.countedQuantity || 0;
+            r2TotalVar += r2.variance || 0;
+          });
+        }
+        
+        // Expected Quantity row
+        doc
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text(`${t.expectedQuantity}:`, leftCol, summaryY, { lineBreak: false })
+          .font('Helvetica')
+          .text(formatNumber(r1TotalExp), leftCol + 150, summaryY, { lineBreak: false })
+          .text(formatNumber(r2TotalExp), midCol, summaryY, { lineBreak: false });
+
+        summaryY += 18;
+        
+        // Counted Quantity row
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.countedQuantity}:`, leftCol, summaryY, { lineBreak: false })
+          .font('Helvetica')
+          .text(formatNumber(r1TotalCount), leftCol + 150, summaryY, { lineBreak: false })
+          .text(formatNumber(r2TotalCount), midCol, summaryY, { lineBreak: false });
+
+        summaryY += 18;
+        
+        // Total Variance row
+        const r1VarColor = r1TotalVar >= 0 ? '#28a745' : '#dc3545';
+        const r2VarColor = r2TotalVar >= 0 ? '#28a745' : '#dc3545';
+        const changeCount = r2TotalCount - r1TotalCount;
+        const changeColor = changeCount >= 0 ? '#28a745' : '#dc3545';
+        
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.totalVariance}:`, leftCol, summaryY, { lineBreak: false })
+          .font('Helvetica')
+          .fillColor(r1VarColor)
+          .text(`${r1TotalVar >= 0 ? '+' : ''}${formatNumber(r1TotalVar)}`, leftCol + 150, summaryY, { lineBreak: false })
+          .fillColor(r2VarColor)
+          .text(`${r2TotalVar >= 0 ? '+' : ''}${formatNumber(r2TotalVar)}`, midCol, summaryY, { lineBreak: false })
+          .fillColor(changeColor)
+          .text(`${changeCount >= 0 ? '+' : ''}${formatNumber(changeCount)}`, rightCol - 50, summaryY, { lineBreak: false })
+          .fillColor('#000');
+
+        summaryY += 18;
+        
+        // Total Value row
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.totalInventoryValue}:`, leftCol, summaryY, { lineBreak: false })
+          .font('Helvetica')
+          .fillColor('#0066cc')
+          .text(formatCurrency(reportData.totalValue), midCol, summaryY, { lineBreak: false })
+          .fillColor('#000');
+        
+        // Move cursor past the summary box
+        doc.y = summaryBoxY + summaryBoxHeight + 20;
+
+      } else {
+        // SINGLE REVISION SUMMARY (original format)
+        doc
+          .fontSize(11)
+          .font('Helvetica-Bold')
+          .text(`${t.totalProducts}:`, leftCol, summaryY)
+          .font('Helvetica')
+          .text(reportData.items.length.toString(), leftCol + 150, summaryY);
+
+        summaryY += 25;
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.expectedQuantity}:`, leftCol, summaryY)
+          .font('Helvetica')
+          .text(formatNumber(reportData.totalExpected), leftCol + 150, summaryY);
+
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.countedQuantity}:`, midCol, summaryY)
+          .font('Helvetica')
+          .text(formatNumber(reportData.totalCounted), midCol + 150, summaryY);
+
+        summaryY += 25;
+        const varianceColor = reportData.totalVariance >= 0 ? '#28a745' : '#dc3545';
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.totalVariance}:`, leftCol, summaryY)
+          .font('Helvetica')
+          .fillColor(varianceColor)
+          .text(
+            `${reportData.totalVariance >= 0 ? '+' : ''}${formatNumber(reportData.totalVariance)}`,
+            leftCol + 150,
+            summaryY
+          )
+          .fillColor('#000');
+
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.totalInventoryValue}:`, midCol, summaryY)
+          .font('Helvetica')
+          .fillColor('#0066cc')
+          .fontSize(12)
+          .text(formatCurrency(reportData.totalValue), midCol + 150, summaryY)
+          .fillColor('#000')
+          .fontSize(11);
+        
+        // Move cursor past the summary box
+        doc.y = summaryBoxY + summaryBoxHeight + 20;
+      }
+
+      // Finished Goods Section (if applicable)
+      if (hasFinishedGoods) {
+        summaryY += 30;
+        doc
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .fillColor('#666')
+          .text(`— ${t.finishedGoods} —`, leftCol, summaryY, { width: 415, align: 'center' })
+          .fillColor('#000')
+          .fontSize(11);
+
+        summaryY += 20;
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.totalFinishedGoods}:`, leftCol, summaryY)
+          .font('Helvetica')
+          .text(reportData.finishedGoods.items.length.toString(), leftCol + 150, summaryY);
+
+        doc
+          .font('Helvetica-Bold')
+          .text(`${t.totalFinishedGoodsValue}:`, rightCol, summaryY)
+          .font('Helvetica')
+          .fillColor('#0066cc')
+          .text(formatCurrency(reportData.finishedGoods.totalValue), rightCol + 150, summaryY)
+          .fillColor('#000');
+      }
+
+      // ============================================================
+      // DETAILED PRODUCT INVENTORY
+      // ============================================================
+
+      doc.addPage();
+      pageNum++;
+      addPageHeader(pageNum);
+
+      doc.y = 50;
+      doc
+        .fontSize(14)
         .font('Helvetica-Bold')
         .text(t.detailedProductInventory, 50)
         .moveDown(1);
 
-      // Table header
-      const tableTop = doc.y;
-      doc.fontSize(9).font('Helvetica-Bold');
-      
-      const cols = {
-        product: { x: 50, width: 140 },
-        expected: { x: 195, width: 55 },
-        counted: { x: 255, width: 55 },
-        variance: { x: 315, width: 60 },
-        value: { x: 380, width: 75 },
-      };
+      // Check if we should show multi-revision comparison
+      const hasMultipleRevisions = reportData.hasMultipleRevisions || false;
 
-      doc.text(t.product, cols.product.x, tableTop, { width: cols.product.width });
-      doc.text(t.expected, cols.expected.x, tableTop, { width: cols.expected.width, align: 'right' });
-      doc.text(t.counted, cols.counted.x, tableTop, { width: cols.counted.width, align: 'right' });
-      doc.text(t.variance, cols.variance.x, tableTop, { width: cols.variance.width, align: 'right' });
-      doc.text(t.valueFIFO, cols.value.x, tableTop, { width: cols.value.width, align: 'right' });
+      if (hasMultipleRevisions && reportData.revisionComparison) {
+        // MULTI-REVISION COMPARISON TABLE
+        // For 2 revisions, show: Product | R1 Exp | R1 Count | R1 Var | R2 Exp | R2 Count | R2 Var | Change | Value
+        const tableTop = doc.y;
+        doc.fontSize(8).font('Helvetica-Bold');
+        
+        const multiCols = {
+          product: { x: 50, width: 120 },
+          r1exp: { x: 175, width: 55 },
+          r1count: { x: 235, width: 55 },
+          r1var: { x: 295, width: 50 },
+          r2exp: { x: 350, width: 55 },
+          r2count: { x: 410, width: 55 },
+          r2var: { x: 470, width: 50 },
+          change: { x: 525, width: 50 },
+          value: { x: 580, width: 75 },
+        };
 
-      // Draw line under header
-      doc
-        .moveTo(50, tableTop + 12)
-        .lineTo(545, tableTop + 12)
-        .stroke();
+        doc.text(t.product, multiCols.product.x, tableTop, { width: multiCols.product.width, lineBreak: false });
+        doc.text('R1 ' + t.expected, multiCols.r1exp.x, tableTop, { width: multiCols.r1exp.width, align: 'right', lineBreak: false });
+        doc.text('R1 ' + t.counted, multiCols.r1count.x, tableTop, { width: multiCols.r1count.width, align: 'right', lineBreak: false });
+        doc.text('R1 ' + t.variance, multiCols.r1var.x, tableTop, { width: multiCols.r1var.width, align: 'right', lineBreak: false });
+        doc.text('R2 ' + t.expected, multiCols.r2exp.x, tableTop, { width: multiCols.r2exp.width, align: 'right', lineBreak: false });
+        doc.text('R2 ' + t.counted, multiCols.r2count.x, tableTop, { width: multiCols.r2count.width, align: 'right', lineBreak: false });
+        doc.text('R2 ' + t.variance, multiCols.r2var.x, tableTop, { width: multiCols.r2var.width, align: 'right', lineBreak: false });
+        doc.text(t.change, multiCols.change.x, tableTop, { width: multiCols.change.width, align: 'right', lineBreak: false });
+        doc.text(t.valueFIFO, multiCols.value.x, tableTop, { width: multiCols.value.width, align: 'right', lineBreak: false });
+
+        // Draw line under header
+        doc
+          .moveTo(50, tableTop + 12)
+          .lineTo(740, tableTop + 12)
+          .stroke();
+
+        // Table rows
+        doc.font('Helvetica').fontSize(7);
+        let y = tableTop + 20;
+
+        // Sort comparison items by product name
+        const sortedComparison = reportData.revisionComparison.sort((a: any, b: any) =>
+          a.productName.localeCompare(b.productName)
+        );
+
+        for (const item of sortedComparison) {
+          // Check if we need a new page (landscape A4 height is ~595, leave margin)
+          if (y > 520) {
+            doc.addPage();
+            pageNum++;
+            addPageHeader(pageNum);
+            y = 70;
+            
+            // Redraw table header
+            doc.fontSize(8).font('Helvetica-Bold');
+            doc.text(t.product, multiCols.product.x, y - 15, { width: multiCols.product.width, lineBreak: false });
+            doc.text('R1 ' + t.expected, multiCols.r1exp.x, y - 15, { width: multiCols.r1exp.width, align: 'right', lineBreak: false });
+            doc.text('R1 ' + t.counted, multiCols.r1count.x, y - 15, { width: multiCols.r1count.width, align: 'right', lineBreak: false });
+            doc.text('R1 ' + t.variance, multiCols.r1var.x, y - 15, { width: multiCols.r1var.width, align: 'right', lineBreak: false });
+            doc.text('R2 ' + t.expected, multiCols.r2exp.x, y - 15, { width: multiCols.r2exp.width, align: 'right', lineBreak: false });
+            doc.text('R2 ' + t.counted, multiCols.r2count.x, y - 15, { width: multiCols.r2count.width, align: 'right', lineBreak: false });
+            doc.text('R2 ' + t.variance, multiCols.r2var.x, y - 15, { width: multiCols.r2var.width, align: 'right', lineBreak: false });
+            doc.text(t.change, multiCols.change.x, y - 15, { width: multiCols.change.width, align: 'right', lineBreak: false });
+            doc.text(t.valueFIFO, multiCols.value.x, y - 15, { width: multiCols.value.width, align: 'right', lineBreak: false });
+            
+            doc
+              .moveTo(50, y - 3)
+              .lineTo(640, y - 3)
+              .stroke();
+              
+            doc.font('Helvetica').fontSize(7);
+            
+            // Explicitly reset doc.y to ensure cursor is in the right place
+            doc.y = y;
+          }
+
+          const productText = item.productName;
+          const rowHeight = 18; // Fixed row height for consistent layout
+          
+          // Save the y position before rendering
+          const rowY = y;
+
+          doc.text(productText, multiCols.product.x, rowY, { width: multiCols.product.width, lineBreak: false });
+          
+          // Revision 1 data
+          const r1 = item.revisions[1] || {};
+          doc.text(formatNumber(r1.expectedQuantity || 0), multiCols.r1exp.x, rowY, {
+            width: multiCols.r1exp.width,
+            align: 'right',
+            lineBreak: false,
+          });
+          doc.text(formatNumber(r1.countedQuantity || 0), multiCols.r1count.x, rowY, {
+            width: multiCols.r1count.width,
+            align: 'right',
+            lineBreak: false,
+          });
+          
+          // R1 Variance
+          const r1Var = (r1.variance !== undefined && r1.variance !== null) ? r1.variance : 0;
+          const r1VarColor = r1Var > 0 ? '#28a745' : (r1Var < 0 ? '#dc3545' : '#000');
+          doc.fillColor(r1VarColor);
+          doc.text(
+            `${r1Var >= 0 ? '+' : ''}${formatNumber(r1Var)}`,
+            multiCols.r1var.x,
+            rowY,
+            { width: multiCols.r1var.width, align: 'right', lineBreak: false }
+          );
+          doc.fillColor('#000');
+
+          // Revision 2 data
+          const r2 = item.revisions[2] || {};
+          doc.text(formatNumber(r2.expectedQuantity || 0), multiCols.r2exp.x, rowY, {
+            width: multiCols.r2exp.width,
+            align: 'right',
+            lineBreak: false,
+          });
+          doc.text(formatNumber(r2.countedQuantity || 0), multiCols.r2count.x, rowY, {
+            width: multiCols.r2count.width,
+            align: 'right',
+            lineBreak: false,
+          });
+
+          // R2 Variance
+          const r2Var = (r2.variance !== undefined && r2.variance !== null) ? r2.variance : 0;
+          const r2VarColor = r2Var > 0 ? '#28a745' : (r2Var < 0 ? '#dc3545' : '#000');
+          doc.fillColor(r2VarColor);
+          doc.text(
+            `${r2Var >= 0 ? '+' : ''}${formatNumber(r2Var)}`,
+            multiCols.r2var.x,
+            rowY,
+            { width: multiCols.r2var.width, align: 'right', lineBreak: false }
+          );
+          doc.fillColor('#000');
+
+          // Change (R2 counted - R1 counted)
+          const change = item.changes['1_to_2'] || 0;
+          const changeColor = change > 0 ? '#28a745' : (change < 0 ? '#dc3545' : '#000');
+          doc.fillColor(changeColor);
+          doc.text(
+            change !== 0 ? `${change >= 0 ? '+' : ''}${formatNumber(change)}` : '—',
+            multiCols.change.x,
+            rowY,
+            { width: multiCols.change.width, align: 'right', lineBreak: false }
+          );
+          doc.fillColor('#000');
+
+          // Value (FIFO) - use R2 value or R1 value as fallback
+          const valueAmount = (r2.value !== null && r2.value !== undefined) ? r2.value : (r1.value || 0);
+          doc.fillColor('#0066cc');
+          doc.text(formatCurrency(valueAmount), multiCols.value.x, rowY, {
+            width: multiCols.value.width,
+            align: 'right',
+            lineBreak: false,
+          });
+          doc.fillColor('#000');
+
+          // Manually increment y position
+          y = rowY + rowHeight;
+        }
+
+      } else {
+        // SINGLE REVISION TABLE (ORIGINAL FORMAT)
+        const tableTop = doc.y;
+        doc.fontSize(9).font('Helvetica-Bold');
+        
+        const cols = {
+          product: { x: 50, width: 200 },
+          expected: { x: 255, width: 80 },
+          counted: { x: 340, width: 80 },
+          variance: { x: 425, width: 80 },
+          value: { x: 510, width: 100 },
+        };
+
+        doc.text(t.product, cols.product.x, tableTop, { width: cols.product.width });
+        doc.text(t.expected, cols.expected.x, tableTop, { width: cols.expected.width, align: 'right' });
+        doc.text(t.counted, cols.counted.x, tableTop, { width: cols.counted.width, align: 'right' });
+        doc.text(t.variance, cols.variance.x, tableTop, { width: cols.variance.width, align: 'right' });
+        doc.text(t.valueFIFO, cols.value.x, tableTop, { width: cols.value.width, align: 'right' });
+
+        // Draw line under header
+        doc
+          .moveTo(50, tableTop + 12)
+          .lineTo(615, tableTop + 12)
+          .stroke();
 
       // Table rows
       doc.font('Helvetica').fontSize(8);
@@ -517,6 +1140,17 @@ export const exportService = {
       const sortedItems = reportData.items.sort((a: any, b: any) =>
         a.productName.localeCompare(b.productName)
       );
+
+      // Debug: Log first few items to console
+      if (sortedItems.length > 0) {
+        console.log('PDF Debug - First 3 items:', sortedItems.slice(0, 3).map((i: any) => ({
+          name: i.productName,
+          expected: i.expectedQuantity,
+          counted: i.countedQuantity,
+          expectedType: typeof i.expectedQuantity,
+          countedType: typeof i.countedQuantity
+        })));
+      }
 
       for (const item of sortedItems) {
         // Check if we need a new page
@@ -536,7 +1170,7 @@ export const exportService = {
           
           doc
             .moveTo(50, y - 3)
-            .lineTo(545, y - 3)
+            .lineTo(740, y - 3)
             .stroke();
             
           doc.font('Helvetica').fontSize(8);
@@ -596,30 +1230,182 @@ export const exportService = {
         doc
           .strokeColor('#e9ecef')
           .moveTo(50, y)
-          .lineTo(545, y)
+          .lineTo(740, y)
           .stroke()
           .strokeColor('#000');
 
         y += 2;
       }
+      } // End of single revision table (else block)
 
       // ============================================================
-      // FOOTER ON LAST PAGE
+      // FINISHED GOODS SECTION
+      // ============================================================
+      
+      if (reportData.finishedGoods && reportData.finishedGoods.items.length > 0) {
+        doc.addPage();
+        pageNum++;
+        addPageHeader(pageNum);
+
+        doc.y = 50;
+        doc
+          .fontSize(16)
+          .font('Helvetica-Bold')
+          .text(t.finishedGoodsSection, 50)
+          .moveDown(1);
+
+        // Table header
+        const fgTableTop = doc.y;
+        doc.fontSize(9).font('Helvetica-Bold');
+        
+        const fgCols = {
+          finishedGood: { x: 50, width: 140 },
+          expected: { x: 195, width: 55 },
+          counted: { x: 255, width: 55 },
+          variance: { x: 315, width: 60 },
+          unitCost: { x: 380, width: 75 },
+          value: { x: 460, width: 85 },
+        };
+
+        doc.text(t.finishedGood, fgCols.finishedGood.x, fgTableTop, { width: fgCols.finishedGood.width });
+        doc.text(t.expected, fgCols.expected.x, fgTableTop, { width: fgCols.expected.width, align: 'right' });
+        doc.text(t.counted, fgCols.counted.x, fgTableTop, { width: fgCols.counted.width, align: 'right' });
+        doc.text(t.variance, fgCols.variance.x, fgTableTop, { width: fgCols.variance.width, align: 'right' });
+        doc.text(t.materialCost, fgCols.unitCost.x, fgTableTop, { width: fgCols.unitCost.width, align: 'right' });
+        doc.text(t.valueFIFO, fgCols.value.x, fgTableTop, { width: fgCols.value.width, align: 'right' });
+
+        // Draw line under header
+        doc
+          .moveTo(50, fgTableTop + 12)
+          .lineTo(740, fgTableTop + 12)
+          .stroke();
+
+        // Table rows
+        doc.font('Helvetica').fontSize(8);
+        let fgY = fgTableTop + 20;
+
+        // Sort items by finished good name
+        const sortedFGItems = reportData.finishedGoods.items.sort((a: any, b: any) =>
+          a.finishedGoodName.localeCompare(b.finishedGoodName)
+        );
+
+        for (const item of sortedFGItems) {
+          // Check if we need a new page
+          if (fgY > 750) {
+            doc.addPage();
+            pageNum++;
+            addPageHeader(pageNum);
+            fgY = 70;
+            
+            // Redraw table header
+            doc.fontSize(9).font('Helvetica-Bold');
+            doc.text(t.finishedGood, fgCols.finishedGood.x, fgY - 15, { width: fgCols.finishedGood.width });
+            doc.text(t.expected, fgCols.expected.x, fgY - 15, { width: fgCols.expected.width, align: 'right' });
+            doc.text(t.counted, fgCols.counted.x, fgY - 15, { width: fgCols.counted.width, align: 'right' });
+            doc.text(t.variance, fgCols.variance.x, fgY - 15, { width: fgCols.variance.width, align: 'right' });
+            doc.text(t.materialCost, fgCols.unitCost.x, fgY - 15, { width: fgCols.unitCost.width, align: 'right' });
+            doc.text(t.valueFIFO, fgCols.value.x, fgY - 15, { width: fgCols.value.width, align: 'right' });
+            
+            doc
+              .moveTo(50, fgY - 3)
+              .lineTo(740, fgY - 3)
+              .stroke();
+              
+            doc.font('Helvetica').fontSize(8);
+          }
+
+          // Finished good name with unit
+          const fgText = item.unitName
+            ? `${item.finishedGoodName} (${item.unitName})`
+            : item.finishedGoodName;
+          
+          const fgRowHeight = Math.max(
+            doc.heightOfString(fgText, { width: fgCols.finishedGood.width }),
+            20
+          );
+
+          doc.text(fgText, fgCols.finishedGood.x, fgY, { width: fgCols.finishedGood.width });
+          doc.text(formatNumber(item.expectedQuantity), fgCols.expected.x, fgY, {
+            width: fgCols.expected.width,
+            align: 'right',
+          });
+
+          if (item.countedQuantity !== null) {
+            doc.text(formatNumber(item.countedQuantity), fgCols.counted.x, fgY, {
+              width: fgCols.counted.width,
+              align: 'right',
+            });
+
+            if (item.variance !== null) {
+              const varianceColor = item.variance >= 0 ? '#28a745' : '#dc3545';
+              doc.fillColor(varianceColor);
+              doc.text(
+                `${item.variance >= 0 ? '+' : ''}${formatNumber(item.variance)}`,
+                fgCols.variance.x,
+                fgY,
+                { width: fgCols.variance.width, align: 'right' }
+              );
+              doc.fillColor('#000');
+            }
+
+            doc.text(formatCurrency(item.materialCostPerUnit), fgCols.unitCost.x, fgY, {
+              width: fgCols.unitCost.width,
+              align: 'right',
+            });
+
+            if (item.totalValue !== null) {
+              doc.fillColor('#0066cc');
+              doc.text(formatCurrency(item.totalValue), fgCols.value.x, fgY, {
+                width: fgCols.value.width,
+                align: 'right',
+              });
+              doc.fillColor('#000');
+            }
+          } else {
+            doc.fillColor('#999');
+            doc.text(t.notCounted, fgCols.counted.x, fgY, { width: 150 });
+            doc.fillColor('#000');
+          }
+
+          fgY += fgRowHeight + 3;
+
+          // Draw separator line
+          doc
+            .strokeColor('#e9ecef')
+            .moveTo(50, fgY)
+            .lineTo(740, fgY)
+            .stroke()
+            .strokeColor('#000');
+
+          fgY += 2;
+        }
+      }
+
+      // ============================================================
+      // ============================================================
+      // FOOTER ON LAST PAGE (CENTERED VERTICALLY)
       // ============================================================
 
-      doc.moveDown(2);
+      // Move to center of page (landscape A4 height is ~595, center around 450)
+      const footerY = 450;
+      doc.y = footerY;
+      
       doc
         .fontSize(9)
         .fillColor('#666')
         .text(
           t.endOfReport,
-          { align: 'center' }
+          50,
+          footerY,
+          { align: 'center', width: 740 }
         )
         .moveDown(0.5)
         .fontSize(8)
         .text(
           t.autoGenerated,
-          { align: 'center' }
+          50,
+          doc.y,
+          { align: 'center', width: 740 }
         );
 
       if (reportData.status === 'confirmed') {
@@ -627,14 +1413,18 @@ export const exportService = {
           .fillColor('#28a745')
           .text(
             t.confirmedData,
-            { align: 'center' }
+            50,
+            doc.y + 5,
+            { align: 'center', width: 740 }
           );
       } else {
         doc
           .fillColor('#ffc107')
           .text(
             t.draftWarning,
-            { align: 'center' }
+            50,
+            doc.y + 5,
+            { align: 'center', width: 740 }
           );
       }
 

@@ -22,6 +22,8 @@ export interface DatabaseBackup {
     yearEndCountItems: any[];
     lockedYears: any[];
     yearUnlockAudits: any[];
+    finishedGoods: any[];
+    finishedGoodsCountItems: any[];
   };
 }
 
@@ -41,6 +43,8 @@ export interface ImportResult {
     yearEndCountItems: number;
     lockedYears: number;
     yearUnlockAudits: number;
+    finishedGoods: number;
+    finishedGoodsCountItems: number;
   };
   errors?: string[];
 }
@@ -84,6 +88,8 @@ export const createBackupService = (dbClient: PrismaClient = prisma) => ({
       yearEndCountItems,
       lockedYears,
       yearUnlockAudits,
+      finishedGoods,
+      finishedGoodsCountItems,
     ] = await Promise.all([
       dbClient.unit.findMany(),
       dbClient.supplier.findMany(),
@@ -95,13 +101,15 @@ export const createBackupService = (dbClient: PrismaClient = prisma) => ({
       dbClient.yearEndCountItem.findMany(),
       dbClient.lockedYear.findMany(),
       dbClient.yearUnlockAudit.findMany(),
+      dbClient.finishedGood.findMany(),
+      dbClient.finishedGoodsCountItem.findMany(),
     ]);
 
     // Create backup object
     const backup: DatabaseBackup = {
       version: '1.0',
       exportedAt: new Date().toISOString(),
-      schemaVersion: '20241228', // Current schema version
+      schemaVersion: '20260105', // Current schema version (updated for finished goods)
       data: {
         units,
         suppliers,
@@ -113,6 +121,8 @@ export const createBackupService = (dbClient: PrismaClient = prisma) => ({
         yearEndCountItems,
         lockedYears,
         yearUnlockAudits,
+        finishedGoods,
+        finishedGoodsCountItems,
       },
     };
 
@@ -158,6 +168,8 @@ export const createBackupService = (dbClient: PrismaClient = prisma) => ({
         'yearEndCountItems',
         'lockedYears',
         'yearUnlockAudits',
+        'finishedGoods',
+        'finishedGoodsCountItems',
       ];
 
       for (const table of requiredTables) {
@@ -217,6 +229,8 @@ export const createBackupService = (dbClient: PrismaClient = prisma) => ({
         yearEndCountItems: 0,
         lockedYears: 0,
         yearUnlockAudits: 0,
+        finishedGoods: 0,
+        finishedGoodsCountItems: 0,
       };
 
       if (backup.data.units.length > 0) {
@@ -267,6 +281,16 @@ export const createBackupService = (dbClient: PrismaClient = prisma) => ({
       if (backup.data.yearUnlockAudits.length > 0) {
         await tx.yearUnlockAudit.createMany({ data: backup.data.yearUnlockAudits });
         imported.yearUnlockAudits = backup.data.yearUnlockAudits.length;
+      }
+
+      if (backup.data.finishedGoods && backup.data.finishedGoods.length > 0) {
+        await tx.finishedGood.createMany({ data: backup.data.finishedGoods });
+        imported.finishedGoods = backup.data.finishedGoods.length;
+      }
+
+      if (backup.data.finishedGoodsCountItems && backup.data.finishedGoodsCountItems.length > 0) {
+        await tx.finishedGoodsCountItem.createMany({ data: backup.data.finishedGoodsCountItems });
+        imported.finishedGoodsCountItems = backup.data.finishedGoodsCountItems.length;
       }
 
       return imported;

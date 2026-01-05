@@ -41,6 +41,7 @@
     "dashboard": "Dashboard",
     "suppliers": "Suppliers",
     "products": "Products",
+    "finishedGoods": "Finished Goods",
     "units": "Units",
     "purchases": "Purchases",
     "inventory": "Inventory",
@@ -185,6 +186,42 @@
       "noPurchases": "No purchase history available",
       "loadFailed": "Failed to load purchase history",
       "asOfToday": "As of today"
+    }
+  },
+  "finishedGoods": {
+    "title": "Finished Goods Management",
+    "addFinishedGood": "Add Finished Good",
+    "editFinishedGood": "Edit Finished Good",
+    "searchFinishedGoods": "Search finished goods...",
+    "createdSuccessfully": "Finished good created successfully",
+    "updatedSuccessfully": "Finished good updated successfully",
+    "disabledSuccessfully": "Finished good disabled successfully",
+    "enabledSuccessfully": "Finished good enabled successfully",
+    "form": {
+      "name": "Finished Good Name",
+      "namePlaceholder": "Enter finished good name",
+      "description": "Description",
+      "descriptionPlaceholder": "Enter description",
+      "unit": "Unit",
+      "selectUnit": "Select unit",
+      "materialCost": "Material Cost (excl. VAT)",
+      "materialCostPlaceholder": "Enter material cost per unit excluding VAT"
+    },
+    "table": {
+      "name": "Name",
+      "description": "Description",
+      "unit": "Unit",
+      "materialCost": "Material Cost (excl. VAT)",
+      "created": "Created"
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "unitRequired": "Unit is required",
+      "materialCostRequired": "Material cost must be a positive number"
+    },
+    "confirmations": {
+      "disable": "Are you sure you want to disable {name}? It will be hidden from dropdowns but historical data will remain.",
+      "enable": "Are you sure you want to enable {name}?"
     }
   },
   "units": {
@@ -364,14 +401,22 @@
     "clickToInitiate": "Click 'Initiate Count' to start counting for year {year}",
     "noCountForYear": "No year-end count exists for {year}",
     "initiateCount": "Initiate Count",
+    "initiateNewRevision": "Create New Revision",
     "confirmCount": "Confirm Count",
     "confirmLockYear": "Confirm & Lock Year",
     "draft": "Draft",
     "confirmedLocked": "Confirmed & Locked",
     "noCountInProgress": "No count in progress",
     "allProductsCounted": "All products counted",
+    "allItemsCounted": "All items counted (products and finished goods)",
+    "overallProgress": "Overall Progress",
+    "rawMaterials": "Raw Materials",
+    "finishedGoodsLabel": "Finished Goods",
+    "finishedGoodsSection": "Finished Goods",
+    "finishedGoods": "finished goods",
     "progress": "{counted} of {total} products counted",
     "productsNeedCounting": "{count} products still need counting",
+    "finishedGoodsNeedCounting": "{count} finished goods still need counting",
     "countSheet": "Count Sheet",
     "discardCount": "Discard",
     "refreshExpected": "Refresh Expected Quantities",
@@ -397,6 +442,7 @@
     "table": {
       "product": "Product",
       "productName": "Product Name",
+      "finishedGoodName": "Finished Good Name",
       "expected": "Expected Quantity",
       "expectedQuantity": "Expected Quantity",
       "counted": "Counted Quantity",
@@ -405,6 +451,8 @@
       "variance": "Variance",
       "value": "Value",
       "valueFIFO": "Value (FIFO)",
+      "totalValue": "Total Value",
+      "materialCost": "Material Cost (excl. VAT)",
       "unit": "Unit"
     },
     "summary": {
@@ -412,17 +460,23 @@
       "totalExpected": "Total Expected",
       "totalCounted": "Total Counted",
       "totalVariance": "Total Variance",
-      "totalValue": "Total Value"
+      "totalValue": "Total Value (Raw Materials)",
+      "finishedGoodsValue": "Finished Goods Value",
+      "combinedValue": "Combined Total Value"
     },
     "tooltips": {
       "expectedQuantity": "The calculated quantity based on FIFO (First-In-First-Out) from all purchases and previous counts. This is what the system expects you to have in stock.",
+      "expectedQuantityFG": "For finished goods, expected quantity is always 0 since they are manufactured, not purchased. Enter the actual counted quantity.",
       "actualCount": "Enter the physical count from your warehouse. This is what you actually have in stock after counting.",
       "variance": "The difference between what you counted and what was expected. Positive means you have more than expected, negative means less.",
       "valueFIFO": "The monetary value of this product based on FIFO cost accounting (using the cost of the oldest purchases first).",
+      "totalValueFG": "The total value of this finished good based on material cost (excl. VAT) per unit × counted quantity. Material costs exclude VAT for accurate cost accounting.",
       "totalExpected": "Sum of all expected quantities across all products based on purchase history and FIFO calculations.",
       "totalCounted": "Sum of all physically counted quantities across all products.",
       "totalVariance": "The total difference between counted and expected. Shows overall inventory accuracy.",
-      "totalValue": "Total inventory value calculated using FIFO method across all products."
+      "totalValue": "Total inventory value calculated using FIFO method across all products.",
+      "finishedGoodsValue": "Total value of finished goods inventory based on material costs (excl. VAT).",
+      "combinedValue": "Combined total value of raw materials (FIFO excl. VAT) and finished goods (material cost excl. VAT). All values exclude VAT."
     },
     "confirmDialog": {
       "header": "Confirm Year-End Count",
@@ -489,6 +543,7 @@
     },
     "messages": {
       "initiateSuccess": "Year-end count initiated for {year}",
+      "newRevisionSuccess": "New revision created for {year}. Previous counts have been copied - review and adjust as needed.",
       "initiateFailed": "Failed to initiate year-end count",
       "confirmSuccess": "Year-end count confirmed for {year}",
       "confirmFailed": "Failed to confirm year-end count",
@@ -496,6 +551,7 @@
       "alreadyExists": "Year-end count already exists for {year}",
       "enterAllCounts": "Please enter counted quantities for all products",
       "countUpdated": "Count updated for {productName}",
+      "finishedGoodCountUpdated": "Count updated for {name}",
       "incompleteCount": "{count} products still need counting. Please count all products before confirming.",
       "loadFailed": "Failed to load year-end count",
       "loadSheetFailed": "Failed to load count sheet",

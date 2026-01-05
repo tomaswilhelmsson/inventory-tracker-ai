@@ -242,6 +242,33 @@ router.put(
   }
 );
 
+// PUT /api/year-end-count/:id/finished-goods/:finishedGoodId - Update finished good count item
+router.put(
+  '/:id/finished-goods/:finishedGoodId',
+  [
+    param('id').isInt().withMessage('Invalid count ID'),
+    param('finishedGoodId').isInt().withMessage('Invalid finished good ID'),
+    body('countedQuantity').isFloat({ min: 0 }).withMessage('Counted quantity must be >= 0'),
+  ],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const countId = parseInt(req.params.id);
+      const finishedGoodId = parseInt(req.params.finishedGoodId);
+      const { countedQuantity } = req.body;
+
+      const updatedItem = await yearEndCountService.updateFinishedGoodCountItem(
+        countId,
+        finishedGoodId,
+        countedQuantity
+      );
+      res.json(updatedItem);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // GET /api/year-end-count/:id/variances - Calculate variances
 router.get(
   '/:id/variances',
@@ -251,6 +278,22 @@ router.get(
     try {
       const id = parseInt(req.params.id);
       const variances = await yearEndCountService.calculateVariances(id);
+      res.json(variances);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/year-end-count/:id/finished-goods-variances - Calculate finished goods variances
+router.get(
+  '/:id/finished-goods-variances',
+  [param('id').isInt().withMessage('Invalid count ID')],
+  validateRequest,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const variances = await yearEndCountService.calculateFinishedGoodsVariances(id);
       res.json(variances);
     } catch (error) {
       next(error);
@@ -306,8 +349,9 @@ router.get(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
+      const language = (req.query.lang as string) || 'en';
       const countSheet = await yearEndCountService.getCountSheet(id);
-      const pdfPath = await exportService.exportCountSheetPDF(countSheet);
+      const pdfPath = await exportService.exportCountSheetPDF(countSheet, language);
 
       res.download(pdfPath, `count-sheet-${countSheet.year}.pdf`, (err) => {
         // Clean up file after download
